@@ -17,9 +17,15 @@ function normalizeSystemPath(folder: string): string {
 
 /**
  * Build an {@link AgentRuntime} bound to the workspace `files` and the given
- * remote model providers. The system path defaults to `.settings`; tools
- * automatically receive a {@link FilesApi} view that hides the system subtree
- * (see ai-agent's `setSystemPath` and `buildToolsView`).
+ * model providers. The `providers` array may include remote `ProviderV3`
+ * instances (built by `createRemoteProvider`) and an optional local
+ * provider built by `createManagerProvider` for an activated WebLLM model.
+ * Each provider is registered via `runtime.addModelProvider(...)` in the
+ * order given.
+ *
+ * The system path defaults to `.settings`; tools automatically receive a
+ * {@link FilesApi} view that hides the system subtree (see ai-agent's
+ * `setSystemPath` and `buildToolsView`).
  */
 export async function wireRuntime(
   files: FilesApi,

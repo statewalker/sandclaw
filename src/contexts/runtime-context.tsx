@@ -1,4 +1,14 @@
+import {
+  createDefaultCatalog,
+  ModelManager,
+  ModelStateStore,
+  mergeCatalogs,
+} from "@statewalker/ai-agent/models";
 import type { Agent, AgentRuntime } from "@statewalker/ai-agent/runtime";
+import {
+  registerWebLLMProvider,
+  webllmCatalog,
+} from "@statewalker/ai-provider-browser";
 import type { FilesApi } from "@statewalker/webrun-files";
 import {
   createContext,
@@ -11,6 +21,8 @@ import {
   useState,
 } from "react";
 import { createRemoteProvider } from "@/services/create-remote-provider";
+import { webGpuAvailable } from "@/services/local-models/engine-detection";
+import { createManagerProvider } from "@/services/local-models/manager-provider";
 import {
   emptyProvidersConfig,
   findConfiguredProvider,
@@ -43,6 +55,9 @@ export type RuntimeState =
 
 interface RuntimeContextValue {
   state: RuntimeState;
+  /** ModelManager for local-model lifecycle. Always present, but its
+   * factories are only registered when WebGPU is available. */
+  manager: ModelManager;
   /** Persist a new providers config and rebuild the runtime. */
   saveProviders: (next: ProvidersConfig) => Promise<void>;
   /** Force a fresh build (e.g., after editing providers.json out-of-band). */
@@ -51,12 +66,23 @@ interface RuntimeContextValue {
   systemFolder: string;
 }
 
-const RuntimeContext = createContext<RuntimeContextValue | null>(null);
+export const RuntimeContext = createContext<RuntimeContextValue | null>(null);
 
 interface RuntimeProviderProps {
   children: ReactNode;
   files: FilesApi;
   systemFolder?: string;
+}
+
+function buildManager(files: FilesApi): ModelManager {
+  const baseCatalog = createDefaultCatalog();
+  const catalog = webGpuAvailable()
+    ? mergeCatalogs(baseCatalog, webllmCatalog)
+    : baseCatalog;
+  const store = new ModelStateStore(catalog);
+  const manager = new ModelManager({ store, files });
+  if (webGpuAvailable()) registerWebLLMProvider(manager);
+  return manager;
 }
 
 export function RuntimeProvider({
@@ -67,13 +93,23 @@ export function RuntimeProvider({
   const [state, setState] = useState<RuntimeState>({ status: "loading" });
   const generationRef = useRef(0);
 
+  // One ModelManager per workspace. Survives runtime rebuilds.
+  const managerRef = useRef<ModelManager | null>(null);
+  if (managerRef.current === null) {
+    managerRef.current = buildManager(files);
+  }
+  const manager = managerRef.current;
+
   const build = useCallback(
     async (config: ProvidersConfig): Promise<void> => {
       const generation = ++generationRef.current;
       setState({ status: "loading" });
 
       try {
-        if (listConfiguredProviders(config).length === 0) {
+        const isLocalActive = config.active.providerId === "local";
+        const hasRemote = listConfiguredProviders(config).length > 0;
+
+        if (!hasRemote && !isLocalActive) {
           if (generation === generationRef.current) {
             setState({ status: "no-providers", config });
           }
@@ -82,6 +118,41 @@ export function RuntimeProvider({
 
         const activeProviderId = config.active.providerId;
         const activeModelId = config.active.modelId;
+
+        // Local active path: the model must actually be loaded in the
+        // manager. We never auto-activate on load — if the model isn't
+        // ready, fall through to no-active-model so the user re-clicks
+        // Activate from the Local-models tab.
+        if (isLocalActive) {
+          if (!activeModelId || !manager.store.peekActiveModel(activeModelId)) {
+            if (generation === generationRef.current) {
+              setState({ status: "no-active-model", config });
+            }
+            return;
+          }
+          const provider = createManagerProvider(manager, activeModelId);
+          const runtime = await wireRuntime(files, [provider], {
+            systemFolder,
+          });
+          const agent = runtime.createAgent({
+            name: AGENT_NAME,
+            systemPrompt: DEFAULT_SYSTEM_PROMPT,
+            defaultModel: activeModelId,
+          });
+          if (generation === generationRef.current) {
+            setState({
+              status: "ready",
+              runtime,
+              agent,
+              activeProviderId: "local",
+              activeModelId,
+              config,
+            });
+          }
+          return;
+        }
+
+        // Remote active path.
         const activeProvider = findConfiguredProvider(config, activeProviderId);
         if (!activeProvider || !activeModelId) {
           if (generation === generationRef.current) {
@@ -119,7 +190,7 @@ export function RuntimeProvider({
         }
       }
     },
-    [files, systemFolder],
+    [files, systemFolder, manager],
   );
 
   // Initial mount: load providers and build the runtime.
@@ -144,6 +215,20 @@ export function RuntimeProvider({
     };
   }, [files, systemFolder, build]);
 
+  // Workspace tear-down: when `files` changes (or the provider unmounts),
+  // deactivate any active local model and drop the manager so the next
+  // workspace gets a fresh one.
+  useEffect(() => {
+    return () => {
+      const m = managerRef.current;
+      if (!m) return;
+      for (const [key, { status }] of m.store.getStates()) {
+        if (status === "ready") m.deactivate(key);
+      }
+      managerRef.current = null;
+    };
+  }, [files]);
+
   const saveProviders = useCallback(
     async (next: ProvidersConfig): Promise<void> => {
       await saveProvidersConfig(files, systemFolder, next);
@@ -158,8 +243,8 @@ export function RuntimeProvider({
   }, [files, systemFolder, build]);
 
   const value = useMemo<RuntimeContextValue>(
-    () => ({ state, saveProviders, reload, systemFolder }),
-    [state, saveProviders, reload, systemFolder],
+    () => ({ state, manager, saveProviders, reload, systemFolder }),
+    [state, manager, saveProviders, reload, systemFolder],
   );
 
   return (

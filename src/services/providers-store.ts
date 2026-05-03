@@ -4,7 +4,7 @@ import {
   writeText,
 } from "@statewalker/webrun-files";
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const PROVIDERS_FILENAME = "providers.json";
 
 /**
@@ -35,10 +35,21 @@ export interface ProvidersConfig {
   remote: Partial<Record<CanonicalProviderName, CanonicalCredentials>>;
   custom: CustomProvider[];
   active: {
-    /** Provider id: a `CanonicalProviderName` or a custom-provider `id`. */
+    /**
+     * Provider id: a `CanonicalProviderName`, a custom-provider `id`, or
+     * the literal string `"local"` for a WebLLM model.
+     */
     providerId?: string;
-    /** Model id for the active provider. */
+    /**
+     * Model id for the active provider. For `providerId === "local"` this
+     * is the WebLLM catalog key (e.g., `webllm:llama-3.2-3b`).
+     */
     modelId?: string;
+  };
+  /** Local model state (informational; does not auto-activate). */
+  local: {
+    /** Last activated catalog key — pre-selects the row in the UI. */
+    lastActivatedKey?: string;
   };
 }
 
@@ -47,6 +58,7 @@ export const emptyProvidersConfig: ProvidersConfig = {
   remote: {},
   custom: [],
   active: {},
+  local: {},
 };
 
 function configPath(systemFolder: string): string {
@@ -61,6 +73,13 @@ interface V1Config {
     { apiKey?: string; baseURL?: string | null } | undefined
   >;
   active?: { reasoning?: string };
+}
+
+interface V2Config {
+  schemaVersion: 2;
+  remote?: ProvidersConfig["remote"];
+  custom?: CustomProvider[];
+  active?: ProvidersConfig["active"];
 }
 
 function migrateFromV1(parsed: V1Config): ProvidersConfig {
@@ -89,6 +108,17 @@ function migrateFromV1(parsed: V1Config): ProvidersConfig {
     remote,
     custom,
     active: {},
+    local: {},
+  };
+}
+
+function migrateFromV2(parsed: V2Config): ProvidersConfig {
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    remote: parsed.remote ?? {},
+    custom: parsed.custom ?? [],
+    active: parsed.active ?? {},
+    local: {},
   };
 }
 
@@ -98,21 +128,42 @@ export async function loadProvidersConfig(
 ): Promise<ProvidersConfig> {
   const text = await tryReadText(files, configPath(systemFolder));
   if (text === undefined) {
-    return { ...emptyProvidersConfig, remote: {}, custom: [], active: {} };
+    return {
+      ...emptyProvidersConfig,
+      remote: {},
+      custom: [],
+      active: {},
+      local: {},
+    };
   }
   try {
-    const parsed = JSON.parse(text) as V1Config & Partial<ProvidersConfig>;
-    if ((parsed.schemaVersion ?? 1) < SCHEMA_VERSION) {
-      return migrateFromV1(parsed);
+    const parsed = JSON.parse(text) as {
+      schemaVersion?: number;
+      [key: string]: unknown;
+    };
+    const version: number = parsed.schemaVersion ?? 1;
+    if (version === 1) {
+      return migrateFromV1(parsed as V1Config);
     }
+    if (version === 2) {
+      return migrateFromV2(parsed as V2Config);
+    }
+    const v3 = parsed as Partial<ProvidersConfig>;
     return {
       schemaVersion: SCHEMA_VERSION,
-      remote: parsed.remote ?? {},
-      custom: parsed.custom ?? [],
-      active: parsed.active ?? {},
+      remote: v3.remote ?? {},
+      custom: v3.custom ?? [],
+      active: v3.active ?? {},
+      local: v3.local ?? {},
     };
   } catch {
-    return { ...emptyProvidersConfig, remote: {}, custom: [], active: {} };
+    return {
+      ...emptyProvidersConfig,
+      remote: {},
+      custom: [],
+      active: {},
+      local: {},
+    };
   }
 }
 
@@ -128,6 +179,7 @@ export async function saveProvidersConfig(
       remote: config.remote,
       custom: config.custom,
       active: config.active,
+      local: config.local,
     },
     null,
     2,

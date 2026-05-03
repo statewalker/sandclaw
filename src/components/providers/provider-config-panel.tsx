@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { LocalModelsTab } from "@/components/local-models/local-models-tab";
 import { ActiveModelPicker } from "@/components/providers/active-model-picker";
 import { CanonicalForm } from "@/components/providers/canonical-form";
 import { CustomProvidersList } from "@/components/providers/custom-providers-list";
@@ -42,20 +43,20 @@ export function ProviderConfigPanel(): React.ReactElement {
       name: CanonicalProviderName,
       credentials: CanonicalCredentials | null,
     ): Promise<void> => {
-      const next: ProvidersConfig = {
-        schemaVersion: 2,
-        remote: { ...config.remote },
-        custom: [...config.custom],
-        active: { ...config.active },
-      };
+      const nextRemote = { ...config.remote };
+      let nextActive = { ...config.active };
       if (credentials === null) {
-        delete next.remote[name];
+        delete nextRemote[name];
         // If the active provider was this one, clear it.
-        if (next.active.providerId === name) next.active = {};
+        if (nextActive.providerId === name) nextActive = {};
       } else {
-        next.remote[name] = credentials;
+        nextRemote[name] = credentials;
       }
-      await saveProviders(next);
+      await saveProviders({
+        ...config,
+        remote: nextRemote,
+        active: nextActive,
+      });
     },
     [config, saveProviders],
   );
@@ -67,27 +68,21 @@ export function ProviderConfigPanel(): React.ReactElement {
         idx >= 0
           ? config.custom.map((c, i) => (i === idx ? entry : c))
           : [...config.custom, entry];
-      const next: ProvidersConfig = {
-        schemaVersion: 2,
-        remote: { ...config.remote },
-        custom: nextCustom,
-        active: { ...config.active },
-      };
-      await saveProviders(next);
+      await saveProviders({ ...config, custom: nextCustom });
     },
     [config, saveProviders],
   );
 
   const removeCustom = useCallback(
     async (id: string): Promise<void> => {
-      const next: ProvidersConfig = {
-        schemaVersion: 2,
-        remote: { ...config.remote },
-        custom: config.custom.filter((c) => c.id !== id),
-        active: { ...config.active },
-      };
-      if (next.active.providerId === id) next.active = {};
-      await saveProviders(next);
+      const nextCustom = config.custom.filter((c) => c.id !== id);
+      const nextActive =
+        config.active.providerId === id ? {} : { ...config.active };
+      await saveProviders({
+        ...config,
+        custom: nextCustom,
+        active: nextActive,
+      });
     },
     [config, saveProviders],
   );
@@ -97,13 +92,7 @@ export function ProviderConfigPanel(): React.ReactElement {
       providerId: string | undefined,
       modelId: string | undefined,
     ): Promise<void> => {
-      const next: ProvidersConfig = {
-        schemaVersion: 2,
-        remote: { ...config.remote },
-        custom: [...config.custom],
-        active: { providerId, modelId },
-      };
-      await saveProviders(next);
+      await saveProviders({ ...config, active: { providerId, modelId } });
     },
     [config, saveProviders],
   );
@@ -146,6 +135,7 @@ export function ProviderConfigPanel(): React.ReactElement {
               <TabsTrigger value="openai-compatible">
                 OpenAI-compatible
               </TabsTrigger>
+              <TabsTrigger value="local">Local models</TabsTrigger>
             </TabsList>
             {CANONICAL_TABS.map((p) => (
               <TabsContent key={p.name} value={p.name}>
@@ -163,6 +153,17 @@ export function ProviderConfigPanel(): React.ReactElement {
                 onSave={upsertCustom}
                 onAdd={upsertCustom}
                 onDelete={removeCustom}
+              />
+            </TabsContent>
+            <TabsContent value="local">
+              <LocalModelsTab
+                onActivated={(catalogKey) =>
+                  saveProviders({
+                    ...config,
+                    active: { providerId: "local", modelId: catalogKey },
+                    local: { lastActivatedKey: catalogKey },
+                  })
+                }
               />
             </TabsContent>
           </Tabs>
