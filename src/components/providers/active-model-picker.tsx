@@ -174,9 +174,9 @@ export function ActiveModelPicker({
             ))}
             {localEntries.length > 0 ? (
               <SelectItem value={LOCAL_PROVIDER_ID}>
-                <span className="font-medium">Local (WebLLM)</span>
+                <span className="font-medium">Local</span>
                 <span className="ml-2 text-xs text-muted-foreground">
-                  Browser
+                  Browser (WebLLM / Transformers.js)
                 </span>
               </SelectItem>
             ) : null}

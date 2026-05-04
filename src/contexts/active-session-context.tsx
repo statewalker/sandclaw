@@ -1,4 +1,4 @@
-import type { Session } from "@statewalker/ai-agent/runtime";
+import type { Agent, Session } from "@statewalker/ai-agent/runtime";
 import {
   createContext,
   type ReactNode,
@@ -51,8 +51,11 @@ export function ActiveSessionProvider({
   const [error, setError] = useState<string | null>(null);
 
   // Sessions just created in memory but not yet saved to disk. The URL
-  // effect must NOT call `runtime.loadSession()` for these.
-  const localOnlyRef = useRef<Session | null>(null);
+  // effect must NOT call `runtime.loadSession()` for these. Tracks the
+  // `Agent` that created the session so we can replace it when the
+  // active model changes — otherwise the stale controller keeps its
+  // OLD provider+model and the chat sends to the previous model.
+  const localOnlyRef = useRef<{ session: Session; agent: Agent } | null>(null);
 
   const setParam = useCallback(
     (id: string | undefined) => {
@@ -80,8 +83,22 @@ export function ActiveSessionProvider({
     }
 
     const local = localOnlyRef.current;
-    if (local && local.id === sessionId) {
-      setSession(local);
+    if (local && local.session.id === sessionId) {
+      // Same agent → keep the in-memory session. Different agent
+      // (the user just switched models) → discard and create a fresh
+      // session bound to the new agent so its controller has the
+      // current provider + model. The old session never persisted
+      // (no turns yet), so no data is lost.
+      if (local.agent === state.agent) {
+        setSession(local.session);
+        setIsLoading(false);
+        setError(null);
+        return;
+      }
+      const fresh = state.agent.createSession();
+      localOnlyRef.current = { session: fresh, agent: state.agent };
+      setParam(fresh.id);
+      setSession(fresh);
       setIsLoading(false);
       setError(null);
       return;
@@ -122,7 +139,7 @@ export function ActiveSessionProvider({
   const createNew = useCallback(() => {
     if (state.status !== "ready") return;
     const fresh = state.agent.createSession();
-    localOnlyRef.current = fresh;
+    localOnlyRef.current = { session: fresh, agent: state.agent };
     setSession(fresh);
     setParam(fresh.id);
   }, [state, setParam]);

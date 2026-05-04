@@ -136,99 +136,105 @@ describe("LocalModelsTab", () => {
       });
     });
 
-    it("renders one row per local catalog entry with its status", () => {
+    it("hoists downloaded entries into a top-level Available section", () => {
       const fake = makeFakeManager({
-        "webllm:gemma-2-2b": {
+        "webllm:hermes": {
           config: {
             runtime: "local",
             engine: "webllm",
-            modelId: "mlc-ai/gemma-2-2b-it",
-            label: "Gemma 2-2B (WebGPU)",
-            family: "Gemma 2",
+            modelId: "mlc-ai/Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
+            label: "Hermes 3 Llama (WebGPU)",
+            family: "Hermes 3",
             dtype: "q4f16_1",
-            size: "1.5 GB",
+            size: "4.9 GB",
             sizeBytes: 1,
           },
-          status: "not-downloaded",
-        },
-      });
-      renderTab(fake);
-      expect(screen.getByText("Gemma 2-2B (WebGPU)")).toBeInTheDocument();
-      expect(screen.getByText("Not downloaded")).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /Download & Activate/i }),
-      ).toBeInTheDocument();
-    });
-
-    it("transitions row state when status updates fire from the manager", () => {
-      const fake = makeFakeManager({
-        "webllm:gemma-2-2b": {
-          config: {
-            runtime: "local",
-            engine: "webllm",
-            modelId: "mlc-ai/gemma-2-2b-it",
-            label: "Gemma 2-2B (WebGPU)",
-            family: "Gemma 2",
-            dtype: "q4f16_1",
-            size: "1.5 GB",
-            sizeBytes: 1,
-          },
-          status: "not-downloaded",
-        },
-      });
-      renderTab(fake);
-      expect(screen.getByText("Not downloaded")).toBeInTheDocument();
-
-      act(() => {
-        const config = fake.manager.store.catalog["webllm:gemma-2-2b"];
-        if (!config) throw new Error("missing test catalog entry");
-        fake.setState("webllm:gemma-2-2b", {
-          config,
           status: "downloaded",
-        });
+        },
       });
+      renderTab(fake);
+      expect(screen.getByText("Available")).toBeInTheDocument();
+      expect(screen.getByText("Hermes 3 Llama (WebGPU)")).toBeInTheDocument();
       expect(screen.getByText("Downloaded")).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: /^Activate$/i }),
       ).toBeInTheDocument();
     });
 
-    it("puts Gemma rows at the top and non-Gemma rows in a collapsed group", () => {
+    it("transitions an entry from a per-engine accordion into Available when its status changes", () => {
       const fake = makeFakeManager({
-        "webllm:gemma-2-2b": {
+        "webllm:hermes": {
           config: {
             runtime: "local",
             engine: "webllm",
-            modelId: "mlc-ai/gemma-2-2b-it",
-            label: "Gemma 2-2B",
-            family: "Gemma 2",
+            modelId: "mlc-ai/Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
+            label: "Hermes 3 Llama (WebGPU)",
+            family: "Hermes 3",
             dtype: "q4f16_1",
-            size: "1.5 GB",
-            sizeBytes: 1,
-          },
-          status: "not-downloaded",
-        },
-        "webllm:llama-3.2-1b": {
-          config: {
-            runtime: "local",
-            engine: "webllm",
-            modelId: "mlc-ai/Llama-3.2-1B",
-            label: "Llama 3.2-1B",
-            family: "Llama 3.2",
-            dtype: "q4f16_1",
-            size: "880 MB",
+            size: "4.9 GB",
             sizeBytes: 1,
           },
           status: "not-downloaded",
         },
       });
       renderTab(fake);
-      // Gemma is rendered visibly outside the collapsible.
-      expect(screen.getByText("Gemma 2-2B")).toBeVisible();
-      // The collapsible trigger announces the count of other models;
-      // Llama itself isn't in the DOM until the user opens it.
-      expect(screen.getByText(/Other models \(1\)/)).toBeInTheDocument();
-      expect(screen.queryByText("Llama 3.2-1B")).not.toBeInTheDocument();
+      // Not-downloaded entries live inside the closed WebLLM accordion.
+      expect(screen.getByText(/WebLLM models \(1\)/)).toBeInTheDocument();
+      expect(screen.queryByText("Available")).not.toBeInTheDocument();
+
+      act(() => {
+        const config = fake.manager.store.catalog["webllm:hermes"];
+        if (!config) throw new Error("missing test catalog entry");
+        fake.setState("webllm:hermes", {
+          config,
+          status: "downloaded",
+        });
+      });
+      expect(screen.getByText("Available")).toBeInTheDocument();
+      expect(screen.getByText("Hermes 3 Llama (WebGPU)")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /^Activate$/i }),
+      ).toBeInTheDocument();
+    });
+
+    it("groups not-downloaded entries by engine in separate accordions", () => {
+      const fake = makeFakeManager({
+        "webllm:hermes": {
+          config: {
+            runtime: "local",
+            engine: "webllm",
+            modelId: "mlc-ai/Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
+            label: "Hermes 3 Llama",
+            family: "Hermes 3",
+            dtype: "q4f16_1",
+            size: "4.9 GB",
+            sizeBytes: 1,
+          },
+          status: "not-downloaded",
+        },
+        "local:smollm2-360m": {
+          config: {
+            runtime: "local",
+            engine: "tjs",
+            modelId: "onnx-community/SmolLM2-360M-Instruct-ONNX",
+            label: "SmolLM2-360M",
+            family: "SmolLM2",
+            dtype: "q4f16",
+            size: "260 MB",
+            sizeBytes: 1,
+          },
+          status: "not-downloaded",
+        },
+      });
+      renderTab(fake);
+      expect(screen.getByText(/WebLLM models \(1\)/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Transformers\.js models \(1\)/),
+      ).toBeInTheDocument();
+      // Both accordions are closed by default — neither entry's label
+      // is visible in the DOM.
+      expect(screen.queryByText("Hermes 3 Llama")).not.toBeInTheDocument();
+      expect(screen.queryByText("SmolLM2-360M")).not.toBeInTheDocument();
     });
   });
 });

@@ -4,6 +4,17 @@ import type {
   ModelStatus,
 } from "@statewalker/ai-agent/models";
 import { Loader2, Trash2 } from "lucide-react";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 
 export interface LocalModelRowProps {
@@ -77,6 +88,7 @@ export function LocalModelRow({
         ? "Activate"
         : "Download & Activate";
   const label = statusLabel(status, isActive, activatingProgress);
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   return (
     <div className="flex flex-col gap-2 rounded-md border p-3">
@@ -148,12 +160,35 @@ export function LocalModelRow({
             size="sm"
             variant="ghost"
             className="ml-auto text-destructive"
-            onClick={() => onDelete(catalogKey)}
+            onClick={() => setConfirmRemove(true)}
           >
             <Trash2 /> Remove weights
           </Button>
         ) : null}
       </div>
+
+      <AlertDialog open={confirmRemove} onOpenChange={setConfirmRemove}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove weights?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete the downloaded weights for <strong>{config.label}</strong>{" "}
+              from this workspace. The next activation will re-download
+              everything from HuggingFace ({config.size ?? "size unknown"}
+              ).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => onDelete(catalogKey)}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
