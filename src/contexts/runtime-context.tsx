@@ -198,6 +198,12 @@ export function RuntimeProvider({
     let cancelled = false;
     (async () => {
       try {
+        // Reconcile local-model status against engine-owned caches
+        // (e.g. WebLLM IDB) so previously-downloaded models surface as
+        // `downloaded` instead of `not-downloaded` after a reload.
+        manager.refreshLocalStatuses().catch(() => {
+          /* best-effort */
+        });
         const config = await loadProvidersConfig(files, systemFolder);
         if (cancelled) return;
         await build(config);

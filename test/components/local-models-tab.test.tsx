@@ -138,22 +138,22 @@ describe("LocalModelsTab", () => {
 
     it("renders one row per local catalog entry with its status", () => {
       const fake = makeFakeManager({
-        "webllm:llama-3.2-1b": {
+        "webllm:gemma-2-2b": {
           config: {
             runtime: "local",
             engine: "webllm",
-            modelId: "mlc-ai/Llama-3.2-1B",
-            label: "Llama 3.2-1B (WebGPU)",
-            family: "Llama 3.2",
+            modelId: "mlc-ai/gemma-2-2b-it",
+            label: "Gemma 2-2B (WebGPU)",
+            family: "Gemma 2",
             dtype: "q4f16_1",
-            size: "880 MB",
+            size: "1.5 GB",
             sizeBytes: 1,
           },
           status: "not-downloaded",
         },
       });
       renderTab(fake);
-      expect(screen.getByText("Llama 3.2-1B (WebGPU)")).toBeInTheDocument();
+      expect(screen.getByText("Gemma 2-2B (WebGPU)")).toBeInTheDocument();
       expect(screen.getByText("Not downloaded")).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: /Download & Activate/i }),
@@ -162,15 +162,15 @@ describe("LocalModelsTab", () => {
 
     it("transitions row state when status updates fire from the manager", () => {
       const fake = makeFakeManager({
-        "webllm:llama-3.2-1b": {
+        "webllm:gemma-2-2b": {
           config: {
             runtime: "local",
             engine: "webllm",
-            modelId: "mlc-ai/Llama-3.2-1B",
-            label: "Llama 3.2-1B (WebGPU)",
-            family: "Llama 3.2",
+            modelId: "mlc-ai/gemma-2-2b-it",
+            label: "Gemma 2-2B (WebGPU)",
+            family: "Gemma 2",
             dtype: "q4f16_1",
-            size: "880 MB",
+            size: "1.5 GB",
             sizeBytes: 1,
           },
           status: "not-downloaded",
@@ -180,9 +180,9 @@ describe("LocalModelsTab", () => {
       expect(screen.getByText("Not downloaded")).toBeInTheDocument();
 
       act(() => {
-        const config = fake.manager.store.catalog["webllm:llama-3.2-1b"];
+        const config = fake.manager.store.catalog["webllm:gemma-2-2b"];
         if (!config) throw new Error("missing test catalog entry");
-        fake.setState("webllm:llama-3.2-1b", {
+        fake.setState("webllm:gemma-2-2b", {
           config,
           status: "downloaded",
         });
@@ -191,6 +191,44 @@ describe("LocalModelsTab", () => {
       expect(
         screen.getByRole("button", { name: /^Activate$/i }),
       ).toBeInTheDocument();
+    });
+
+    it("puts Gemma rows at the top and non-Gemma rows in a collapsed group", () => {
+      const fake = makeFakeManager({
+        "webllm:gemma-2-2b": {
+          config: {
+            runtime: "local",
+            engine: "webllm",
+            modelId: "mlc-ai/gemma-2-2b-it",
+            label: "Gemma 2-2B",
+            family: "Gemma 2",
+            dtype: "q4f16_1",
+            size: "1.5 GB",
+            sizeBytes: 1,
+          },
+          status: "not-downloaded",
+        },
+        "webllm:llama-3.2-1b": {
+          config: {
+            runtime: "local",
+            engine: "webllm",
+            modelId: "mlc-ai/Llama-3.2-1B",
+            label: "Llama 3.2-1B",
+            family: "Llama 3.2",
+            dtype: "q4f16_1",
+            size: "880 MB",
+            sizeBytes: 1,
+          },
+          status: "not-downloaded",
+        },
+      });
+      renderTab(fake);
+      // Gemma is rendered visibly outside the collapsible.
+      expect(screen.getByText("Gemma 2-2B")).toBeVisible();
+      // The collapsible trigger announces the count of other models;
+      // Llama itself isn't in the DOM until the user opens it.
+      expect(screen.getByText(/Other models \(1\)/)).toBeInTheDocument();
+      expect(screen.queryByText("Llama 3.2-1B")).not.toBeInTheDocument();
     });
   });
 });

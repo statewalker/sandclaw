@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -61,6 +61,7 @@ function CustomProviderForm({
 
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [reveal, setReveal] = useState(false);
 
   const onSubmit = handleSubmit(async (values) => {
     setTestResult(null);
@@ -120,13 +121,31 @@ function CustomProviderForm({
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`${initial.id}-apiKey`}>API key</Label>
-            <Input
-              id={`${initial.id}-apiKey`}
-              type="password"
-              autoComplete="off"
-              spellCheck={false}
-              {...register("apiKey")}
-            />
+            <div className="relative">
+              <Input
+                id={`${initial.id}-apiKey`}
+                type={reveal ? "text" : "password"}
+                autoComplete="new-password"
+                data-1p-ignore
+                data-lpignore="true"
+                data-form-type="other"
+                spellCheck={false}
+                {...register("apiKey")}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setReveal((v) => !v)}
+                aria-label={reveal ? "Hide API key" : "Show API key"}
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+              >
+                {reveal ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
             {errors.apiKey ? (
               <p className="text-xs text-destructive">
                 {errors.apiKey.message}
