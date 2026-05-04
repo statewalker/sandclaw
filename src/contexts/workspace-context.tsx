@@ -1,3 +1,4 @@
+import { createDefaultCatalog } from "@statewalker/ai-agent/models";
 import {
   propagateFilesHandle,
   registerWebLLMUrlMapping,
@@ -27,6 +28,7 @@ import {
 } from "@/services/handle-store";
 
 const WEBLLM_BASE_PATH = "/.settings/models/webllm";
+const TJS_BASE_PATH = "/.settings/models/tjs";
 const HF_PREFIX = "https://huggingface.co/";
 
 /** Hand the workspace's directory handle to the WebLLM weight-bridge SW
@@ -48,7 +50,10 @@ async function bootstrapWeightBridge(
   try {
     await navigator.serviceWorker.ready;
     await propagateFilesHandle(handle);
-    // Pre-register a URL mapping for every WebLLM model in the catalog.
+    // Pre-register a URL mapping for every local model in the catalog.
+    // WebLLM and transformers.js both fetch from
+    // `huggingface.co/<modelId>/resolve/main/`, so the SW handles both
+    // engines uniformly — only the on-disk basePath differs.
     for (const config of Object.values(webllmCatalog)) {
       const modelUrl = config.modelId.startsWith("http")
         ? config.modelId.endsWith("/")
@@ -58,6 +63,14 @@ async function bootstrapWeightBridge(
       await registerWebLLMUrlMapping(
         modelUrl,
         `${WEBLLM_BASE_PATH}/${config.modelId}/`,
+      );
+    }
+    for (const config of Object.values(createDefaultCatalog())) {
+      if (config.runtime !== "local" || config.engine !== "tjs") continue;
+      const modelUrl = `${HF_PREFIX}${config.modelId}/resolve/main/`;
+      await registerWebLLMUrlMapping(
+        modelUrl,
+        `${TJS_BASE_PATH}/${config.modelId}/`,
       );
     }
   } catch {

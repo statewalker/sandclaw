@@ -6,6 +6,7 @@ import {
 } from "@statewalker/ai-agent/models";
 import type { Agent, AgentRuntime } from "@statewalker/ai-agent/runtime";
 import {
+  registerTransformersProvider,
   registerWebLLMProvider,
   webllmCatalog,
 } from "@statewalker/ai-provider-browser";
@@ -94,6 +95,11 @@ function buildManager(files: FilesApi, systemFolder: string): ModelManager {
       basePath: `${modelStoragePath}/webllm`,
     });
   }
+  // transformers.js works on both WebGPU and WASM, so register
+  // unconditionally — it falls back to WASM when WebGPU is missing.
+  registerTransformersProvider(manager, {
+    basePath: `${modelStoragePath}/tjs`,
+  });
   return manager;
 }
 
