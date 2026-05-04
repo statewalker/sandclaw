@@ -1,3 +1,4 @@
+import { propagateFilesHandle } from "@statewalker/ai-provider-browser";
 import type { FilesApi } from "@statewalker/webrun-files";
 import {
   createContext,
@@ -20,6 +21,22 @@ import {
   getStoredHandle,
   setStoredHandle,
 } from "@/services/handle-store";
+
+/** Hand the workspace's directory handle to the WebLLM weight-bridge SW
+ *  so it can read / tee weight files. Awaits `serviceWorker.ready` so the
+ *  postMessage isn't dropped before the SW installs. Best-effort — a
+ *  failure here just disables FilesApi-backed weight persistence. */
+async function bootstrapWeightBridge(
+  handle: FileSystemDirectoryHandle,
+): Promise<void> {
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    await navigator.serviceWorker.ready;
+    await propagateFilesHandle(handle);
+  } catch {
+    /* SW unavailable — WebLLM still works via IDB cache. */
+  }
+}
 
 export type WorkspaceState =
   | { status: "loading" }
@@ -56,6 +73,7 @@ export function WorkspaceProvider({
   const adoptHandle = useCallback((handle: FileSystemDirectoryHandle) => {
     const filesApi = createBrowserFilesApi(handle);
     setState({ status: "ready", handle, filesApi, label: handle.name });
+    void bootstrapWeightBridge(handle);
   }, []);
 
   // Initial mount: try to silently restore a stored handle.

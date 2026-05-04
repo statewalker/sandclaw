@@ -74,14 +74,26 @@ interface RuntimeProviderProps {
   systemFolder?: string;
 }
 
-function buildManager(files: FilesApi): ModelManager {
+function normalizeFolder(folder: string): string {
+  const trimmed = folder.replace(/^\/+|\/+$/g, "");
+  return `/${trimmed}`;
+}
+
+function buildManager(files: FilesApi, systemFolder: string): ModelManager {
   const baseCatalog = createDefaultCatalog();
   const catalog = webGpuAvailable()
     ? mergeCatalogs(baseCatalog, webllmCatalog)
     : baseCatalog;
   const store = new ModelStateStore(catalog);
-  const manager = new ModelManager({ store, files });
-  if (webGpuAvailable()) registerWebLLMProvider(manager);
+  // Persist weights under `<systemFolder>/models` so they sit alongside
+  // sessions and providers.json instead of polluting the workspace root.
+  const modelStoragePath = `${normalizeFolder(systemFolder)}/models`;
+  const manager = new ModelManager({ store, files, modelStoragePath });
+  if (webGpuAvailable()) {
+    registerWebLLMProvider(manager, {
+      basePath: `${modelStoragePath}/webllm`,
+    });
+  }
   return manager;
 }
 
@@ -96,7 +108,7 @@ export function RuntimeProvider({
   // One ModelManager per workspace. Survives runtime rebuilds.
   const managerRef = useRef<ModelManager | null>(null);
   if (managerRef.current === null) {
-    managerRef.current = buildManager(files);
+    managerRef.current = buildManager(files, systemFolder);
   }
   const manager = managerRef.current;
 
