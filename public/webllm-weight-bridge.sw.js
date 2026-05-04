@@ -126,28 +126,35 @@ async function getOrCreateFile(relativePath) {
   }
 }
 
+/**
+ * Fetch the request from the network, return the response immediately,
+ * and tee a clone to disk. Returns `{ response, writePromise }` where
+ * the caller MUST pass `writePromise` to `event.waitUntil(...)` so the
+ * SW stays alive long enough for the persist to complete — without
+ * that, the SW can be terminated mid-write between fetch events,
+ * leaving partial files on disk.
+ */
 async function fetchAndTee(request, relativePath) {
   const response = await fetch(request);
-  if (!response.ok || !response.body || !rootHandle) return response;
+  if (!response.ok || !response.body || !rootHandle) {
+    return { response, writePromise: Promise.resolve() };
+  }
   // Range responses are partial — don't write-through, that would
   // produce a corrupt file. Subsequent full requests will populate.
-  if (response.status === 206) return response;
-  // Use `response.clone()` rather than `response.body.tee()` so the
-  // response object returned to the caller carries the original status,
-  // headers, *and* `url` field unchanged. Browsers internally tee the
-  // stream — both branches can be consumed independently.
+  if (response.status === 206) {
+    return { response, writePromise: Promise.resolve() };
+  }
+  // `response.clone()` preserves the original `url`, status, and
+  // headers — important because WebLLM keys its Cache API by request
+  // URL and a synthesized response would lose `response.url`.
   const cloned = response.clone();
-  // Background write — don't block the caller. We read the cloned
-  // body fully to a Blob then persist it; this avoids long-lived stream
-  // pipes that can keep the SW alive past the natural fetch lifetime.
-  cloned
+  const writePromise = cloned
     .blob()
     .then((blob) => writeBlobToFile(blob, relativePath))
     .catch((error) => {
-      // eslint-disable-next-line no-console
       console.warn("[weight-bridge] write failed:", relativePath, error);
     });
-  return response;
+  return { response, writePromise };
 }
 
 async function writeBlobToFile(blob, relativePath) {
@@ -172,7 +179,12 @@ async function writeBlobToFile(blob, relativePath) {
   }
 }
 
-async function serveFromFiles(request, mapping, remainder) {
+/**
+ * Returns `{ response, writePromise }`. `response` always resolves
+ * immediately; `writePromise` is a noop unless this fetch needs to
+ * persist bytes to FilesApi.
+ */
+async function handleFetch(request, mapping, remainder) {
   const relativePath = `${mapping.basePath}${remainder}`;
   const fileHandle = await resolveFile(relativePath);
   if (!fileHandle) {
@@ -182,26 +194,32 @@ async function serveFromFiles(request, mapping, remainder) {
   const range = parseRange(request.headers.get("range"), file.size);
   const contentType = contentTypeFor(remainder);
   if (!range) {
-    return new Response(file.stream(), {
-      status: 200,
-      headers: {
-        "content-length": String(file.size),
-        "content-type": contentType,
-        "accept-ranges": "bytes",
-      },
-    });
+    return {
+      response: new Response(file.stream(), {
+        status: 200,
+        headers: {
+          "content-length": String(file.size),
+          "content-type": contentType,
+          "accept-ranges": "bytes",
+        },
+      }),
+      writePromise: Promise.resolve(),
+    };
   }
   const slice = file.slice(range.start, range.end + 1);
   const length = range.end - range.start + 1;
-  return new Response(slice.stream(), {
-    status: 206,
-    headers: {
-      "content-length": String(length),
-      "content-type": contentType,
-      "content-range": `bytes ${range.start}-${range.end}/${file.size}`,
-      "accept-ranges": "bytes",
-    },
-  });
+  return {
+    response: new Response(slice.stream(), {
+      status: 206,
+      headers: {
+        "content-length": String(length),
+        "content-type": contentType,
+        "content-range": `bytes ${range.start}-${range.end}/${file.size}`,
+        "accept-ranges": "bytes",
+      },
+    }),
+    writePromise: Promise.resolve(),
+  };
 }
 
 self.addEventListener("fetch", (event) => {
@@ -209,9 +227,18 @@ self.addEventListener("fetch", (event) => {
   const url = event.request.url;
   const match = matchMapping(url);
   if (!match) return;
-  event.respondWith(
-    serveFromFiles(event.request, match.mapping, match.remainder).catch(() =>
-      fetch(event.request),
-    ),
+  const work = handleFetch(event.request, match.mapping, match.remainder).catch(
+    (error) => {
+      console.warn("[weight-bridge] fetch handler failed:", url, error);
+      return {
+        response: fetch(event.request),
+        writePromise: Promise.resolve(),
+      };
+    },
   );
+  event.respondWith(work.then((w) => w.response));
+  // Keep the SW alive until the disk write finishes; without this the
+  // browser can terminate the SW between fetch events, leaving the
+  // background write incomplete and producing a partial file on disk.
+  event.waitUntil(work.then((w) => w.writePromise));
 });

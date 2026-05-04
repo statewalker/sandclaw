@@ -100,18 +100,31 @@ export function LocalModelRow({
         </div>
       </div>
 
-      {activatingProgress &&
-      activatingProgress.progress != null &&
-      (activatingProgress.phase === "downloading" ||
-        activatingProgress.phase === "loading") ? (
+      {activatingProgress ? (
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full bg-primary transition-all"
-            style={{
-              width: `${Math.round(activatingProgress.progress * 100)}%`,
-            }}
-          />
+          {activatingProgress.progress != null &&
+          activatingProgress.progress > 0 &&
+          activatingProgress.progress < 1 ? (
+            <div
+              className="h-full bg-primary transition-all"
+              style={{
+                width: `${Math.round(activatingProgress.progress * 100)}%`,
+              }}
+            />
+          ) : (
+            // Indeterminate striped animation for phases without a
+            // numeric progress (`checking`, `verifying`, `warming`, or
+            // a freshly-yielded `loading 0%`). Compilation after
+            // downloads can take 30–60s for a 2B model and WebLLM does
+            // not fire progress events during it — show *something*.
+            <div className="h-full w-full animate-pulse bg-primary/60" />
+          )}
         </div>
+      ) : null}
+      {activatingProgress?.message ? (
+        <p className="text-xs text-muted-foreground truncate">
+          {activatingProgress.message}
+        </p>
       ) : null}
 
       {error ? (
