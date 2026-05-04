@@ -1,4 +1,8 @@
-import { propagateFilesHandle } from "@statewalker/ai-provider-browser";
+import {
+  propagateFilesHandle,
+  registerWebLLMUrlMapping,
+  webllmCatalog,
+} from "@statewalker/ai-provider-browser";
 import type { FilesApi } from "@statewalker/webrun-files";
 import {
   createContext,
@@ -22,10 +26,21 @@ import {
   setStoredHandle,
 } from "@/services/handle-store";
 
+const WEBLLM_BASE_PATH = "/.settings/models/webllm";
+const HF_PREFIX = "https://huggingface.co/";
+
 /** Hand the workspace's directory handle to the WebLLM weight-bridge SW
- *  so it can read / tee weight files. Awaits `serviceWorker.ready` so the
- *  postMessage isn't dropped before the SW installs. Best-effort — a
- *  failure here just disables FilesApi-backed weight persistence. */
+ *  AND pre-register URL mappings for every entry in `webllmCatalog`.
+ *
+ *  Pre-registration matters: without it the URL mapping is only
+ *  registered just before `engine.reload(...)`, and that postMessage
+ *  is async — the very first fetch from `engine.reload` can race with
+ *  the SW message processing and get served straight from the network,
+ *  bypassing FilesApi entirely. Pre-registering all catalog entries at
+ *  bootstrap closes that race for free.
+ *
+ *  Best-effort — a failure here just disables FilesApi-backed weight
+ *  persistence; WebLLM still works via its Cache API. */
 async function bootstrapWeightBridge(
   handle: FileSystemDirectoryHandle,
 ): Promise<void> {
@@ -33,8 +48,20 @@ async function bootstrapWeightBridge(
   try {
     await navigator.serviceWorker.ready;
     await propagateFilesHandle(handle);
+    // Pre-register a URL mapping for every WebLLM model in the catalog.
+    for (const config of Object.values(webllmCatalog)) {
+      const modelUrl = config.modelId.startsWith("http")
+        ? config.modelId.endsWith("/")
+          ? config.modelId
+          : `${config.modelId}/`
+        : `${HF_PREFIX}${config.modelId}/resolve/main/`;
+      await registerWebLLMUrlMapping(
+        modelUrl,
+        `${WEBLLM_BASE_PATH}/${config.modelId}/`,
+      );
+    }
   } catch {
-    /* SW unavailable — WebLLM still works via IDB cache. */
+    /* SW unavailable — WebLLM still works via Cache API. */
   }
 }
 
