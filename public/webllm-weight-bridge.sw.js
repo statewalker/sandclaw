@@ -126,29 +126,43 @@ async function getOrCreateFile(relativePath) {
   }
 }
 
-async function writeStreamToFile(stream, relativePath) {
+async function fetchAndTee(request, relativePath) {
+  const response = await fetch(request);
+  if (!response.ok || !response.body || !rootHandle) return response;
+  // Range responses are partial — don't write-through, that would
+  // produce a corrupt file. Subsequent full requests will populate.
+  if (response.status === 206) return response;
+  // Use `response.clone()` rather than `response.body.tee()` so the
+  // response object returned to the caller carries the original status,
+  // headers, *and* `url` field unchanged. Browsers internally tee the
+  // stream — both branches can be consumed independently.
+  const cloned = response.clone();
+  // Background write — don't block the caller. We read the cloned
+  // body fully to a Blob then persist it; this avoids long-lived stream
+  // pipes that can keep the SW alive past the natural fetch lifetime.
+  cloned
+    .blob()
+    .then((blob) => writeBlobToFile(blob, relativePath))
+    .catch((error) => {
+      // eslint-disable-next-line no-console
+      console.warn("[weight-bridge] write failed:", relativePath, error);
+    });
+  return response;
+}
+
+async function writeBlobToFile(blob, relativePath) {
   const fileHandle = await getOrCreateFile(relativePath);
-  if (!fileHandle) {
-    // Drain the stream so the network-bound copy still gets bytes.
-    await stream.cancel();
-    return;
-  }
-  // Service Worker context lacks createWritable on FileSystemFileHandle
-  // in older browsers; gracefully fall back to no-op if missing.
-  if (typeof fileHandle.createWritable !== "function") {
-    await stream.cancel();
-    return;
-  }
-  /** @type {FileSystemWritableFileStream} */
+  if (!fileHandle) return;
+  if (typeof fileHandle.createWritable !== "function") return;
   let writable;
   try {
     writable = await fileHandle.createWritable();
   } catch {
-    await stream.cancel();
     return;
   }
   try {
-    await stream.pipeTo(writable);
+    await writable.write(blob);
+    await writable.close();
   } catch {
     try {
       await writable.abort();
@@ -156,24 +170,6 @@ async function writeStreamToFile(stream, relativePath) {
       /* ignore */
     }
   }
-}
-
-async function fetchAndTee(request, relativePath) {
-  const response = await fetch(request);
-  if (!response.ok || !response.body || !rootHandle) return response;
-  // Range responses are partial — don't write-through, that would
-  // produce a corrupt file. Subsequent full requests will populate.
-  if (response.status === 206) return response;
-  const [forCaller, forDisk] = response.body.tee();
-  // Background write — don't block the response.
-  writeStreamToFile(forDisk, relativePath).catch(() => {
-    /* best-effort */
-  });
-  return new Response(forCaller, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: response.headers,
-  });
 }
 
 async function serveFromFiles(request, mapping, remainder) {
