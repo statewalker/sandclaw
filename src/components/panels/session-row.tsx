@@ -70,7 +70,15 @@ export function SessionRow({
   return (
     <div
       className={cn(
-        "group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm",
+        // CSS grid is more predictable than flex for "title takes the
+        // remaining width, icons keep their natural width" — the
+        // `minmax(0,1fr)` column lets the title shrink past its
+        // content, and the two `auto` columns fix the icon buttons at
+        // their intrinsic 28×28. With flex + min-w-0 + shrink-0 the
+        // browser was still squeezing the trash icon off the right
+        // edge on a narrow sidebar; grid removes the ambiguity.
+        "group grid items-center gap-1 rounded-md px-2 py-1.5 text-sm",
+        editing ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_auto_auto]",
         selected ? "bg-accent text-accent-foreground" : "hover:bg-accent/60",
       )}
     >
@@ -91,13 +99,12 @@ export function SessionRow({
           type="button"
           onClick={() => onOpen(id)}
           onDoubleClick={() => setEditing(true)}
-          // `min-w-0` lets the flex item shrink past its intrinsic
-          // content width — without it the title's natural width
-          // squeezes the icon buttons off the right edge of the
-          // sidebar, leaving Delete invisible for long titles.
-          className="flex min-w-0 flex-1 flex-col items-start text-left"
+          // `min-w-0` is still necessary inside the 1fr grid column
+          // so that the title element can shrink past its intrinsic
+          // content width.
+          className="flex min-w-0 flex-col items-start text-left"
         >
-          <span className="w-full truncate font-medium">
+          <span className="block w-full overflow-hidden text-ellipsis whitespace-nowrap font-medium">
             {title || "Untitled"}
           </span>
           {updatedAt ? (
