@@ -91,7 +91,11 @@ export function SessionRow({
           type="button"
           onClick={() => onOpen(id)}
           onDoubleClick={() => setEditing(true)}
-          className="flex flex-1 flex-col items-start truncate text-left"
+          // `min-w-0` lets the flex item shrink past its intrinsic
+          // content width — without it the title's natural width
+          // squeezes the icon buttons off the right edge of the
+          // sidebar, leaving Delete invisible for long titles.
+          className="flex min-w-0 flex-1 flex-col items-start text-left"
         >
           <span className="w-full truncate font-medium">
             {title || "Untitled"}
@@ -108,7 +112,10 @@ export function SessionRow({
           <Button
             size="icon"
             variant="ghost"
-            className="h-7 w-7 opacity-0 group-hover:opacity-100"
+            // `shrink-0` keeps the icon at its fixed 28×28 even when
+            // the row is narrower than the title would naturally want
+            // — pairs with `min-w-0` on the title button above.
+            className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100"
             onClick={() => setEditing(true)}
             aria-label="Rename"
           >
@@ -119,7 +126,7 @@ export function SessionRow({
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 opacity-0 group-hover:opacity-100"
+                className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100"
                 aria-label="Delete"
               >
                 <Trash2 className="h-3.5 w-3.5" />
