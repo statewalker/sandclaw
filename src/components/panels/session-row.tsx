@@ -114,8 +114,17 @@ export function SessionRow({
             variant="ghost"
             // `shrink-0` keeps the icon at its fixed 28×28 even when
             // the row is narrower than the title would naturally want
-            // — pairs with `min-w-0` on the title button above.
-            className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100"
+            // — pairs with `min-w-0` on the title button above. The
+            // selected row always shows the icons (rename/delete is
+            // most often used on the active session, and on a narrow
+            // sidebar without hover support — touch devices, sidebar
+            // resized very small — they'd otherwise be unreachable).
+            className={cn(
+              "h-7 w-7 shrink-0",
+              selected
+                ? "opacity-100"
+                : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+            )}
             onClick={() => setEditing(true)}
             aria-label="Rename"
           >
@@ -126,7 +135,12 @@ export function SessionRow({
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100"
+                className={cn(
+                  "h-7 w-7 shrink-0",
+                  selected
+                    ? "opacity-100"
+                    : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+                )}
                 aria-label="Delete"
               >
                 <Trash2 className="h-3.5 w-3.5" />
