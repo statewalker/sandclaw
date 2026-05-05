@@ -161,7 +161,10 @@ describe("LocalModelsTab", () => {
       ).toBeInTheDocument();
     });
 
-    it("transitions an entry from a per-engine accordion into Available when its status changes", () => {
+    // WebLLM section currently disabled in local-models-tab.tsx (see
+    // comment near `WebLLM models section disabled`). Re-enable when
+    // the WebLLM imports are restored.
+    it.skip("transitions an entry from a per-engine accordion into Available when its status changes", () => {
       const fake = makeFakeManager({
         "webllm:hermes": {
           config: {
@@ -197,7 +200,9 @@ describe("LocalModelsTab", () => {
       ).toBeInTheDocument();
     });
 
-    it("groups not-downloaded entries by engine in separate accordions", () => {
+    // WebLLM section currently disabled (see above). Re-enable with
+    // the WebLLM imports.
+    it.skip("groups not-downloaded entries by engine in separate accordions", () => {
       const fake = makeFakeManager({
         "webllm:hermes": {
           config: {

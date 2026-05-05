@@ -1,7 +1,7 @@
 {
   "extends": "//",
   "files": {
-    "includes": ["**", "!dist", "!**/dist"]
+    "includes": ["**", "!dist", "!**/dist", "!sandclaw-ai"]
   },
   "css": {
     "parser": {
