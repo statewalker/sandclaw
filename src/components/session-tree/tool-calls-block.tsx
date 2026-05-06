@@ -41,14 +41,16 @@ function useAllToolCallsReady(calls: ToolCall[]): boolean {
  * `ToolCallView` (Prompt Kit's `Tool` component), so the
  * per-call collapse + state mapping behavior is unchanged.
  *
- * Open while any call is still in flight; auto-closes when every
- * call has a response. Manual user toggles after the auto-close
- * are respected — the auto-close fires only on the first
- * not-ready → ready transition.
+ * Initial open state mirrors "is anything in flight?" — fresh
+ * tool bursts mount with `open=true`; restored sessions where
+ * every call already has a response mount with `open=false`.
+ * Once all calls finish (not-ready → ready transition), the block
+ * auto-closes; manual user toggles after that are respected.
  */
 export function ToolCallsBlock({ calls }: { calls: ToolCall[] }): ReactElement {
   const allReady = useAllToolCallsReady(calls);
-  const [open, setOpen] = useState(true);
+  // Initial open: only if at least one call is still in flight at mount.
+  const [open, setOpen] = useState(() => !allReady);
   const wasReady = useRef(allReady);
   useEffect(() => {
     // Edge: not-ready → ready. Auto-close once.
