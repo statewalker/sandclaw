@@ -1,8 +1,12 @@
 import { useEffect, useRef } from "react";
 import { Composer } from "@/components/panels/composer";
+import {
+  ChatContainerContent,
+  ChatContainerRoot,
+} from "@/components/prompt-kit/chat-container";
+import { ScrollButton } from "@/components/prompt-kit/scroll-button";
 import { ProgressBanner } from "@/components/session-tree/progress-banner";
 import { SessionView } from "@/components/session-tree/session-view";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useActiveSession } from "@/contexts/active-session-context";
 import { useRuntime } from "@/contexts/runtime-context";
 import { useSendMessage } from "@/hooks/use-send-message";
@@ -46,9 +50,16 @@ export function ChatPanel(): React.ReactElement {
 
   return (
     <div className="flex h-full w-full flex-col bg-background">
-      <ScrollArea className="flex-1">
-        <SessionView session={session.state} />
-      </ScrollArea>
+      <ChatContainerRoot className="relative flex-1">
+        <ChatContainerContent className="px-3 py-4">
+          <SessionView session={session.state} />
+        </ChatContainerContent>
+        <div className="pointer-events-none absolute right-4 bottom-4 z-10 flex items-end justify-end">
+          <div className="pointer-events-auto">
+            <ScrollButton />
+          </div>
+        </div>
+      </ChatContainerRoot>
       <ProgressBanner progress={progress} />
       <Composer
         onSend={send}

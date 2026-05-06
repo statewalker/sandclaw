@@ -1,7 +1,11 @@
 import { Send, Square } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import {
+  PromptInput,
+  PromptInputActions,
+  PromptInputTextarea,
+} from "@/components/prompt-kit/prompt-input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 
 export interface ComposerProps {
   onSend: (text: string) => void;
@@ -19,15 +23,6 @@ export function Composer({
   placeholder,
 }: ComposerProps): React.ReactElement {
   const [draft, setDraft] = useState("");
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-
-  // Auto-grow textarea up to a max height.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
-  }, [draft]);
 
   const submit = (): void => {
     const text = draft.trim();
@@ -36,45 +31,42 @@ export function Composer({
     onSend(text);
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-    // Cmd/Ctrl+Enter sends; Enter alone inserts a newline.
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      submit();
-    }
-  };
-
   return (
-    <div className="flex items-end gap-2 border-t p-3">
-      <Textarea
-        ref={ref}
+    <div className="border-t p-3">
+      <PromptInput
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={onKeyDown}
-        rows={1}
+        onValueChange={setDraft}
+        onSubmit={submit}
         disabled={disabled}
-        placeholder={placeholder ?? "Send a message… (Cmd/Ctrl+Enter)"}
-        className="min-h-[40px] max-h-[240px] resize-none"
-      />
-      {running ? (
-        <Button
-          onClick={onStop}
-          variant="destructive"
-          size="icon"
-          aria-label="Stop"
-        >
-          <Square />
-        </Button>
-      ) : (
-        <Button
-          onClick={submit}
-          disabled={disabled || !draft.trim()}
-          size="icon"
-          aria-label="Send"
-        >
-          <Send />
-        </Button>
-      )}
+        isLoading={running}
+        maxHeight={240}
+      >
+        <PromptInputTextarea
+          submitMode="cmd-enter"
+          placeholder={placeholder ?? "Send a message… (Cmd/Ctrl+Enter)"}
+        />
+        <PromptInputActions className="justify-end">
+          {running ? (
+            <Button
+              onClick={onStop}
+              variant="destructive"
+              size="icon"
+              aria-label="Stop"
+            >
+              <Square />
+            </Button>
+          ) : (
+            <Button
+              onClick={submit}
+              disabled={disabled || !draft.trim()}
+              size="icon"
+              aria-label="Send"
+            >
+              <Send />
+            </Button>
+          )}
+        </PromptInputActions>
+      </PromptInput>
     </div>
   );
 }
