@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "@/app";
 import { AppWorkspaceProvider } from "@/contexts/app-workspace-context";
 import initCatalogRegistry from "@/fragments/catalog-registry";
+import initChatBootstrap from "@/fragments/chat-bootstrap";
 import initDockFragment from "@/fragments/dock";
 import initSpecStore from "@/fragments/spec-store";
 import "@/index.css";
@@ -49,7 +50,7 @@ async function bootstrap(root: HTMLElement): Promise<void> {
   register(initCatalogRegistry(ctx));
   register(initSpecStore(ctx));
   register(initDockFragment(ctx));
-  // initChatBootstrap registers the `chat` catalog — added in §7.
+  register(initChatBootstrap(ctx)); // registers the `chat` catalog with `ChatRoot`
 
   // NOTE: `workspace.open()` is intentionally NOT called here.
   // It would require `setFileSystem(filesApi, label)` first, but

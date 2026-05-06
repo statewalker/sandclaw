@@ -1,7 +1,7 @@
+import { Intents } from "@statewalker/shared-intents";
 import { LogOut } from "lucide-react";
-import { ChatPanel } from "@/components/panels/chat-panel";
+import { type ReactElement, useEffect } from "react";
 import { SessionsPanel } from "@/components/panels/sessions-panel";
-import { ProviderConfigGate } from "@/components/providers/provider-config-gate";
 import { ProviderSettingsDialog } from "@/components/providers/provider-settings-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,10 +10,17 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { ActiveSessionProvider } from "@/contexts/active-session-context";
-import { RuntimeProvider, useRuntime } from "@/contexts/runtime-context";
+import { useAppWorkspace } from "@/contexts/app-workspace-context";
+import { RuntimeProvider } from "@/contexts/runtime-context";
 import { useWorkspace } from "@/contexts/workspace-context";
+import { CHAT_CATALOG_ID, makeChatSpec } from "@/fragments/chat-bootstrap";
+import { DockViewHost, runShowDockPanel } from "@/fragments/dock";
+import { SpecStore } from "@/fragments/spec-store";
 
-function ShellHeader(): React.ReactElement {
+const CHAT_PANEL_ID = "chat";
+const CHAT_SPEC_ID = "spec:chat";
+
+function ShellHeader(): ReactElement {
   const { state, switchWorkspace } = useWorkspace();
   const label = state.status === "ready" ? state.label : "";
   return (
@@ -30,14 +37,44 @@ function ShellHeader(): React.ReactElement {
   );
 }
 
-function MainArea(): React.ReactElement {
-  const { state } = useRuntime();
-  const showGate =
-    state.status === "no-providers" || state.status === "no-active-model";
-  return showGate ? <ProviderConfigGate /> : <ChatPanel />;
+/**
+ * Ensures the single chat panel is open inside the DockView host.
+ * Idempotent — `runShowDockPanel` focuses an existing panel rather
+ * than re-adding it. The chat spec is allocated once with a stable
+ * id (`spec:chat`) and `meta.persistent: true`, so it survives
+ * panel close.
+ *
+ * `store.create` is used directly (not `runCreateSpec`) because the
+ * intent payload doesn't carry an `id` field — the deterministic
+ * id `spec:chat` matters here so layout restore can find the spec.
+ */
+function useEnsureChatPanel(): void {
+  const workspace = useAppWorkspace();
+  useEffect(() => {
+    const intents = workspace.requireAdapter(Intents);
+    const store = workspace.requireAdapter(SpecStore);
+    if (!store.get(CHAT_SPEC_ID)) {
+      store.create({
+        id: CHAT_SPEC_ID,
+        catalogId: CHAT_CATALOG_ID,
+        spec: makeChatSpec(),
+        meta: { persistent: true },
+      });
+    }
+    runShowDockPanel(intents, {
+      panelId: CHAT_PANEL_ID,
+      specId: CHAT_SPEC_ID,
+    });
+  }, [workspace]);
 }
 
-export function MainShell(): React.ReactElement {
+function MainPane(): ReactElement {
+  const workspace = useAppWorkspace();
+  useEnsureChatPanel();
+  return <DockViewHost workspace={workspace} />;
+}
+
+export function MainShell(): ReactElement {
   const { state } = useWorkspace();
   if (state.status !== "ready") {
     // The router gates us into here only when ready; this is a defensive
@@ -55,7 +92,7 @@ export function MainShell(): React.ReactElement {
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel minSize="40%">
-              <MainArea />
+              <MainPane />
             </ResizablePanel>
           </ResizablePanelGroup>
         </div>
