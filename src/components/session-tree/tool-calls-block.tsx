@@ -1,6 +1,6 @@
 import type { ToolCall } from "@statewalker/ai-agent/state";
 import { Wrench } from "lucide-react";
-import { type ReactElement, useState } from "react";
+import { type ReactElement, useEffect, useRef, useState } from "react";
 import {
   ChainOfThoughtContent,
   ChainOfThoughtStep,
@@ -9,19 +9,55 @@ import {
 import { ToolCallView } from "@/components/session-tree/tool-call-view";
 
 /**
+ * True once every call in `calls` has a `response` child. Subscribes
+ * to each call's `onUpdate` so a streaming response arriving on any
+ * call re-evaluates the predicate. Returns `false` while no call is
+ * present (degenerate case — block never auto-closes from empty).
+ */
+function useAllToolCallsReady(calls: ToolCall[]): boolean {
+  const computeReady = (): boolean =>
+    calls.length > 0 && calls.every((c) => !!c.response);
+  const [ready, setReady] = useState<boolean>(computeReady);
+  useEffect(() => {
+    setReady(computeReady());
+    if (calls.length === 0) return;
+    const unsubs = calls.map((call) =>
+      call.onUpdate(() => {
+        setReady(computeReady());
+      }),
+    );
+    return () => {
+      for (const u of unsubs) u();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calls]);
+  return ready;
+}
+
+/**
  * Renders a group of consecutive tool calls inside a single
  * collapsible `ChainOfThoughtStep` — same visual treatment as
  * `ThinkingBlock`. Each tool call inside still uses the standard
  * `ToolCallView` (Prompt Kit's `Tool` component), so the
  * per-call collapse + state mapping behavior is unchanged.
  *
- * Default open so the agent's tool activity is visible at a glance;
- * the user can collapse manually. Streaming-aware auto-collapse on
- * completion is a follow-up (mirrors the same deferral noted on
- * `ThinkingBlock`).
+ * Open while any call is still in flight; auto-closes when every
+ * call has a response. Manual user toggles after the auto-close
+ * are respected — the auto-close fires only on the first
+ * not-ready → ready transition.
  */
 export function ToolCallsBlock({ calls }: { calls: ToolCall[] }): ReactElement {
+  const allReady = useAllToolCallsReady(calls);
   const [open, setOpen] = useState(true);
+  const wasReady = useRef(allReady);
+  useEffect(() => {
+    // Edge: not-ready → ready. Auto-close once.
+    if (allReady && !wasReady.current) {
+      setOpen(false);
+    }
+    wasReady.current = allReady;
+  }, [allReady]);
+
   const label =
     calls.length === 1 ? "Tool call" : `Tool calls (${calls.length})`;
   return (
