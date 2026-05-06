@@ -1,8 +1,8 @@
-import { Renderer } from "@json-render/react";
+import { JSONUIProvider, Renderer } from "@json-render/react";
 import { Intents } from "@statewalker/shared-intents";
-import { getWorkspace } from "@statewalker/workspace-api";
 import type { IDockviewPanelProps } from "dockview-react";
 import { type ReactElement, useSyncExternalStore } from "react";
+import { useAppWorkspace } from "@/contexts/app-workspace-context";
 import { CatalogRegistry } from "../catalog-registry/index.js";
 import { type SpecRecord, SpecStore } from "../spec-store/index.js";
 import { runClosePanel } from "./intents.js";
@@ -18,24 +18,15 @@ interface JsonPanelParams {
  * `CatalogRegistry`, and renders the json-render `<Renderer>`
  * against both. Missing spec / missing catalog → recovery
  * placeholder; the user can close the panel.
+ *
+ * The workspace is resolved via React context (`useAppWorkspace`),
+ * not via `props.containerApi` — dockview-react renders panels
+ * through React.createPortal, so React context propagates from
+ * the parent tree (the MainShell that hosts `<DockviewReact>`).
  */
-export function JsonPanel(
-  props: IDockviewPanelProps<JsonPanelParams>,
-): ReactElement {
+export function JsonPanel(props: IDockviewPanelProps<JsonPanelParams>): ReactElement {
   const { specId } = props.params;
-
-  // Resolve the workspace via the dockview panel's containerApi.
-  // We stash the workspace ctx on the api when MainShell mounts;
-  // see `dock-host.tsx::setApi`. The fallback uses an empty ctx
-  // so getWorkspace creates one — keeps tests viable when a
-  // panel is mounted standalone (e.g. against a stub api).
-  const ctx =
-    (
-      props.containerApi as unknown as {
-        __chatMiniCtx?: Record<string, unknown>;
-      }
-    ).__chatMiniCtx ?? {};
-  const workspace = getWorkspace(ctx);
+  const workspace = useAppWorkspace();
   const store = workspace.requireAdapter(SpecStore);
   const catalogs = workspace.requireAdapter(CatalogRegistry);
   const intents = workspace.requireAdapter(Intents);
@@ -67,9 +58,18 @@ export function JsonPanel(
   // The json-render `<Renderer>` types the spec/registry strictly;
   // we cross from the deliberately-loose `unknown` storage in
   // SpecStore + CatalogEntry to its concrete types here.
+  // `<JSONUIProvider>` is required — it sets up the visibility /
+  // validation / state contexts that `<Renderer>`'s internals
+  // (e.g. `useVisibility`) read from.
   // biome-ignore lint/suspicious/noExplicitAny: json-render's Spec/Registry types live behind `unknown` in our store
   const Renderer$ = Renderer as any;
-  return <Renderer$ spec={record.spec} registry={catalogEntry.registry} />;
+  // biome-ignore lint/suspicious/noExplicitAny: ditto for the registry shape
+  const registry$ = catalogEntry.registry as any;
+  return (
+    <JSONUIProvider registry={registry$}>
+      <Renderer$ spec={record.spec} registry={registry$} />
+    </JSONUIProvider>
+  );
 }
 
 function PanelMissing({
