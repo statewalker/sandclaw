@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
-import { ChatPanel } from "@/components/panels/chat-panel";
 import { ProviderConfigGate } from "@/components/providers/provider-config-gate";
 import { useRuntime } from "@/contexts/runtime-context";
+import { ChatPanel } from "@/screens/chat/components/chat-panel";
 
 /**
  * Chat panel root component (Option β from

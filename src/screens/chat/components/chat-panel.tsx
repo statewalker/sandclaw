@@ -1,16 +1,16 @@
 import { useEffect, useRef } from "react";
-import { Composer } from "@/components/panels/composer";
 import {
   ChatContainerContent,
   ChatContainerRoot,
 } from "@/components/prompt-kit/chat-container";
 import { ScrollButton } from "@/components/prompt-kit/scroll-button";
-import { ProgressBanner } from "@/components/session-tree/progress-banner";
-import { SessionView } from "@/components/session-tree/session-view";
 import { useActiveSession } from "@/contexts/active-session-context";
 import { useRuntime } from "@/contexts/runtime-context";
-import { useSendMessage } from "@/hooks/use-send-message";
-import { useInvalidateSessions } from "@/hooks/use-session-list";
+import { useSendMessage } from "@/screens/chat/hooks/use-send-message";
+import { useInvalidateSessions } from "@/screens/chat/hooks/use-session-list";
+import { Composer } from "./composer";
+import { ProgressBanner } from "./progress-banner";
+import { SessionView } from "./session-view";
 
 export function ChatPanel(): React.ReactElement {
   const { state } = useRuntime();

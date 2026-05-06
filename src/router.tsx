@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from "react-router";
 import { DirectoryPicker } from "@/components/common/directory-picker";
-import { MainShell } from "@/components/main-shell";
 import { useWorkspace } from "@/contexts/workspace-context";
+import { ChatScreen } from "@/screens/chat/chat-screen";
 
 function Gate(): React.ReactElement {
   const { state } = useWorkspace();
@@ -15,7 +15,7 @@ function Gate(): React.ReactElement {
   if (state.status !== "ready") {
     return <Navigate to="/pick-workspace" replace />;
   }
-  return <MainShell />;
+  return <ChatScreen />;
 }
 
 function PickerRoute(): React.ReactElement {

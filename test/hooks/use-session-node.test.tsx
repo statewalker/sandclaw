@@ -12,7 +12,7 @@ import {
   useNodeChildren,
   useNodeContent,
   useNodeProp,
-} from "@/hooks/use-session-node";
+} from "@/screens/chat/hooks/use-session-node";
 
 function makeSession(): Session {
   const factory = createAgentNodeFactory();

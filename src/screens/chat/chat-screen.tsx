@@ -1,7 +1,6 @@
 import { Intents } from "@statewalker/shared-intents";
 import { LogOut } from "lucide-react";
 import { type ReactElement, useEffect } from "react";
-import { SessionsPanel } from "@/components/panels/sessions-panel";
 import { ProviderSettingsDialog } from "@/components/providers/provider-settings-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +13,7 @@ import { useAppWorkspace } from "@/contexts/app-workspace-context";
 import { RuntimeProvider } from "@/contexts/runtime-context";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { DockViewHost, runShowDockPanel } from "@/fragments/dock";
+import { SessionsPanel } from "@/screens/chat/components/sessions-panel";
 
 const CHAT_PANEL_ID = "chat";
 const CHAT_SPEC_ID = "spec:chat";
@@ -60,7 +60,7 @@ function MainPane(): ReactElement {
   return <DockViewHost workspace={workspace} />;
 }
 
-export function MainShell(): ReactElement {
+export function ChatScreen(): ReactElement {
   const { state } = useWorkspace();
   if (state.status !== "ready") {
     // The router gates us into here only when ready; this is a defensive

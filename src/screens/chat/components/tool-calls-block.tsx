@@ -6,7 +6,7 @@ import {
   ChainOfThoughtStep,
   ChainOfThoughtTrigger,
 } from "@/components/prompt-kit/chain-of-thought";
-import { ToolCallView } from "@/components/session-tree/tool-call-view";
+import { ToolCallView } from "./tool-call-view";
 
 /**
  * True once every call in `calls` has a `response` child. Subscribes

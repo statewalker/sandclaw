@@ -5,7 +5,7 @@ import {
   ChainOfThoughtStep,
   ChainOfThoughtTrigger,
 } from "@/components/prompt-kit/chain-of-thought";
-import { useNodeContent } from "@/hooks/use-session-node";
+import { useNodeContent } from "@/screens/chat/hooks/use-session-node";
 
 export function ThinkingBlock({
   block,

@@ -8,8 +8,11 @@ import {
   MessageAvatar,
   MessageContent,
 } from "@/components/prompt-kit/message";
-import { ThinkingBlock } from "@/components/session-tree/thinking-block";
-import { useNodeChildren, useNodeContent } from "@/hooks/use-session-node";
+import {
+  useNodeChildren,
+  useNodeContent,
+} from "@/screens/chat/hooks/use-session-node";
+import { ThinkingBlock } from "./thinking-block";
 
 export function MessageView({
   message,

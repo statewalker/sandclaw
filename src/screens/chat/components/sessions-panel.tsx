@@ -1,6 +1,5 @@
 import { Plus } from "lucide-react";
 import { useCallback } from "react";
-import { SessionRow } from "@/components/panels/session-row";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useActiveSession } from "@/contexts/active-session-context";
@@ -8,7 +7,8 @@ import { useRuntime } from "@/contexts/runtime-context";
 import {
   useInvalidateSessions,
   useSessionList,
-} from "@/hooks/use-session-list";
+} from "@/screens/chat/hooks/use-session-list";
+import { SessionRow } from "./session-row";
 
 export function SessionsPanel(): React.ReactElement {
   const { state } = useRuntime();

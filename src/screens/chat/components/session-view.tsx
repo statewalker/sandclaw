@@ -1,6 +1,6 @@
 import type { Session } from "@statewalker/ai-agent/state";
-import { TurnView } from "@/components/session-tree/turn-view";
-import { useNodeChildren } from "@/hooks/use-session-node";
+import { useNodeChildren } from "@/screens/chat/hooks/use-session-node";
+import { TurnView } from "./turn-view";
 
 export function SessionView({
   session,

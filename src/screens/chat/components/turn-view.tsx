@@ -5,10 +5,10 @@ import {
   type Turn,
 } from "@statewalker/ai-agent/state";
 import type { ReactElement } from "react";
-import { ErrorBlock } from "@/components/session-tree/error-block";
-import { MessageView } from "@/components/session-tree/message-view";
-import { ToolCallsBlock } from "@/components/session-tree/tool-calls-block";
-import { useNodeChildren } from "@/hooks/use-session-node";
+import { useNodeChildren } from "@/screens/chat/hooks/use-session-node";
+import { ErrorBlock } from "./error-block";
+import { MessageView } from "./message-view";
+import { ToolCallsBlock } from "./tool-calls-block";
 
 type TurnChild = Turn["children"][number];
 

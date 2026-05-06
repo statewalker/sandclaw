@@ -1,7 +1,10 @@
 import type { ToolCall } from "@statewalker/ai-agent/state";
 import type { ReactElement } from "react";
 import { Tool, type ToolPart } from "@/components/prompt-kit/tool";
-import { useNodeChildren, useNodeContent } from "@/hooks/use-session-node";
+import {
+  useNodeChildren,
+  useNodeContent,
+} from "@/screens/chat/hooks/use-session-node";
 
 function asInputRecord(args: unknown): Record<string, unknown> | undefined {
   if (args && typeof args === "object" && !Array.isArray(args)) {

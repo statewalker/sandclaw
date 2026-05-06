@@ -1,7 +1,7 @@
 import { TriangleAlert, Wrench } from "lucide-react";
 import { Loader } from "@/components/prompt-kit/loader";
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer";
-import type { SendProgress } from "@/hooks/use-send-message";
+import type { SendProgress } from "@/screens/chat/hooks/use-send-message";
 
 export function ProgressBanner({
   progress,

@@ -7,7 +7,7 @@ import {
 import { act, render } from "@testing-library/react";
 import { Profiler, type ProfilerOnRenderCallback } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { MessageView } from "@/components/session-tree/message-view";
+import { MessageView } from "@/screens/chat/components/message-view";
 
 function makeSession(): Session {
   const factory = createAgentNodeFactory();

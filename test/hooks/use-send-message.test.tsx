@@ -5,7 +5,7 @@ import {
 } from "@statewalker/ai-agent/state";
 import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useSendMessage } from "@/hooks/use-send-message";
+import { useSendMessage } from "@/screens/chat/hooks/use-send-message";
 
 /**
  * Minimal stub of `Session`'s public surface for the hook test. We only
