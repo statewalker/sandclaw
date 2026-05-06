@@ -13,9 +13,7 @@ import { ActiveSessionProvider } from "@/contexts/active-session-context";
 import { useAppWorkspace } from "@/contexts/app-workspace-context";
 import { RuntimeProvider } from "@/contexts/runtime-context";
 import { useWorkspace } from "@/contexts/workspace-context";
-import { CHAT_CATALOG_ID, makeChatSpec } from "@/fragments/chat-bootstrap";
 import { DockViewHost, runShowDockPanel } from "@/fragments/dock";
-import { SpecStore } from "@/fragments/spec-store";
 
 const CHAT_PANEL_ID = "chat";
 const CHAT_SPEC_ID = "spec:chat";
@@ -39,28 +37,16 @@ function ShellHeader(): ReactElement {
 
 /**
  * Ensures the single chat panel is open inside the DockView host.
- * Idempotent — `runShowDockPanel` focuses an existing panel rather
- * than re-adding it. The chat spec is allocated once with a stable
- * id (`spec:chat`) and `meta.persistent: true`, so it survives
- * panel close.
- *
- * `store.create` is used directly (not `runCreateSpec`) because the
- * intent payload doesn't carry an `id` field — the deterministic
- * id `spec:chat` matters here so layout restore can find the spec.
+ * The chat spec itself is allocated by `initChatBootstrap` at boot
+ * time (with `meta.persistent: true` and the deterministic id
+ * `spec:chat`), so this hook only needs to dispatch the show
+ * intent. `runShowDockPanel` is idempotent — focuses an existing
+ * panel rather than re-adding it.
  */
 function useEnsureChatPanel(): void {
   const workspace = useAppWorkspace();
   useEffect(() => {
     const intents = workspace.requireAdapter(Intents);
-    const store = workspace.requireAdapter(SpecStore);
-    if (!store.get(CHAT_SPEC_ID)) {
-      store.create({
-        id: CHAT_SPEC_ID,
-        catalogId: CHAT_CATALOG_ID,
-        spec: makeChatSpec(),
-        meta: { persistent: true },
-      });
-    }
     runShowDockPanel(intents, {
       panelId: CHAT_PANEL_ID,
       specId: CHAT_SPEC_ID,
