@@ -25,10 +25,12 @@ export function MessageView({
   if (!isUser && !isAssistant) return null;
 
   if (isUser) {
-    // Prompt-kit default: rounded-lg p-2 bg-secondary prose pill.
+    // Prompt-kit "Message with Markdown" pattern: rounded-lg p-2
+    // bg-secondary prose pill with the prompt-kit Markdown renderer
+    // inside (handles inline code, fenced code blocks, lists, etc.).
     return (
       <Message className="justify-end">
-        <MessageContent>{text}</MessageContent>
+        <MessageContent markdown>{text}</MessageContent>
       </Message>
     );
   }
