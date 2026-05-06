@@ -42,8 +42,9 @@ export function Composer({
         maxHeight={240}
       >
         <PromptInputTextarea
-          submitMode="cmd-enter"
-          placeholder={placeholder ?? "Send a message… (Cmd/Ctrl+Enter)"}
+          placeholder={
+            placeholder ?? "Send a message… (Shift+Enter for newline)"
+          }
         />
         <PromptInputActions className="justify-end">
           {running ? (

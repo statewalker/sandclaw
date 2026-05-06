@@ -2,14 +2,15 @@ import {
   type Message as MessageNode,
   NodeType,
 } from "@statewalker/ai-agent/state";
+import type { ReactElement } from "react";
 import { Markdown } from "@/components/prompt-kit/markdown";
-import { Message } from "@/components/prompt-kit/message";
+import { Message, MessageContent } from "@/components/prompt-kit/message";
 import { ThinkingBlock } from "@/components/session-tree/thinking-block";
 import { useNodeChildren, useNodeContent } from "@/hooks/use-session-node";
 import { cn } from "@/lib/utils";
 
 // Shared prose overrides — keep code/list/table styling consistent
-// after migrating off the local Markdown wrapper.
+// inside the MessageContent bubble.
 const PROSE_OVERRIDES = cn(
   "prose prose-sm dark:prose-invert max-w-none wrap-break-word",
   "[--tw-prose-code:var(--foreground)]",
@@ -30,7 +31,7 @@ export function MessageView({
   message,
 }: {
   message: MessageNode;
-}): React.ReactElement | null {
+}): ReactElement | null {
   const text = useNodeContent(message) ?? "";
   // Subscribe to children so thinking-block additions trigger a re-render.
   useNodeChildren(message);
@@ -52,7 +53,11 @@ export function MessageView({
           isAssistant && "w-full",
         )}
       >
-        <div
+        <MessageContent
+          // markdown=false → MessageContent renders as a styled div that
+          // accepts arbitrary children (thinking blocks + text). We render
+          // markdown manually for assistant messages so we can keep the
+          // chat-mini prose overrides.
           className={cn(
             "flex flex-col gap-2 rounded-2xl border px-4 py-2.5 shadow-sm",
             isUser
@@ -72,7 +77,7 @@ export function MessageView({
               </p>
             )
           ) : null}
-        </div>
+        </MessageContent>
       </div>
     </Message>
   );

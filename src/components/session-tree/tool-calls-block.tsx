@@ -1,4 +1,5 @@
 import type { ToolCall } from "@statewalker/ai-agent/state";
+import { Wrench } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import {
   ChainOfThoughtContent,
@@ -25,7 +26,9 @@ export function ToolCallsBlock({ calls }: { calls: ToolCall[] }): ReactElement {
     calls.length === 1 ? "Tool call" : `Tool calls (${calls.length})`;
   return (
     <ChainOfThoughtStep open={open} onOpenChange={setOpen}>
-      <ChainOfThoughtTrigger>{label}</ChainOfThoughtTrigger>
+      <ChainOfThoughtTrigger leftIcon={<Wrench className="size-3.5" />}>
+        {label}
+      </ChainOfThoughtTrigger>
       <ChainOfThoughtContent>
         {calls.map((call) => (
           <ToolCallView key={call.id} call={call} />
