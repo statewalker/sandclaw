@@ -1,4 +1,5 @@
 import type { ToolCall } from "@statewalker/ai-agent/state";
+import type { ReactElement } from "react";
 import { Tool, type ToolPart } from "@/components/prompt-kit/tool";
 import { useNodeChildren, useNodeContent } from "@/hooks/use-session-node";
 
@@ -11,7 +12,34 @@ function asInputRecord(args: unknown): Record<string, unknown> | undefined {
   return { value: args };
 }
 
-export function ToolCallView({ call }: { call: ToolCall }): React.ReactElement {
+/**
+ * Parse a tool's response payload for the prompt-kit `Tool` output
+ * area. The Tool component formats objects via `JSON.stringify(v,
+ * null, 2)`, so passing the parsed structure (rather than the raw
+ * JSON text) yields the pretty-printed view consumers expect.
+ *
+ * - Empty / missing → undefined (Tool hides the output section).
+ * - JSON object → returned as-is.
+ * - JSON array / primitive → wrapped under `result` (Tool's output
+ *   prop is `Record<string, unknown>`, so a top-level non-object
+ *   needs a key).
+ * - Non-JSON string → wrapped under `result` so it still renders
+ *   verbatim in the output pre.
+ */
+function parseOutput(text: string): Record<string, unknown> | undefined {
+  if (!text) return undefined;
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    return { result: parsed };
+  } catch {
+    return { result: text };
+  }
+}
+
+export function ToolCallView({ call }: { call: ToolCall }): ReactElement {
   // React to request → response child being added.
   useNodeChildren(call);
   const response = call.response;
@@ -35,16 +63,14 @@ export function ToolCallView({ call }: { call: ToolCall }): React.ReactElement {
     type: call.toolName,
     state,
     input: asInputRecord(call.args),
-    output: hasResponse ? { result: responseContent } : undefined,
+    output: hasResponse && !isError ? parseOutput(responseContent) : undefined,
     toolCallId: call.callId,
     errorText: hasResponse && isError ? responseContent : undefined,
   };
 
   return (
-    <div className="flex w-full justify-start">
-      <div className="w-full max-w-[80%]">
-        <Tool toolPart={toolPart} />
-      </div>
+    <div className="w-full max-w-2xl">
+      <Tool toolPart={toolPart} />
     </div>
   );
 }
