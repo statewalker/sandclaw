@@ -51,7 +51,7 @@ export function ChatPanel(): React.ReactElement {
   return (
     <div className="flex h-full w-full flex-col bg-background">
       <ChatContainerRoot className="relative flex-1">
-        <ChatContainerContent className="px-3 py-4">
+        <ChatContainerContent className="mx-auto w-full max-w-[768px] px-5 py-4">
           <SessionView session={session.state} />
         </ChatContainerContent>
         <div className="pointer-events-none absolute right-4 bottom-4 z-10 flex items-end justify-end">
