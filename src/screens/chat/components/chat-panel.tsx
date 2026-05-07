@@ -8,6 +8,7 @@ import { useActiveSession } from "@/contexts/active-session-context";
 import { useRuntime } from "@/contexts/runtime-context";
 import { useSendMessage } from "@/screens/chat/hooks/use-send-message";
 import { useInvalidateSessions } from "@/screens/chat/hooks/use-session-list";
+import { ChatHeader } from "./chat-header";
 import { Composer } from "./composer";
 import { ProgressBanner } from "./progress-banner";
 import { SessionView } from "./session-view";
@@ -50,6 +51,7 @@ export function ChatPanel(): React.ReactElement {
 
   return (
     <div className="flex h-full w-full flex-col bg-background">
+      <ChatHeader session={session.state} />
       <ChatContainerRoot className="relative flex-1">
         <ChatContainerContent className="mx-auto w-full max-w-[768px] px-5 py-4">
           <SessionView session={session.state} />
