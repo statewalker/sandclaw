@@ -12,7 +12,7 @@ export function ProgressBanner({
 
   if (progress.lastError && !progress.running) {
     return (
-      <div className="flex items-center gap-2 border-t bg-destructive/10 px-4 py-1.5 text-xs text-destructive">
+      <div className="mx-auto flex w-full max-w-[768px] items-center gap-2 px-5 py-1.5 text-xs text-destructive">
         <TriangleAlert className="h-3.5 w-3.5" />
         {progress.lastError}
       </div>
@@ -20,7 +20,7 @@ export function ProgressBanner({
   }
 
   return (
-    <div className="flex items-center gap-2 border-t bg-muted/40 px-4 py-1.5 text-xs text-muted-foreground">
+    <div className="mx-auto flex w-full max-w-[768px] items-center gap-2 px-5 py-1.5 text-xs text-muted-foreground">
       {progress.currentTool ? (
         <>
           <Wrench className="h-3.5 w-3.5" />

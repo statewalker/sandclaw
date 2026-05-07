@@ -32,7 +32,8 @@ export function Composer({
   };
 
   return (
-    <div className="border-t p-3">
+    // Centered max-width container, no top border — matches webclaw layout.
+    <div className="relative mx-auto w-full max-w-[768px] px-5 pb-3">
       <PromptInput
         value={draft}
         onValueChange={setDraft}

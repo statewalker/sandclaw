@@ -1,11 +1,11 @@
 import type { ToolCall } from "@statewalker/ai-agent/state";
-import { Wrench } from "lucide-react";
+import { ChevronDown, Wrench } from "lucide-react";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 import {
-  ChainOfThoughtContent,
-  ChainOfThoughtStep,
-  ChainOfThoughtTrigger,
-} from "@/components/prompt-kit/chain-of-thought";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { ToolCallView } from "./tool-call-view";
 
 /**
@@ -36,42 +36,39 @@ function useAllToolCallsReady(calls: ToolCall[]): boolean {
 
 /**
  * Renders a group of consecutive tool calls inside a single
- * collapsible `ChainOfThoughtStep` — same visual treatment as
- * `ThinkingBlock`. Each tool call inside still uses the standard
- * `ToolCallView` (Prompt Kit's `Tool` component), so the
- * per-call collapse + state mapping behavior is unchanged.
+ * collapsible block, Steps-style — header with the wrench icon +
+ * label + chevron, content as a plain stack of ToolCallViews. No
+ * vertical connector bar (those make sense for a "thinking
+ * narrative" but read as noise for tool runs). Each tool call
+ * inside still uses the prompt-kit `Tool` component.
  *
- * Initial open state mirrors "is anything in flight?" — fresh
- * tool bursts mount with `open=true`; restored sessions where
- * every call already has a response mount with `open=false`.
- * Once all calls finish (not-ready → ready transition), the block
- * auto-closes; manual user toggles after that are respected.
+ * Initial open: only if at least one call is in flight at mount.
+ * Auto-closes on the first not-ready → ready transition; manual
+ * toggles after that are respected.
  */
 export function ToolCallsBlock({ calls }: { calls: ToolCall[] }): ReactElement {
   const allReady = useAllToolCallsReady(calls);
-  // Initial open: only if at least one call is still in flight at mount.
   const [open, setOpen] = useState(() => !allReady);
   const wasReady = useRef(allReady);
   useEffect(() => {
-    // Edge: not-ready → ready. Auto-close once.
-    if (allReady && !wasReady.current) {
-      setOpen(false);
-    }
+    if (allReady && !wasReady.current) setOpen(false);
     wasReady.current = allReady;
   }, [allReady]);
 
   const label =
     calls.length === 1 ? "Tool call" : `Tool calls (${calls.length})`;
   return (
-    <ChainOfThoughtStep open={open} onOpenChange={setOpen}>
-      <ChainOfThoughtTrigger leftIcon={<Wrench className="size-3.5" />}>
-        {label}
-      </ChainOfThoughtTrigger>
-      <ChainOfThoughtContent>
+    <Collapsible open={open} onOpenChange={setOpen} className="group/tools">
+      <CollapsibleTrigger className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        <Wrench className="size-3.5" />
+        <span>{label}</span>
+        <ChevronDown className="size-3.5 transition-transform group-data-[state=open]/tools:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-2 space-y-2 overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
         {calls.map((call) => (
           <ToolCallView key={call.id} call={call} />
         ))}
-      </ChainOfThoughtContent>
-    </ChainOfThoughtStep>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
