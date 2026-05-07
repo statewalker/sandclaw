@@ -19,7 +19,13 @@ export interface SessionRowProps {
   id: string;
   title: string;
   updatedAt: string | undefined;
+  /** This session's tab is the focused panel in the dock host. */
   selected: boolean;
+  /**
+   * This session has a tab open in the dock host (may or may not
+   * be focused). Used for a lighter highlight than `selected`.
+   */
+  open: boolean;
   onOpen: (id: string) => void;
   onRename: (id: string, title: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -45,6 +51,7 @@ export function SessionRow({
   title,
   updatedAt,
   selected,
+  open,
   onOpen,
   onRename,
   onDelete,
@@ -79,7 +86,17 @@ export function SessionRow({
         // edge on a narrow sidebar; grid removes the ambiguity.
         "group grid items-center gap-1 rounded-md px-2 py-1.5 text-sm",
         editing ? "grid-cols-1" : "grid-cols-[minmax(0,1fr)_auto_auto]",
-        selected ? "bg-accent text-accent-foreground" : "hover:bg-accent/60",
+        // Three states:
+        // - selected (focused tab): full accent background
+        // - open but not focused: lighter accent background to
+        //   show "this session has a tab" without competing with
+        //   the focused-tab indicator
+        // - closed: default + hover
+        selected
+          ? "bg-accent text-accent-foreground"
+          : open
+            ? "bg-accent/40 hover:bg-accent/60"
+            : "hover:bg-accent/60",
       )}
     >
       {editing ? (

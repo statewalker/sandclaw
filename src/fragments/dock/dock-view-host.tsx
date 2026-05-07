@@ -1,9 +1,11 @@
 import type { Workspace } from "@statewalker/workspace-api";
 import { DockviewReact, type DockviewReadyEvent } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
+import "./dock-view-host.css";
 import { type ReactElement, useCallback, useEffect } from "react";
 import { DockHost } from "./dock-host.js";
 import { JsonPanel } from "./json-panel.js";
+import { LineTab } from "./line-tab.js";
 
 const components = { json: JsonPanel } as const;
 
@@ -45,8 +47,9 @@ export function DockViewHost({ workspace }: DockViewHostProps): ReactElement {
   return (
     <DockviewReact
       components={components}
+      defaultTabComponent={LineTab}
       onReady={onReady}
-      className="dockview-theme-light h-full w-full"
+      className="dockview-theme-light dockview-theme-line h-full w-full"
     />
   );
 }

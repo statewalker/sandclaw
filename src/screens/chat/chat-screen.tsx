@@ -1,6 +1,7 @@
 import { Intents } from "@statewalker/shared-intents";
 import { LogOut } from "lucide-react";
-import { type ReactElement, useEffect } from "react";
+import { type ReactElement, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router";
 import { ProviderSettingsDialog } from "@/components/providers/provider-settings-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,15 +9,14 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { ActiveSessionProvider } from "@/contexts/active-session-context";
 import { useAppWorkspace } from "@/contexts/app-workspace-context";
 import { RuntimeProvider } from "@/contexts/runtime-context";
 import { useWorkspace } from "@/contexts/workspace-context";
-import { DockViewHost, runShowDockPanel } from "@/fragments/dock";
+import { runOpenChatSession } from "@/fragments/chat-bootstrap";
+import { DockHost, DockViewHost } from "@/fragments/dock";
 import { SessionsPanel } from "@/screens/chat/components/sessions-panel";
 
-const CHAT_PANEL_ID = "chat";
-const CHAT_SPEC_ID = "spec:chat";
+const SESSION_PARAM = "s";
 
 function ShellHeader(): ReactElement {
   const { state, switchWorkspace } = useWorkspace();
@@ -36,27 +36,34 @@ function ShellHeader(): ReactElement {
 }
 
 /**
- * Ensures the single chat panel is open inside the DockView host.
- * The chat spec itself is allocated by `initChatBootstrap` at boot
- * time (with `meta.persistent: true` and the deterministic id
- * `spec:chat`), so this hook only needs to dispatch the show
- * intent. `runShowDockPanel` is idempotent — focuses an existing
- * panel rather than re-adding it.
+ * Deep-link handler: on FIRST mount, if the URL has `?s=<id>` AND
+ * the dock host has no chat tabs (saved layout took priority if it
+ * had any), fire `chat:open-session` for that id once. After first
+ * mount the URL is no longer consulted; tab focus changes do not
+ * write the URL back.
  */
-function useEnsureChatPanel(): void {
+function useDeepLinkSession(): void {
   const workspace = useAppWorkspace();
+  const [searchParams] = useSearchParams();
+  const ranRef = useRef(false);
   useEffect(() => {
+    if (ranRef.current) return;
+    ranRef.current = true;
+    const id = searchParams.get(SESSION_PARAM);
+    if (!id) return;
+    const dockHost = workspace.requireAdapter(DockHost);
+    const hasChatTab = dockHost
+      ._getApi()
+      ?.panels?.some((p) => p.id.startsWith("chat:"));
+    if (hasChatTab) return;
     const intents = workspace.requireAdapter(Intents);
-    runShowDockPanel(intents, {
-      panelId: CHAT_PANEL_ID,
-      specId: CHAT_SPEC_ID,
-    });
-  }, [workspace]);
+    runOpenChatSession(intents, { sessionId: id });
+  }, [workspace, searchParams]);
 }
 
 function MainPane(): ReactElement {
   const workspace = useAppWorkspace();
-  useEnsureChatPanel();
+  useDeepLinkSession();
   return <DockViewHost workspace={workspace} />;
 }
 
@@ -69,20 +76,18 @@ export function ChatScreen(): ReactElement {
   }
   return (
     <RuntimeProvider files={state.filesApi}>
-      <ActiveSessionProvider>
-        <div className="flex h-full w-full flex-col">
-          <ShellHeader />
-          <ResizablePanelGroup orientation="horizontal" className="flex-1">
-            <ResizablePanel defaultSize="280px" minSize="180px" maxSize="40%">
-              <SessionsPanel />
-            </ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel minSize="40%">
-              <MainPane />
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </div>
-      </ActiveSessionProvider>
+      <div className="flex h-full w-full flex-col">
+        <ShellHeader />
+        <ResizablePanelGroup orientation="horizontal" className="flex-1">
+          <ResizablePanel defaultSize="280px" minSize="180px" maxSize="40%">
+            <SessionsPanel />
+          </ResizablePanel>
+          <ResizableHandle />
+          <ResizablePanel minSize="40%">
+            <MainPane />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
     </RuntimeProvider>
   );
 }

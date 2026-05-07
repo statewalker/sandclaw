@@ -8,6 +8,7 @@ import { DockHost } from "./dock-host.js";
 import {
   handleClosePanel,
   handleFocusPanel,
+  handleSetPanelTitle,
   handleShowDockPanel,
 } from "./intents.js";
 
@@ -80,6 +81,14 @@ export function initDockFragment(
   register(
     handleFocusPanel(intents, (intent) => {
       dockHost.focusPanel(intent.payload.panelId);
+      intent.resolve();
+      return true;
+    }),
+  );
+
+  register(
+    handleSetPanelTitle(intents, (intent) => {
+      dockHost.setPanelTitle(intent.payload.panelId, intent.payload.title);
       intent.resolve();
       return true;
     }),

@@ -43,6 +43,8 @@ function makeFakeApi(): {
     toJSON: vi.fn(() => ({})),
     fromJSON: vi.fn(),
     onDidLayoutChange: vi.fn(() => ({ dispose: () => {} })),
+    onDidActivePanelChange: vi.fn(() => ({ dispose: () => {} })),
+    activePanel: undefined,
   };
   return { api: fake as unknown as DockviewApi, panels };
 }

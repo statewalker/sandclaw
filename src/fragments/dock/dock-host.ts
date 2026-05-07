@@ -26,6 +26,9 @@ export class DockHost {
   private _pending: PendingPanel[] = [];
   private _layoutSaveScheduled = false;
   private _disposeApiListeners: (() => void) | null = null;
+  private _activeListeners = new Set<(panelId: string | undefined) => void>();
+  private _activePanelId: string | undefined = undefined;
+  private _layoutListeners = new Set<() => void>();
 
   declare init?: () => void | Promise<void>;
   declare close?: () => void | Promise<void>;
@@ -43,17 +46,55 @@ export class DockHost {
       this._addOrFocus(item.options);
       item.resolve();
     }
-    // Persist layout on every change.
-    const onLayoutChange = api.onDidLayoutChange(() =>
-      this._scheduleLayoutSave(),
-    );
-    this._disposeApiListeners = () => onLayoutChange.dispose();
+    // Persist layout on every change AND notify listeners so
+    // consumers (e.g. SessionsPanel "open tab" highlight) can
+    // re-read `getPanelIds()`.
+    const onLayoutChange = api.onDidLayoutChange(() => {
+      this._scheduleLayoutSave();
+      for (const cb of this._layoutListeners) cb();
+    });
+    // Track the active panel so consumers (e.g. SessionsPanel
+    // highlight) can subscribe via `onActivePanelChange`.
+    this._setActivePanelId(api.activePanel?.id);
+    const onActivePanel = api.onDidActivePanelChange((panel) => {
+      this._setActivePanelId(panel?.id);
+    });
+    this._disposeApiListeners = () => {
+      onLayoutChange.dispose();
+      onActivePanel.dispose();
+    };
   }
 
   detach(): void {
     this._disposeApiListeners?.();
     this._disposeApiListeners = null;
     this._api = null;
+    this._setActivePanelId(undefined);
+  }
+
+  /** Currently active panel id, or `undefined` if no panel/api. */
+  getActivePanelId(): string | undefined {
+    return this._activePanelId;
+  }
+
+  /**
+   * Subscribe to active-panel changes. Returns a disposer. The
+   * callback is NOT invoked immediately — read `getActivePanelId()`
+   * once at subscribe time if you need an initial snapshot.
+   */
+  onActivePanelChange(cb: (panelId: string | undefined) => void): () => void {
+    this._activeListeners.add(cb);
+    return () => {
+      this._activeListeners.delete(cb);
+    };
+  }
+
+  private _setActivePanelId(id: string | undefined): void {
+    if (this._activePanelId === id) return;
+    this._activePanelId = id;
+    for (const cb of this._activeListeners) {
+      cb(id);
+    }
   }
 
   /**
@@ -87,6 +128,30 @@ export class DockHost {
     if (!this._api) return;
     const panel = this._api.getPanel(panelId);
     if (panel) panel.focus();
+  }
+
+  setPanelTitle(panelId: string, title: string): void {
+    if (!this._api) return;
+    const panel = this._api.getPanel(panelId);
+    panel?.api.setTitle(title);
+  }
+
+  /** Snapshot of currently open panel ids (empty if no api attached). */
+  getPanelIds(): readonly string[] {
+    if (!this._api) return [];
+    return this._api.panels.map((p) => p.id);
+  }
+
+  /**
+   * Subscribe to layout changes (panel add/remove/move/focus). The
+   * callback fires after every dock mutation; consumers can call
+   * `getPanelIds()` to read the new snapshot. Returns a disposer.
+   */
+  onLayoutChange(cb: () => void): () => void {
+    this._layoutListeners.add(cb);
+    return () => {
+      this._layoutListeners.delete(cb);
+    };
   }
 
   /**

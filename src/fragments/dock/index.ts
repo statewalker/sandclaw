@@ -6,10 +6,13 @@ export {
   type FocusPanelPayload,
   handleClosePanel,
   handleFocusPanel,
+  handleSetPanelTitle,
   handleShowDockPanel,
   runClosePanel,
   runFocusPanel,
+  runSetPanelTitle,
   runShowDockPanel,
+  type SetPanelTitlePayload,
   type ShowDockPanelPayload,
 } from "./intents.js";
 export { JsonPanel } from "./json-panel.js";

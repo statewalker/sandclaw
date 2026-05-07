@@ -16,6 +16,8 @@ interface FakeDockviewApi {
   toJSON: ReturnType<typeof vi.fn>;
   fromJSON: ReturnType<typeof vi.fn>;
   onDidLayoutChange: ReturnType<typeof vi.fn>;
+  onDidActivePanelChange: ReturnType<typeof vi.fn>;
+  activePanel: IDockviewPanel | undefined;
 }
 
 function makeFakeApi(): {
@@ -52,6 +54,8 @@ function makeFakeApi(): {
       layoutListeners.add(cb);
       return { dispose: () => layoutListeners.delete(cb) };
     }),
+    onDidActivePanelChange: vi.fn(() => ({ dispose: () => {} })),
+    activePanel: undefined,
   };
   return {
     api,

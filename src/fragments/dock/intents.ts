@@ -32,3 +32,18 @@ export const [runFocusPanel, handleFocusPanel] = newIntent<
   FocusPanelPayload,
   void
 >("dock:focus-panel");
+
+export interface SetPanelTitlePayload {
+  panelId: string;
+  title: string;
+}
+/**
+ * Sets the tab title shown in DockView's tab bar. No-op when the
+ * panel is not open. Generic across panel kinds — chat tabs, future
+ * file tabs, etc. — so the dock fragment owns the mechanism rather
+ * than each catalog reinventing it.
+ */
+export const [runSetPanelTitle, handleSetPanelTitle] = newIntent<
+  SetPanelTitlePayload,
+  void
+>("dock:set-panel-title");

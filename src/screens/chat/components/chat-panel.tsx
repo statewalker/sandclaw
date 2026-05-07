@@ -4,8 +4,8 @@ import {
   ChatContainerRoot,
 } from "@/components/prompt-kit/chat-container";
 import { ScrollButton } from "@/components/prompt-kit/scroll-button";
-import { useActiveSession } from "@/contexts/active-session-context";
 import { useRuntime } from "@/contexts/runtime-context";
+import type { ChatSessionState } from "@/fragments/chat-bootstrap/use-chat-session";
 import { useSendMessage } from "@/screens/chat/hooks/use-send-message";
 import { useInvalidateSessions } from "@/screens/chat/hooks/use-session-list";
 import { ChatHeader } from "./chat-header";
@@ -13,9 +13,13 @@ import { Composer } from "./composer";
 import { ProgressBanner } from "./progress-banner";
 import { SessionView } from "./session-view";
 
-export function ChatPanel(): React.ReactElement {
+export interface ChatPanelProps {
+  chatSession: ChatSessionState;
+}
+
+export function ChatPanel({ chatSession }: ChatPanelProps): React.ReactElement {
   const { state } = useRuntime();
-  const { session, isLoading, error, createNew } = useActiveSession();
+  const { session, isLoading, error } = chatSession;
   const { send, abort, progress } = useSendMessage(session);
   const invalidate = useInvalidateSessions();
 
@@ -34,17 +38,13 @@ export function ChatPanel(): React.ReactElement {
   if (!session) {
     return (
       <div className="flex h-full w-full items-center justify-center bg-background">
-        <button
-          type="button"
-          onClick={createNew}
-          className="rounded-md border px-4 py-2 text-sm text-muted-foreground hover:bg-accent"
-        >
+        <p className="rounded-md border px-4 py-2 text-sm text-muted-foreground">
           {isLoading
             ? "Loading session…"
             : error
               ? `Failed to load: ${error}`
-              : "Start a new chat"}
-        </button>
+              : "Session not found."}
+        </p>
       </div>
     );
   }

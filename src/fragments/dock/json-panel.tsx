@@ -24,7 +24,9 @@ interface JsonPanelParams {
  * through React.createPortal, so React context propagates from
  * the parent tree (the MainShell that hosts `<DockviewReact>`).
  */
-export function JsonPanel(props: IDockviewPanelProps<JsonPanelParams>): ReactElement {
+export function JsonPanel(
+  props: IDockviewPanelProps<JsonPanelParams>,
+): ReactElement {
   const { specId } = props.params;
   const workspace = useAppWorkspace();
   const store = workspace.requireAdapter(SpecStore);
