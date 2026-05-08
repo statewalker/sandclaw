@@ -27,17 +27,6 @@ import initWorkspaceBridgeViews, {
 } from "@/fragments/workspace-bridge-views";
 import "@/index.css";
 
-// WebLLM weight-bridge Service Worker registration — disabled while
-// WebLLM is commented out. Re-enable together with the WebLLM imports
-// in workspace-context.tsx / runtime-context.tsx.
-// if ("serviceWorker" in navigator) {
-//   navigator.serviceWorker
-//     .register("/webllm-weight-bridge.sw.js", { type: "module" })
-//     .catch((error) => {
-//       console.warn("[chat-mini] SW registration failed:", error);
-//     });
-// }
-
 const container = document.getElementById("app");
 if (!container) {
   throw new Error("Root element #app not found");

@@ -1,13 +1,3 @@
-// WebLLM-related imports disabled. The bootstrap weight-bridge now
-// only pre-registers transformers.js URL mappings — WebLLM catalog and
-// SW handle propagation are re-enabled together with WebLLM in
-// @statewalker/ai-provider-browser.
-// import { createDefaultCatalog } from "@statewalker/ai-agent/models";
-// import {
-//   propagateFilesHandle,
-//   registerWebLLMUrlMapping,
-//   webllmCatalog,
-// } from "@statewalker/ai-provider-browser";
 import { Intents } from "@statewalker/shared-intents";
 import type { FilesApi } from "@statewalker/webrun-files";
 import {
@@ -33,44 +23,6 @@ import {
   getStoredHandle,
   setStoredHandle,
 } from "@/services/handle-store";
-
-// WebLLM weight-bridge bootstrap disabled — depends on the SW that
-// is no longer registered in main.tsx and on @statewalker/ai-provider-browser
-// exports that are currently commented out. Restore alongside WebLLM.
-// const WEBLLM_BASE_PATH = "/.settings/models/webllm";
-// const TJS_BASE_PATH = "/.settings/models/tjs";
-// const HF_PREFIX = "https://huggingface.co/";
-//
-// async function bootstrapWeightBridge(
-//   handle: FileSystemDirectoryHandle,
-// ): Promise<void> {
-//   if (!("serviceWorker" in navigator)) return;
-//   try {
-//     await navigator.serviceWorker.ready;
-//     await propagateFilesHandle(handle);
-//     for (const config of Object.values(webllmCatalog)) {
-//       const modelUrl = config.modelId.startsWith("http")
-//         ? config.modelId.endsWith("/")
-//           ? config.modelId
-//           : `${config.modelId}/`
-//         : `${HF_PREFIX}${config.modelId}/resolve/main/`;
-//       await registerWebLLMUrlMapping(
-//         modelUrl,
-//         `${WEBLLM_BASE_PATH}/${config.modelId}/`,
-//       );
-//     }
-//     for (const config of Object.values(createDefaultCatalog())) {
-//       if (config.runtime !== "local" || config.engine !== "tjs") continue;
-//       const modelUrl = `${HF_PREFIX}${config.modelId}/resolve/main/`;
-//       await registerWebLLMUrlMapping(
-//         modelUrl,
-//         `${TJS_BASE_PATH}/${config.modelId}/`,
-//       );
-//     }
-//   } catch {
-//     /* SW unavailable — WebLLM still works via Cache API. */
-//   }
-// }
 
 export type WorkspaceState =
   | { status: "loading" }
@@ -117,7 +69,6 @@ export function WorkspaceProvider({
       await runChangeWorkspace(intents, { files: filesApi, label: handle.name })
         .promise;
       setState({ status: "ready", handle, filesApi, label: handle.name });
-      // void bootstrapWeightBridge(handle); // disabled with WebLLM
     },
     [intents],
   );
