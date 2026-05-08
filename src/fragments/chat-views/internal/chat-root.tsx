@@ -1,8 +1,8 @@
 import { Intents } from "@statewalker/shared-intents";
 import { type ReactElement, useEffect } from "react";
-import { ProviderConfigGate } from "@/components/providers/provider-config-gate";
 import { useRuntime } from "@/contexts/runtime-context";
 import { runSetPanelTitle } from "@/fragments/dock";
+import { ProviderConfigGate } from "@/fragments/providers-views";
 import { useAppWorkspace } from "@/fragments/workspace-bridge-views";
 import { ChatPanel } from "@/screens/chat/components/chat-panel";
 import { useNodeProp } from "@/screens/chat/hooks/use-session-node";

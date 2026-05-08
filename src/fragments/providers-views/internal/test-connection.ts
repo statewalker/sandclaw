@@ -1,6 +1,8 @@
 import { verifyModelAccess } from "@statewalker/ai-agent/models";
-import { createRemoteProvider } from "@/services/create-remote-provider";
-import type { CanonicalProviderName } from "@/services/providers-store";
+import {
+  type CanonicalProviderName,
+  createRemoteProvider,
+} from "@/fragments/providers";
 
 /**
  * Smallest model per canonical provider for cheap connection tests.

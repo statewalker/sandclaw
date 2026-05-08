@@ -1,4 +1,3 @@
-import { ProviderConfigPanel } from "@/components/providers/provider-config-panel";
 import {
   Card,
   CardContent,
@@ -6,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ProviderConfigPanel } from "./provider-config-panel.js";
 
 /**
  * Full-pane variant shown in the main shell while no model is active. Reuses

@@ -2,7 +2,6 @@ import { Intents } from "@statewalker/shared-intents";
 import { LogOut } from "lucide-react";
 import { type ReactElement, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
-import { ProviderSettingsDialog } from "@/components/providers/provider-settings-dialog";
 import { Button } from "@/components/ui/button";
 import {
   ResizableHandle,
@@ -13,6 +12,7 @@ import { useWorkspace } from "@/contexts/workspace-context";
 import { runOpenChatSession } from "@/fragments/chat";
 import { DockHost } from "@/fragments/dock";
 import { DockViewHost } from "@/fragments/dock-views";
+import { ProviderSettingsDialog } from "@/fragments/providers-views";
 import { useAppWorkspace } from "@/fragments/workspace-bridge-views";
 import { SessionsPanel } from "@/screens/chat/components/sessions-panel";
 

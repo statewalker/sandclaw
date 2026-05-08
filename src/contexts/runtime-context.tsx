@@ -2,29 +2,34 @@ import type { ModelManager } from "@statewalker/ai-agent/models";
 import { useSyncExternalStore } from "react";
 import {
   AgentRuntimeAdapter,
-  ProvidersBootstrap,
   type RuntimeState,
 } from "@/fragments/agent-runtime";
-import { useAdapter } from "@/fragments/workspace-bridge-views";
 import {
   emptyProvidersConfig,
+  Providers,
   type ProvidersConfig,
-} from "@/services/providers-store";
+} from "@/fragments/providers";
+import { useAdapter } from "@/fragments/workspace-bridge-views";
 
 export const DEFAULT_SYSTEM_FOLDER = ".settings";
 
 /**
- * Legacy compatibility shim. The runtime state machine now lives in
- * `@/fragments/agent-runtime` (Wave 4.1). This module exposes the
- * same hook surface (`useRuntime`, `useProvidersConfig`) as the
- * pre-Wave-4 React context so existing components don't need to be
- * rewritten in a single PR — they're migrated to the slot-driven
- * model in Wave 4.2 alongside the providers fragment.
+ * Legacy compatibility shim. The runtime state machine lives in
+ * `@/fragments/agent-runtime` and the providers config lives in
+ * `@/fragments/providers`. This module exposes the same hook
+ * surface (`useRuntime`, `useProvidersConfig`) as the
+ * pre-Wave-4 React context so existing components migrate
+ * incrementally.
+ *
+ * Local-model `manager` is `null` until the dedicated
+ * `local-models/` fragment lands (deferred per the proposal's
+ * out-of-scope list — WebLLM is currently disabled). Local-model
+ * UI components handle null gracefully.
  */
 export interface RuntimeContextValue {
   state: RuntimeState;
-  /** Local-model manager. Only meaningful when local providers are
-   * registered (currently disabled while WebLLM is dormant). */
+  /** Local-model manager. Always `null` until the local-models
+   * fragment is restored. */
   manager: ModelManager | null;
   saveProviders: (next: ProvidersConfig) => Promise<void>;
   reload: () => Promise<void>;
@@ -33,37 +38,35 @@ export interface RuntimeContextValue {
 
 export function useRuntime(): RuntimeContextValue {
   const adapter = useAdapter(AgentRuntimeAdapter);
-  const bootstrap = useAdapter(ProvidersBootstrap);
+  const providers = useAdapter(Providers);
 
-  // Two reactive sources, two subscriptions; both call the listener
-  // through `BaseClass.onUpdate`.
   const adapterState = useSyncExternalStore(
     (cb) => adapter.onUpdate(cb),
     () => adapter.getState(),
     () => adapter.getState(),
   );
   useSyncExternalStore(
-    (cb) => bootstrap.onUpdate(cb),
-    () => bootstrap.config,
-    () => bootstrap.config,
+    (cb) => providers.onUpdate(cb),
+    () => providers.config,
+    () => providers.config,
   );
 
   return {
     state: adapterState,
-    manager: bootstrap.manager,
-    saveProviders: (next) => bootstrap.saveProviders(next),
-    reload: () => bootstrap.reload(),
-    systemFolder: bootstrap.systemFolder,
+    manager: null,
+    saveProviders: (next) => providers.saveProviders(next),
+    reload: () => providers.reload(),
+    systemFolder: providers.systemFolder,
   };
 }
 
 export function useProvidersConfig(): ProvidersConfig {
-  const bootstrap = useAdapter(ProvidersBootstrap);
+  const providers = useAdapter(Providers);
   return (
     useSyncExternalStore(
-      (cb) => bootstrap.onUpdate(cb),
-      () => bootstrap.config,
-      () => bootstrap.config,
+      (cb) => providers.onUpdate(cb),
+      () => providers.config,
+      () => providers.config,
     ) ?? emptyProvidersConfig
   );
 }

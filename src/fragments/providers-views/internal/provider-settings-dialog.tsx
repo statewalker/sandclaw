@@ -1,6 +1,5 @@
 import { Settings } from "lucide-react";
 import { useState } from "react";
-import { ProviderConfigPanel } from "@/components/providers/provider-config-panel";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,6 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ProviderConfigPanel } from "./provider-config-panel.js";
 
 /**
  * Header trigger + dialog wrapper around `<ProviderConfigPanel>`. Lets the

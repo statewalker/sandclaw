@@ -22,7 +22,7 @@ import {
   canonicalLabel,
   listConfiguredProviders,
   type ProvidersConfig,
-} from "@/services/providers-store";
+} from "@/fragments/providers";
 
 interface CatalogModel {
   modelId: string;

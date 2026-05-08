@@ -12,7 +12,6 @@ export {
   handleRebuildAgent,
   runRebuildAgent,
 } from "./public/intents.js";
-export { ProvidersBootstrap } from "./public/providers-bootstrap.js";
 export {
   AgentRuntimeAdapter,
   type RuntimeState,

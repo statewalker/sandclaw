@@ -7,7 +7,7 @@ import {
   buildLocalPickerEntries,
   deactivateOnLocalToRemoteSwitch,
   LOCAL_PROVIDER_ID,
-} from "@/components/providers/active-model-picker";
+} from "./active-model-picker.js";
 
 const localConfig: LocalModelConfig = {
   runtime: "local",

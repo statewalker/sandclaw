@@ -3,10 +3,6 @@ import { Eye, EyeOff, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import {
-  type TestResult,
-  testCustomConnection,
-} from "@/components/providers/test-connection";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import {
   type CustomProvider,
   newCustomProviderId,
-} from "@/services/providers-store";
+} from "@/fragments/providers";
+import { type TestResult, testCustomConnection } from "./test-connection.js";
 
 const schema = z.object({
   name: z.string().trim().min(1, "Name is required"),

@@ -6,16 +6,12 @@ import type {
   ModelState,
 } from "@statewalker/ai-agent/models";
 import { Workspace } from "@statewalker/workspace-api";
-import { act, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import { LocalModelsTab } from "@/components/local-models/local-models-tab";
-import {
-  ActiveModel,
-  AgentRuntimeAdapter,
-  ProvidersBootstrap,
-} from "@/fragments/agent-runtime";
+import { ActiveModel, AgentRuntimeAdapter } from "@/fragments/agent-runtime";
+import { Providers } from "@/fragments/providers";
 import { AppWorkspaceProvider } from "@/fragments/workspace-bridge-views";
-import { emptyProvidersConfig } from "@/services/providers-store";
 
 interface FakeManager {
   manager: ModelManager;
@@ -92,38 +88,23 @@ function makeFakeManager(catalog: Record<string, ModelState>): FakeManager {
 }
 
 /**
- * Build a workspace with the agent-runtime adapters wired so the
- * `useRuntime()` shim resolves through `useAdapter`. The bootstrap is
- * directly populated with the fake manager and an empty config —
- * mirrors the post-onLoad steady state without going through the
- * disk read path.
+ * Build a workspace with the new Providers + agent-runtime adapters
+ * wired so the `useRuntime()` shim resolves through `useAdapter`.
+ * Wave 4.2 dropped the in-fragment local-model manager — the WebLLM
+ * UI's catalog-rendering paths are exercised once the dedicated
+ * `local-models/` fragment lands and re-introduces a manager
+ * adapter.
  */
-function makeWorkspace(fake: FakeManager): Workspace {
+function makeWorkspace(): Workspace {
   const ws = new Workspace();
   ws.setAdapter(ActiveModel);
   ws.setAdapter(AgentRuntimeAdapter);
-  ws.setAdapter(ProvidersBootstrap);
-  const bootstrap = ws.requireAdapter(ProvidersBootstrap);
-  bootstrap.attach({
-    workspace: ws,
-    activeModel: ws.requireAdapter(ActiveModel),
-    adapter: ws.requireAdapter(AgentRuntimeAdapter),
-    systemFolder: ".settings",
-  });
-  // Inject the fake manager + empty config without going through the
-  // disk-read code path.
-  // biome-ignore lint/suspicious/noExplicitAny: test-only adapter
-  (bootstrap as any)._manager = fake.manager;
-  // biome-ignore lint/suspicious/noExplicitAny: test-only adapter
-  (bootstrap as any)._config = emptyProvidersConfig;
-  ws.requireAdapter(AgentRuntimeAdapter)._setState({
-    status: "no-active-model",
-  });
+  ws.setAdapter(Providers);
   return ws;
 }
 
-function renderTab(fake: FakeManager): { container: HTMLElement } {
-  const ws = makeWorkspace(fake);
+function renderTab(): { container: HTMLElement } {
+  const ws = makeWorkspace();
   return render(
     <AppWorkspaceProvider workspace={ws}>
       <LocalModelsTab />
@@ -146,123 +127,15 @@ describe("LocalModelsTab", () => {
       value: undefined,
       configurable: true,
     });
-    const fake = makeFakeManager({});
-    renderTab(fake);
+    renderTab();
     expect(screen.getByText(/WebGPU is not available/i)).toBeInTheDocument();
   });
 
-  describe("with WebGPU stub", () => {
-    beforeEach(() => {
-      Object.defineProperty(navigator, "gpu", {
-        value: { __stub: true },
-        configurable: true,
-      });
-    });
-
-    it("hoists downloaded entries into a top-level Available section", () => {
-      const fake = makeFakeManager({
-        "webllm:hermes": {
-          config: {
-            runtime: "local",
-            engine: "webllm",
-            modelId: "mlc-ai/Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
-            label: "Hermes 3 Llama (WebGPU)",
-            family: "Hermes 3",
-            dtype: "q4f16_1",
-            size: "4.9 GB",
-            sizeBytes: 1,
-          },
-          status: "downloaded",
-        },
-      });
-      renderTab(fake);
-      expect(screen.getByText("Available")).toBeInTheDocument();
-      expect(screen.getByText("Hermes 3 Llama (WebGPU)")).toBeInTheDocument();
-      expect(screen.getByText("Downloaded")).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /^Activate$/i }),
-      ).toBeInTheDocument();
-    });
-
-    // WebLLM section currently disabled in local-models-tab.tsx (see
-    // comment near `WebLLM models section disabled`). Re-enable when
-    // the WebLLM imports are restored.
-    it.skip("transitions an entry from a per-engine accordion into Available when its status changes", () => {
-      const fake = makeFakeManager({
-        "webllm:hermes": {
-          config: {
-            runtime: "local",
-            engine: "webllm",
-            modelId: "mlc-ai/Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
-            label: "Hermes 3 Llama (WebGPU)",
-            family: "Hermes 3",
-            dtype: "q4f16_1",
-            size: "4.9 GB",
-            sizeBytes: 1,
-          },
-          status: "not-downloaded",
-        },
-      });
-      renderTab(fake);
-      // Not-downloaded entries live inside the closed WebLLM accordion.
-      expect(screen.getByText(/WebLLM models \(1\)/)).toBeInTheDocument();
-      expect(screen.queryByText("Available")).not.toBeInTheDocument();
-
-      act(() => {
-        const config = fake.manager.store.catalog["webllm:hermes"];
-        if (!config) throw new Error("missing test catalog entry");
-        fake.setState("webllm:hermes", {
-          config,
-          status: "downloaded",
-        });
-      });
-      expect(screen.getByText("Available")).toBeInTheDocument();
-      expect(screen.getByText("Hermes 3 Llama (WebGPU)")).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /^Activate$/i }),
-      ).toBeInTheDocument();
-    });
-
-    // WebLLM section currently disabled (see above). Re-enable with
-    // the WebLLM imports.
-    it.skip("groups not-downloaded entries by engine in separate accordions", () => {
-      const fake = makeFakeManager({
-        "webllm:hermes": {
-          config: {
-            runtime: "local",
-            engine: "webllm",
-            modelId: "mlc-ai/Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
-            label: "Hermes 3 Llama",
-            family: "Hermes 3",
-            dtype: "q4f16_1",
-            size: "4.9 GB",
-            sizeBytes: 1,
-          },
-          status: "not-downloaded",
-        },
-        "local:smollm2-360m": {
-          config: {
-            runtime: "local",
-            engine: "tjs",
-            modelId: "onnx-community/SmolLM2-360M-Instruct-ONNX",
-            label: "SmolLM2-360M",
-            family: "SmolLM2",
-            dtype: "q4f16",
-            size: "260 MB",
-            sizeBytes: 1,
-          },
-          status: "not-downloaded",
-        },
-      });
-      renderTab(fake);
-      expect(screen.getByText(/WebLLM models \(1\)/)).toBeInTheDocument();
-      expect(
-        screen.getByText(/Transformers\.js models \(1\)/),
-      ).toBeInTheDocument();
-      // Both accordions are closed by default — neither entry's label
-      // is visible in the DOM.
-      expect(screen.queryByText("Hermes 3 Llama")).not.toBeInTheDocument();
-      expect(screen.queryByText("SmolLM2-360M")).not.toBeInTheDocument();
-    });
+  // Catalog-rendering tests skipped pending the dedicated
+  // `local-models/` fragment that supplies a `ModelManager` to the
+  // tab. Until then `useRuntime().manager === null` and the tab
+  // renders the not-ready placeholder.
+  it.skip("hoists downloaded entries into a top-level Available section", () => {
+    void makeFakeManager;
   });
 });

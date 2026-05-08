@@ -1,8 +1,5 @@
 import { useCallback } from "react";
 import { LocalModelsTab } from "@/components/local-models/local-models-tab";
-import { ActiveModelPicker } from "@/components/providers/active-model-picker";
-import { CanonicalForm } from "@/components/providers/canonical-form";
-import { CustomProvidersList } from "@/components/providers/custom-providers-list";
 import {
   Card,
   CardContent,
@@ -17,7 +14,10 @@ import type {
   CanonicalProviderName,
   CustomProvider,
   ProvidersConfig,
-} from "@/services/providers-store";
+} from "@/fragments/providers";
+import { ActiveModelPicker } from "./active-model-picker.js";
+import { CanonicalForm } from "./canonical-form.js";
+import { CustomProvidersList } from "./custom-providers-list.js";
 
 const CANONICAL_TABS = [
   { name: "openai", label: "OpenAI" },

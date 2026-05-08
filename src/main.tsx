@@ -11,6 +11,8 @@ import initChatViews from "@/fragments/chat-views";
 import initCoreViews from "@/fragments/core-views";
 import initDock from "@/fragments/dock";
 import initDockViews from "@/fragments/dock-views";
+import initProviders from "@/fragments/providers";
+import initProvidersViews from "@/fragments/providers-views";
 import initSpecStore from "@/fragments/spec-store";
 import initWorkspaceBridge from "@/fragments/workspace-bridge";
 import initWorkspaceBridgeViews, {
@@ -59,11 +61,13 @@ async function bootstrap(root: HTMLElement): Promise<void> {
   register(initDock(ctx));
   register(initWorkspaceBridge(ctx));
   register(initAgentRuntime(ctx));
+  register(initProviders(ctx));
   register(initChat(ctx));
   // ── Renderer fragments register after logic fragments (ADR 0002) ──
   register(initCoreViews(ctx)); // ViewRegistry adapter
   register(initWorkspaceBridgeViews(ctx));
   register(initDockViews(ctx));
+  register(initProvidersViews(ctx));
   register(initChatViews(ctx)); // binds React ChatRoot to the chat catalog
 
   // NOTE: `workspace.open()` is intentionally NOT called here.

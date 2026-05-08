@@ -3,17 +3,14 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import {
-  type TestResult,
-  testCanonicalConnection,
-} from "@/components/providers/test-connection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type {
   CanonicalCredentials,
   CanonicalProviderName,
-} from "@/services/providers-store";
+} from "@/fragments/providers";
+import { type TestResult, testCanonicalConnection } from "./test-connection.js";
 
 const schema = z.object({
   apiKey: z.string().trim().min(1, "API key is required"),
