@@ -1,7 +1,15 @@
-import type { LanguageModelV3, ProviderV3 } from "@ai-sdk/provider";
+import type {
+  ProviderV3 as _ProviderV3,
+  LanguageModelV3,
+  ProviderV3,
+} from "@ai-sdk/provider";
 import type { ModelManager } from "@statewalker/ai-agent/models";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import { describe, expect, it, vi } from "vitest";
+import {
+  buildRuntime as _buildRuntime,
+  type BuildRuntimeInput,
+} from "@/fragments/agent-runtime/internal/build-runtime";
 import { createManagerProvider } from "@/services/local-models/manager-provider";
 import {
   emptyProvidersConfig,
@@ -10,7 +18,29 @@ import {
   type ProvidersConfig,
   saveProvidersConfig,
 } from "@/services/providers-store";
-import { wireRuntime } from "@/services/wire-runtime";
+
+/**
+ * Adapter so existing test bodies (written against the old
+ * `wireRuntime(files, providers, options?)` signature) keep working
+ * against the new `buildRuntime({ files, provider, tools, skills,
+ * mcpServers, systemFolder? })` shape.
+ */
+async function wireRuntime(
+  files: BuildRuntimeInput["files"],
+  providers: _ProviderV3[],
+  options: { systemFolder?: string } = {},
+): ReturnType<typeof _buildRuntime> {
+  const provider = providers[0];
+  if (!provider) throw new Error("wireRuntime test helper: no provider");
+  return _buildRuntime({
+    files,
+    provider,
+    tools: [],
+    skills: [],
+    mcpServers: {},
+    systemFolder: options.systemFolder,
+  });
+}
 
 function stubProvider(): ProviderV3 {
   // The runtime stores the provider but never calls it during build /

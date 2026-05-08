@@ -11,13 +11,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useRuntime } from "@/contexts/runtime-context";
-import {
-  type CanonicalCredentials,
-  type CanonicalProviderName,
-  type CustomProvider,
-  emptyProvidersConfig,
-  type ProvidersConfig,
+import { useProvidersConfig, useRuntime } from "@/contexts/runtime-context";
+import type {
+  CanonicalCredentials,
+  CanonicalProviderName,
+  CustomProvider,
+  ProvidersConfig,
 } from "@/services/providers-store";
 
 const CANONICAL_TABS = [
@@ -30,13 +29,8 @@ const CANONICAL_TABS = [
 }>;
 
 export function ProviderConfigPanel(): React.ReactElement {
-  const { state, saveProviders } = useRuntime();
-  const config: ProvidersConfig =
-    state.status === "ready" ||
-    state.status === "no-providers" ||
-    state.status === "no-active-model"
-      ? state.config
-      : emptyProvidersConfig;
+  const { saveProviders } = useRuntime();
+  const config: ProvidersConfig = useProvidersConfig();
 
   const setCanonical = useCallback(
     async (

@@ -5,10 +5,17 @@ import type {
   ModelManager,
   ModelState,
 } from "@statewalker/ai-agent/models";
+import { Workspace } from "@statewalker/workspace-api";
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LocalModelsTab } from "@/components/local-models/local-models-tab";
-import { RuntimeContext } from "@/contexts/runtime-context";
+import {
+  ActiveModel,
+  AgentRuntimeAdapter,
+  ProvidersBootstrap,
+} from "@/fragments/agent-runtime";
+import { AppWorkspaceProvider } from "@/fragments/workspace-bridge-views";
+import { emptyProvidersConfig } from "@/services/providers-store";
 
 interface FakeManager {
   manager: ModelManager;
@@ -84,27 +91,43 @@ function makeFakeManager(catalog: Record<string, ModelState>): FakeManager {
   };
 }
 
-function renderTab(fake: FakeManager): { container: HTMLElement } {
-  const value = {
-    state: {
-      status: "no-active-model" as const,
-      config: {
-        schemaVersion: 3 as const,
-        remote: {},
-        custom: [],
-        active: {},
-        local: {},
-      },
-    },
-    manager: fake.manager,
-    saveProviders: async () => {},
-    reload: async () => {},
+/**
+ * Build a workspace with the agent-runtime adapters wired so the
+ * `useRuntime()` shim resolves through `useAdapter`. The bootstrap is
+ * directly populated with the fake manager and an empty config —
+ * mirrors the post-onLoad steady state without going through the
+ * disk read path.
+ */
+function makeWorkspace(fake: FakeManager): Workspace {
+  const ws = new Workspace();
+  ws.setAdapter(ActiveModel);
+  ws.setAdapter(AgentRuntimeAdapter);
+  ws.setAdapter(ProvidersBootstrap);
+  const bootstrap = ws.requireAdapter(ProvidersBootstrap);
+  bootstrap.attach({
+    workspace: ws,
+    activeModel: ws.requireAdapter(ActiveModel),
+    adapter: ws.requireAdapter(AgentRuntimeAdapter),
     systemFolder: ".settings",
-  };
+  });
+  // Inject the fake manager + empty config without going through the
+  // disk-read code path.
+  // biome-ignore lint/suspicious/noExplicitAny: test-only adapter
+  (bootstrap as any)._manager = fake.manager;
+  // biome-ignore lint/suspicious/noExplicitAny: test-only adapter
+  (bootstrap as any)._config = emptyProvidersConfig;
+  ws.requireAdapter(AgentRuntimeAdapter)._setState({
+    status: "no-active-model",
+  });
+  return ws;
+}
+
+function renderTab(fake: FakeManager): { container: HTMLElement } {
+  const ws = makeWorkspace(fake);
   return render(
-    <RuntimeContext.Provider value={value}>
+    <AppWorkspaceProvider workspace={ws}>
       <LocalModelsTab />
-    </RuntimeContext.Provider>,
+    </AppWorkspaceProvider>,
   );
 }
 

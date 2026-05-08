@@ -73,7 +73,7 @@ export function buildLocalPickerEntries(
  * provider away from `local`. No-op for local→local or remote→anything.
  */
 export function deactivateOnLocalToRemoteSwitch(
-  manager: { deactivate: (key: string) => void },
+  manager: { deactivate: (key: string) => void } | null,
   prevProviderId: string | undefined,
   prevModelId: string | undefined,
   nextProviderId: string | undefined,
@@ -81,7 +81,7 @@ export function deactivateOnLocalToRemoteSwitch(
   if (prevProviderId !== LOCAL_PROVIDER_ID) return;
   if (nextProviderId === LOCAL_PROVIDER_ID) return;
   if (!prevModelId) return;
-  manager.deactivate(prevModelId);
+  manager?.deactivate(prevModelId);
 }
 
 export interface ActiveModelPickerProps {

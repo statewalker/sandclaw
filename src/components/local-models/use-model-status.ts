@@ -7,10 +7,22 @@ import { useMemo, useSyncExternalStore } from "react";
  * notifies — that way `useSyncExternalStore`'s `Object.is` snapshot check
  * doesn't see a new reference every render.
  */
+const EMPTY_STATES: ReadonlyMap<string, ModelState> = new Map();
+
 export function useModelStatuses(
-  manager: ModelManager,
+  manager: ModelManager | null,
 ): ReadonlyMap<string, ModelState> {
   const { subscribe, getSnapshot } = useMemo(() => {
+    if (!manager) {
+      return {
+        subscribe(): () => void {
+          return () => {};
+        },
+        getSnapshot(): ReadonlyMap<string, ModelState> {
+          return EMPTY_STATES;
+        },
+      };
+    }
     let cached: Map<string, ModelState> | null = manager.store.getStates();
     return {
       subscribe(cb: () => void): () => void {

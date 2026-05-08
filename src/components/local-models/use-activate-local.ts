@@ -27,7 +27,7 @@ const initial: ActivateState = {
  * The hook does **not** persist the user's selection — callers do that on
  * the `ready` resolution.
  */
-export function useActivateLocal(manager: ModelManager): {
+export function useActivateLocal(manager: ModelManager | null): {
   state: ActivateState;
   activate: (key: string) => Promise<boolean>;
   cancel: () => void;
@@ -37,6 +37,7 @@ export function useActivateLocal(manager: ModelManager): {
 
   const activate = useCallback(
     async (key: string): Promise<boolean> => {
+      if (!manager) return false;
       activeKeyRef.current = key;
       setState({ activatingKey: key, progress: null, error: null });
       try {
@@ -69,7 +70,7 @@ export function useActivateLocal(manager: ModelManager): {
   const cancel = useCallback(() => {
     const key = activeKeyRef.current;
     if (!key) return;
-    manager.cancel(key);
+    manager?.cancel(key);
     activeKeyRef.current = null;
     setState((prev) => ({ ...prev, activatingKey: null }));
   }, [manager]);

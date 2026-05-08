@@ -9,7 +9,6 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { RuntimeProvider } from "@/contexts/runtime-context";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { runOpenChatSession } from "@/fragments/chat";
 import { DockHost } from "@/fragments/dock";
@@ -75,20 +74,22 @@ export function ChatScreen(): ReactElement {
     // fallback for state transitions.
     return <div />;
   }
+  // The runtime lifecycle is now owned by the `agent-runtime`
+  // fragment (registered in `main.tsx`). The chat-screen just
+  // composes UI; consumers read state via `useRuntime()` (which
+  // reads `AgentRuntimeAdapter` + `ProvidersBootstrap`).
   return (
-    <RuntimeProvider files={state.filesApi}>
-      <div className="flex h-full w-full flex-col">
-        <ShellHeader />
-        <ResizablePanelGroup orientation="horizontal" className="flex-1">
-          <ResizablePanel defaultSize="280px" minSize="180px" maxSize="40%">
-            <SessionsPanel />
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel minSize="40%">
-            <MainPane />
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
-    </RuntimeProvider>
+    <div className="flex h-full w-full flex-col">
+      <ShellHeader />
+      <ResizablePanelGroup orientation="horizontal" className="flex-1">
+        <ResizablePanel defaultSize="280px" minSize="180px" maxSize="40%">
+          <SessionsPanel />
+        </ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel minSize="40%">
+          <MainPane />
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </div>
   );
 }

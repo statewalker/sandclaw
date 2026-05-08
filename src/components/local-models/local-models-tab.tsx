@@ -45,6 +45,16 @@ export function LocalModelsTab({
       </div>
     );
   }
+  if (!manager) {
+    return (
+      <div className="flex flex-col gap-2 rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+        <p className="font-medium text-foreground">
+          Local-model manager not ready
+        </p>
+        <p>The workspace must be open to load local models.</p>
+      </div>
+    );
+  }
 
   const activeKey =
     state.status === "ready" && state.activeProviderId === "local"

@@ -4,6 +4,7 @@ import { Workspace } from "@statewalker/workspace-api";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "@/app";
+import initAgentRuntime from "@/fragments/agent-runtime";
 import initCatalogRegistry from "@/fragments/catalog-registry";
 import initChat from "@/fragments/chat";
 import initChatViews from "@/fragments/chat-views";
@@ -57,6 +58,7 @@ async function bootstrap(root: HTMLElement): Promise<void> {
   register(initSpecStore(ctx));
   register(initDock(ctx));
   register(initWorkspaceBridge(ctx));
+  register(initAgentRuntime(ctx));
   register(initChat(ctx));
   // ── Renderer fragments register after logic fragments (ADR 0002) ──
   register(initCoreViews(ctx)); // ViewRegistry adapter

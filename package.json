@@ -39,6 +39,7 @@
     "@statewalker/ai-provider-browser": "catalog:",
     "@statewalker/platform-api": "catalog:",
     "@statewalker/platform-browser": "catalog:",
+    "@statewalker/shared-baseclass": "catalog:",
     "@statewalker/shared-intents": "catalog:",
     "@statewalker/shared-registry": "catalog:",
     "@statewalker/shared-slots": "catalog:",
