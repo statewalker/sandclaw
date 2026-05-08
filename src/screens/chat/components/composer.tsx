@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { type ComposerAction, observeComposerActions } from "@/fragments/chat";
 import { ViewRegistry } from "@/fragments/core-views";
 import { useAdapter } from "@/fragments/workspace-bridge-views";
+import { compareByOrderAndId } from "@/lib/compare-ordered";
 import { useRegistry } from "@/lib/use-registry";
 
 export interface ComposerProps {
@@ -118,10 +119,8 @@ function splitActions(actions: readonly ComposerAction[]): {
     if (a.position === "trailing") trailing.push(a);
     else leading.push(a);
   }
-  const cmp = (a: ComposerAction, b: ComposerAction) =>
-    (a.order ?? 100) - (b.order ?? 100) || a.id.localeCompare(b.id);
-  leading.sort(cmp);
-  trailing.sort(cmp);
+  leading.sort(compareByOrderAndId);
+  trailing.sort(compareByOrderAndId);
   return { leading, trailing };
 }
 

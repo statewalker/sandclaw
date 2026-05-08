@@ -15,6 +15,7 @@ import {
   type SettingsTab,
 } from "@/fragments/settings";
 import { useAdapter } from "@/fragments/workspace-bridge-views";
+import { compareByOrderAndId } from "@/lib/compare-ordered";
 import { useAdapterValue } from "@/lib/use-adapter-value";
 import { cn } from "@/lib/utils";
 
@@ -39,14 +40,7 @@ export function SettingsDialog(): ReactElement | null {
   const activeTabId = useAdapterValue(Settings, (s) => s.activeTabId);
 
   const tabs = useSlot(slots, observeSettingsTabs);
-  const sortedTabs = useMemo(
-    () =>
-      [...tabs].sort(
-        (a, b) =>
-          (a.order ?? 100) - (b.order ?? 100) || a.id.localeCompare(b.id),
-      ),
-    [tabs],
-  );
+  const sortedTabs = useMemo(() => [...tabs].sort(compareByOrderAndId), [tabs]);
 
   if (!isOpen) return null;
 
