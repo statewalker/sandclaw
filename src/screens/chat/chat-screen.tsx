@@ -9,12 +9,12 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import { useAppWorkspace } from "@/contexts/app-workspace-context";
 import { RuntimeProvider } from "@/contexts/runtime-context";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { runOpenChatSession } from "@/fragments/chat";
 import { DockHost } from "@/fragments/dock";
 import { DockViewHost } from "@/fragments/dock-views";
+import { useAppWorkspace } from "@/fragments/workspace-bridge-views";
 import { SessionsPanel } from "@/screens/chat/components/sessions-panel";
 
 const SESSION_PARAM = "s";

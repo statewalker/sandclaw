@@ -1,9 +1,14 @@
-import { createDefaultCatalog } from "@statewalker/ai-agent/models";
-import {
-  propagateFilesHandle,
-  registerWebLLMUrlMapping,
-  webllmCatalog,
-} from "@statewalker/ai-provider-browser";
+// WebLLM-related imports disabled. The bootstrap weight-bridge now
+// only pre-registers transformers.js URL mappings — WebLLM catalog and
+// SW handle propagation are re-enabled together with WebLLM in
+// @statewalker/ai-provider-browser.
+// import { createDefaultCatalog } from "@statewalker/ai-agent/models";
+// import {
+//   propagateFilesHandle,
+//   registerWebLLMUrlMapping,
+//   webllmCatalog,
+// } from "@statewalker/ai-provider-browser";
+import { Intents } from "@statewalker/shared-intents";
 import type { FilesApi } from "@statewalker/webrun-files";
 import {
   createContext,
@@ -14,6 +19,8 @@ import {
   useMemo,
   useState,
 } from "react";
+import { runChangeWorkspace } from "@/fragments/workspace-bridge";
+import { useAppWorkspace } from "@/fragments/workspace-bridge-views";
 import {
   createBrowserFilesApi,
   isFileSystemAccessSupported,
@@ -27,56 +34,43 @@ import {
   setStoredHandle,
 } from "@/services/handle-store";
 
-const WEBLLM_BASE_PATH = "/.settings/models/webllm";
-const TJS_BASE_PATH = "/.settings/models/tjs";
-const HF_PREFIX = "https://huggingface.co/";
-
-/** Hand the workspace's directory handle to the WebLLM weight-bridge SW
- *  AND pre-register URL mappings for every entry in `webllmCatalog`.
- *
- *  Pre-registration matters: without it the URL mapping is only
- *  registered just before `engine.reload(...)`, and that postMessage
- *  is async — the very first fetch from `engine.reload` can race with
- *  the SW message processing and get served straight from the network,
- *  bypassing FilesApi entirely. Pre-registering all catalog entries at
- *  bootstrap closes that race for free.
- *
- *  Best-effort — a failure here just disables FilesApi-backed weight
- *  persistence; WebLLM still works via its Cache API. */
-async function bootstrapWeightBridge(
-  handle: FileSystemDirectoryHandle,
-): Promise<void> {
-  if (!("serviceWorker" in navigator)) return;
-  try {
-    await navigator.serviceWorker.ready;
-    await propagateFilesHandle(handle);
-    // Pre-register a URL mapping for every local model in the catalog.
-    // WebLLM and transformers.js both fetch from
-    // `huggingface.co/<modelId>/resolve/main/`, so the SW handles both
-    // engines uniformly — only the on-disk basePath differs.
-    for (const config of Object.values(webllmCatalog)) {
-      const modelUrl = config.modelId.startsWith("http")
-        ? config.modelId.endsWith("/")
-          ? config.modelId
-          : `${config.modelId}/`
-        : `${HF_PREFIX}${config.modelId}/resolve/main/`;
-      await registerWebLLMUrlMapping(
-        modelUrl,
-        `${WEBLLM_BASE_PATH}/${config.modelId}/`,
-      );
-    }
-    for (const config of Object.values(createDefaultCatalog())) {
-      if (config.runtime !== "local" || config.engine !== "tjs") continue;
-      const modelUrl = `${HF_PREFIX}${config.modelId}/resolve/main/`;
-      await registerWebLLMUrlMapping(
-        modelUrl,
-        `${TJS_BASE_PATH}/${config.modelId}/`,
-      );
-    }
-  } catch {
-    /* SW unavailable — WebLLM still works via Cache API. */
-  }
-}
+// WebLLM weight-bridge bootstrap disabled — depends on the SW that
+// is no longer registered in main.tsx and on @statewalker/ai-provider-browser
+// exports that are currently commented out. Restore alongside WebLLM.
+// const WEBLLM_BASE_PATH = "/.settings/models/webllm";
+// const TJS_BASE_PATH = "/.settings/models/tjs";
+// const HF_PREFIX = "https://huggingface.co/";
+//
+// async function bootstrapWeightBridge(
+//   handle: FileSystemDirectoryHandle,
+// ): Promise<void> {
+//   if (!("serviceWorker" in navigator)) return;
+//   try {
+//     await navigator.serviceWorker.ready;
+//     await propagateFilesHandle(handle);
+//     for (const config of Object.values(webllmCatalog)) {
+//       const modelUrl = config.modelId.startsWith("http")
+//         ? config.modelId.endsWith("/")
+//           ? config.modelId
+//           : `${config.modelId}/`
+//         : `${HF_PREFIX}${config.modelId}/resolve/main/`;
+//       await registerWebLLMUrlMapping(
+//         modelUrl,
+//         `${WEBLLM_BASE_PATH}/${config.modelId}/`,
+//       );
+//     }
+//     for (const config of Object.values(createDefaultCatalog())) {
+//       if (config.runtime !== "local" || config.engine !== "tjs") continue;
+//       const modelUrl = `${HF_PREFIX}${config.modelId}/resolve/main/`;
+//       await registerWebLLMUrlMapping(
+//         modelUrl,
+//         `${TJS_BASE_PATH}/${config.modelId}/`,
+//       );
+//     }
+//   } catch {
+//     /* SW unavailable — WebLLM still works via Cache API. */
+//   }
+// }
 
 export type WorkspaceState =
   | { status: "loading" }
@@ -109,12 +103,24 @@ export function WorkspaceProvider({
   children: ReactNode;
 }): ReactNode {
   const [state, setState] = useState<WorkspaceState>({ status: "loading" });
+  const workspace = useAppWorkspace();
+  const intents = workspace.requireAdapter(Intents);
 
-  const adoptHandle = useCallback((handle: FileSystemDirectoryHandle) => {
-    const filesApi = createBrowserFilesApi(handle);
-    setState({ status: "ready", handle, filesApi, label: handle.name });
-    void bootstrapWeightBridge(handle);
-  }, []);
+  const adoptHandle = useCallback(
+    async (handle: FileSystemDirectoryHandle) => {
+      const filesApi = createBrowserFilesApi(handle);
+      // Drive the canonical Workspace lifecycle (ADR 0001) — the
+      // change-workspace handler in `workspace-bridge` performs
+      // close → setFileSystem (+ SystemFiles/Secrets/Settings) →
+      // open. After this resolves, `workspace.onLoad` listeners
+      // have fired and FilesApi-dependent fragments are ready.
+      await runChangeWorkspace(intents, { files: filesApi, label: handle.name })
+        .promise;
+      setState({ status: "ready", handle, filesApi, label: handle.name });
+      // void bootstrapWeightBridge(handle); // disabled with WebLLM
+    },
+    [intents],
+  );
 
   // Initial mount: try to silently restore a stored handle.
   useEffect(() => {
@@ -138,7 +144,7 @@ export function WorkspaceProvider({
       const perm = await queryHandlePermission(handle);
       if (!mounted) return;
       if (perm === "granted") {
-        adoptHandle(handle);
+        await adoptHandle(handle);
       } else if (perm === "prompt") {
         setState({ status: "needs-permission", handle, label: handle.name });
       } else {
@@ -154,14 +160,14 @@ export function WorkspaceProvider({
   const pick = useCallback(async () => {
     const handle = await pickDirectory();
     await setStoredHandle(handle);
-    adoptHandle(handle);
+    await adoptHandle(handle);
   }, [adoptHandle]);
 
   const reconnect = useCallback(async () => {
     if (state.status !== "needs-permission") return;
     const result = await requestHandlePermission(state.handle);
     if (result === "granted") {
-      adoptHandle(state.handle);
+      await adoptHandle(state.handle);
     } else {
       await clearStoredHandle();
       setState({ status: "empty" });
@@ -170,8 +176,12 @@ export function WorkspaceProvider({
 
   const switchWorkspace = useCallback(async () => {
     await clearStoredHandle();
+    // Tear down the current workspace lifecycle so onUnload
+    // listeners fire (ADR 0001). The `runChangeWorkspace`
+    // path will rebind on the next pick.
+    await workspace.close();
     setState({ status: "empty" });
-  }, []);
+  }, [workspace]);
 
   const value = useMemo<WorkspaceContextValue>(
     () => ({ state, pick, reconnect, switchWorkspace }),

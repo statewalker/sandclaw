@@ -2,7 +2,7 @@ import { JSONUIProvider, Renderer } from "@json-render/react";
 import { Intents } from "@statewalker/shared-intents";
 import type { IDockviewPanelProps } from "dockview-react";
 import { type ReactElement, useSyncExternalStore } from "react";
-import { useAppWorkspace } from "@/contexts/app-workspace-context";
+import { useAppWorkspace } from "@/fragments/workspace-bridge-views";
 import { CatalogRegistry } from "../../catalog-registry/index.js";
 import { runClosePanel } from "../../dock/index.js";
 import { type SpecRecord, SpecStore } from "../../spec-store/index.js";

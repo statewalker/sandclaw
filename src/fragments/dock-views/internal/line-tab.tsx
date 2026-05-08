@@ -5,7 +5,7 @@ import type {
 } from "dockview-react";
 import { X } from "lucide-react";
 import { type ReactElement, useCallback, useSyncExternalStore } from "react";
-import { useAppWorkspace } from "@/contexts/app-workspace-context";
+import { useAppWorkspace } from "@/fragments/workspace-bridge-views";
 import { cn } from "@/lib/utils";
 import { runClosePanel } from "../../dock/index.js";
 

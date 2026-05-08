@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
-import { useAppWorkspace } from "@/contexts/app-workspace-context";
 import { DockHost } from "@/fragments/dock";
+import { useAppWorkspace } from "@/fragments/workspace-bridge-views";
 
 const PANEL_ID_PREFIX = "chat:";
 

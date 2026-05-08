@@ -4,7 +4,6 @@ import { Workspace } from "@statewalker/workspace-api";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "@/app";
-import { AppWorkspaceProvider } from "@/contexts/app-workspace-context";
 import initCatalogRegistry from "@/fragments/catalog-registry";
 import initChat from "@/fragments/chat";
 import initChatViews from "@/fragments/chat-views";
@@ -12,6 +11,10 @@ import initCoreViews from "@/fragments/core-views";
 import initDock from "@/fragments/dock";
 import initDockViews from "@/fragments/dock-views";
 import initSpecStore from "@/fragments/spec-store";
+import initWorkspaceBridge from "@/fragments/workspace-bridge";
+import initWorkspaceBridgeViews, {
+  AppWorkspaceProvider,
+} from "@/fragments/workspace-bridge-views";
 import "@/index.css";
 
 // WebLLM weight-bridge Service Worker registration — disabled while
@@ -53,9 +56,11 @@ async function bootstrap(root: HTMLElement): Promise<void> {
   register(initCatalogRegistry(ctx));
   register(initSpecStore(ctx));
   register(initDock(ctx));
+  register(initWorkspaceBridge(ctx));
   register(initChat(ctx));
   // ── Renderer fragments register after logic fragments (ADR 0002) ──
   register(initCoreViews(ctx)); // ViewRegistry adapter
+  register(initWorkspaceBridgeViews(ctx));
   register(initDockViews(ctx));
   register(initChatViews(ctx)); // binds React ChatRoot to the chat catalog
 

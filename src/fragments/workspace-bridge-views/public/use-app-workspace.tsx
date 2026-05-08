@@ -10,17 +10,15 @@ interface AppWorkspaceProviderProps {
 
 /**
  * Provides the application-wide `Workspace` instance from
- * `@statewalker/workspace-api` to React consumers. The Workspace
- * is created and opened in `main.tsx` BEFORE React mounts; this
- * provider only carries the already-open instance into the React
- * tree.
+ * `@statewalker/workspace-api` to React consumers. Per ADR 0002,
+ * this React-tree glue lives in the renderer fragment
+ * `workspace-bridge-views` (not in any logic fragment) — React
+ * hooks routing typed contracts are contract surface in renderer
+ * fragments.
  *
- * This is distinct from chat-mini's pre-existing `WorkspaceContext`
- * (`workspace-context.tsx`), which is the chat-mini-specific React
- * surface for the directory-handle lifecycle. The two contexts have
- * different concerns and different hook names — `useAppWorkspace()`
- * for the umbrella's adapter host, `useWorkspace()` for chat-mini's
- * directory-handle UI.
+ * The Workspace is created in `main.tsx` BEFORE React mounts; this
+ * provider only carries the already-existing instance into the
+ * React tree.
  */
 export function AppWorkspaceProvider({
   workspace,
@@ -33,6 +31,10 @@ export function AppWorkspaceProvider({
   );
 }
 
+/**
+ * Read the application-wide `Workspace` from React context.
+ * Throws if used outside `<AppWorkspaceProvider>`.
+ */
 export function useAppWorkspace(): Workspace {
   const ws = useContext(AppWorkspaceContext);
   if (!ws) {
