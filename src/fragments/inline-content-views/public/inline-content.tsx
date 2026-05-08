@@ -1,10 +1,9 @@
-import { type ReactElement, useSyncExternalStore } from "react";
+import type { ReactElement } from "react";
 import {
-  type InlineContentComponent,
   InlineContentRegistry,
   type InlineContentSpec,
 } from "@/fragments/inline-content";
-import { useAppWorkspace } from "@/fragments/workspace-bridge-views";
+import { useRegistry } from "@/lib/use-registry";
 
 /**
  * Resolves `spec.componentId` against the workspace's
@@ -22,13 +21,8 @@ export function InlineContent({
 }: {
   spec: InlineContentSpec;
 }): ReactElement {
-  const workspace = useAppWorkspace();
-  const registry = workspace.requireAdapter(InlineContentRegistry);
-
-  const Component = useSyncExternalStore<InlineContentComponent | null>(
-    (notify) => registry.observe(notify),
-    () => registry.get(spec.componentId),
-  );
+  const registry = useRegistry(InlineContentRegistry);
+  const Component = registry.get(spec.componentId);
 
   if (!Component) {
     return (

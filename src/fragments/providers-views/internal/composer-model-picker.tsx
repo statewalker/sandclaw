@@ -3,7 +3,7 @@ import {
   type ModelConfig,
 } from "@statewalker/ai-agent/models";
 import { Intents } from "@statewalker/shared-intents";
-import { type ReactElement, useMemo, useSyncExternalStore } from "react";
+import { type ReactElement, useMemo } from "react";
 import {
   Select,
   SelectContent,
@@ -16,10 +16,12 @@ import {
   canonicalLabel,
   listConfiguredProviders,
   Providers,
+  type ProvidersConfig,
   runOpenProviderConfig,
   runSelectActiveModel,
 } from "@/fragments/providers";
 import { useAdapter } from "@/fragments/workspace-bridge-views";
+import { useAdapterValue } from "@/lib/use-adapter-value";
 
 interface FlatChoice {
   /** "providerId::modelId" — encoded so we can round-trip through the Select. */
@@ -33,8 +35,7 @@ interface FlatChoice {
 const NO_MODELS_VALUE = "__no-models__";
 const CONFIGURE_VALUE = "__configure__";
 
-function flatChoicesFor(providers: Providers): FlatChoice[] {
-  const config = providers.config;
+function flatChoicesFor(config: ProvidersConfig): FlatChoice[] {
   const configured = listConfiguredProviders(config);
   const catalog = createDefaultCatalog();
   const out: FlatChoice[] = [];
@@ -74,17 +75,11 @@ function flatChoicesFor(providers: Providers): FlatChoice[] {
  * settings dialog (free-text input), not here.
  */
 export function ComposerModelPicker(): ReactElement {
-  const providers = useAdapter(Providers);
   const intents = useAdapter(Intents);
+  const config = useAdapterValue(Providers, (p) => p.config);
 
-  // Re-render on providers config change.
-  useSyncExternalStore(
-    (cb) => providers.onUpdate(cb),
-    () => providers.config,
-  );
-
-  const choices = useMemo(() => flatChoicesFor(providers), [providers]);
-  const active = providers.config.active;
+  const choices = useMemo(() => flatChoicesFor(config), [config]);
+  const active = config.active;
   const activeValue =
     active.providerId && active.modelId
       ? `${active.providerId}::${active.modelId}`

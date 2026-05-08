@@ -1,4 +1,3 @@
-import { useSyncExternalStore } from "react";
 import {
   AgentRuntimeAdapter,
   type RuntimeState,
@@ -9,6 +8,7 @@ import {
   type ProvidersConfig,
 } from "@/fragments/providers";
 import { useAdapter } from "@/fragments/workspace-bridge-views";
+import { useAdapterValue } from "@/lib/use-adapter-value";
 
 export const DEFAULT_SYSTEM_FOLDER = ".settings";
 
@@ -27,22 +27,13 @@ export interface RuntimeContextValue {
 }
 
 export function useRuntime(): RuntimeContextValue {
-  const adapter = useAdapter(AgentRuntimeAdapter);
   const providers = useAdapter(Providers);
-
-  const adapterState = useSyncExternalStore(
-    (cb) => adapter.onUpdate(cb),
-    () => adapter.getState(),
-    () => adapter.getState(),
-  );
-  useSyncExternalStore(
-    (cb) => providers.onUpdate(cb),
-    () => providers.config,
-    () => providers.config,
-  );
+  const state = useAdapterValue(AgentRuntimeAdapter, (a) => a.getState());
+  // Bind the providers config so re-renders fire on save.
+  useAdapterValue(Providers, (p) => p.config);
 
   return {
-    state: adapterState,
+    state,
     saveProviders: (next) => providers.saveProviders(next),
     reload: () => providers.reload(),
     systemFolder: providers.systemFolder,
@@ -50,12 +41,5 @@ export function useRuntime(): RuntimeContextValue {
 }
 
 export function useProvidersConfig(): ProvidersConfig {
-  const providers = useAdapter(Providers);
-  return (
-    useSyncExternalStore(
-      (cb) => providers.onUpdate(cb),
-      () => providers.config,
-      () => providers.config,
-    ) ?? emptyProvidersConfig
-  );
+  return useAdapterValue(Providers, (p) => p.config) ?? emptyProvidersConfig;
 }

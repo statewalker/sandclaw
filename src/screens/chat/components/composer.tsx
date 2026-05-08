@@ -6,7 +6,6 @@ import {
   type ReactElement,
   useMemo,
   useState,
-  useSyncExternalStore,
 } from "react";
 import {
   PromptInput,
@@ -17,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { type ComposerAction, observeComposerActions } from "@/fragments/chat";
 import { ViewRegistry } from "@/fragments/core-views";
 import { useAdapter } from "@/fragments/workspace-bridge-views";
+import { useRegistry } from "@/lib/use-registry";
 
 export interface ComposerProps {
   onSend: (text: string) => void;
@@ -42,13 +42,10 @@ export function Composer({
 }: ComposerProps): ReactElement {
   const [draft, setDraft] = useState("");
   const slots = useAdapter(Slots);
-  const registry = useAdapter(ViewRegistry);
+  // Subscribed adapter — re-renders when a contributed action's
+  // viewKey is registered late.
+  const registry = useRegistry(ViewRegistry);
   const actions = useSlot(slots, observeComposerActions);
-  // Subscribe so a late-registered viewKey re-renders the actions row.
-  useSyncExternalStore(
-    (notify) => registry.observe(() => notify()),
-    () => registry,
-  );
 
   const { leading, trailing } = useMemo(() => splitActions(actions), [actions]);
 

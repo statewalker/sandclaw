@@ -29,9 +29,23 @@ export class IdentifiableRegistry<T> {
   private readonly _watchers = new Set<
     (entries: ReadonlyMap<string, T>) => void
   >();
+  private _version = 0;
 
   declare init?: () => void | Promise<void>;
   declare close?: () => void | Promise<void>;
+
+  /**
+   * Monotonically-increasing change counter. Bumped on every
+   * `register` (new entry) and on every disposer call that
+   * actually removes an entry. The value itself is opaque — its
+   * only contract is "different number means the registry's
+   * contents changed." Wired through `useRegistry` so React
+   * consumers re-render via `useSyncExternalStore` (which compares
+   * snapshots with `Object.is`).
+   */
+  get version(): number {
+    return this._version;
+  }
 
   register(id: string, value: T): () => void {
     const existing = this._entries.get(id);
@@ -44,6 +58,7 @@ export class IdentifiableRegistry<T> {
       );
     }
     this._entries.set(id, value);
+    this._version++;
     this._notify();
     return () => this._removeIfMatches(id, value);
   }
@@ -67,6 +82,7 @@ export class IdentifiableRegistry<T> {
   private _removeIfMatches(id: string, value: T): void {
     if (this._entries.get(id) !== value) return;
     this._entries.delete(id);
+    this._version++;
     this._notify();
   }
 

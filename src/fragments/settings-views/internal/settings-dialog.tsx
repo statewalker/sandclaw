@@ -1,6 +1,6 @@
 import { Slots } from "@statewalker/shared-slots";
 import { useSlot } from "@statewalker/shared-slots/react";
-import { type ReactElement, useMemo, useSyncExternalStore } from "react";
+import { type ReactElement, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,7 @@ import {
   type SettingsTab,
 } from "@/fragments/settings";
 import { useAdapter } from "@/fragments/workspace-bridge-views";
+import { useAdapterValue } from "@/lib/use-adapter-value";
 import { cn } from "@/lib/utils";
 
 /**
@@ -34,16 +35,8 @@ export function SettingsDialog(): ReactElement | null {
 
   // Read each primitive separately so getSnapshot returns stable
   // values across renders (Object.is identity).
-  const isOpen = useSyncExternalStore(
-    (cb) => settings.onUpdate(cb),
-    () => settings.isOpen,
-    () => settings.isOpen,
-  );
-  const activeTabId = useSyncExternalStore(
-    (cb) => settings.onUpdate(cb),
-    () => settings.activeTabId,
-    () => settings.activeTabId,
-  );
+  const isOpen = useAdapterValue(Settings, (s) => s.isOpen);
+  const activeTabId = useAdapterValue(Settings, (s) => s.activeTabId);
 
   const tabs = useSlot(slots, observeSettingsTabs);
   const sortedTabs = useMemo(

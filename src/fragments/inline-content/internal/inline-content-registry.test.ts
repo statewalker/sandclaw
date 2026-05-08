@@ -52,4 +52,19 @@ describe("InlineContentRegistry", () => {
       ws2.requireAdapter(InlineContentRegistry),
     );
   });
+
+  it("version counter bumps on register and on dispose", () => {
+    const reg = new InlineContentRegistry();
+    expect(reg.version).toBe(0);
+    const dispose = reg.register("a", FakeA);
+    expect(reg.version).toBe(1);
+    // Re-registering same value: no entry change, no version bump.
+    reg.register("a", FakeA);
+    expect(reg.version).toBe(1);
+    dispose();
+    expect(reg.version).toBe(2);
+    // Calling a stale disposer is a no-op for the version too.
+    dispose();
+    expect(reg.version).toBe(2);
+  });
 });

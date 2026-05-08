@@ -6,12 +6,7 @@ import {
 } from "@statewalker/ai-agent/state";
 import { Slots } from "@statewalker/shared-slots";
 import { useSlot } from "@statewalker/shared-slots/react";
-import {
-  type ComponentType,
-  type ReactElement,
-  useMemo,
-  useSyncExternalStore,
-} from "react";
+import { type ComponentType, type ReactElement, useMemo } from "react";
 import {
   observeTurnBlocks,
   STANDARD_TURN_BLOCK_KINDS,
@@ -19,6 +14,7 @@ import {
 } from "@/fragments/chat";
 import { ViewRegistry } from "@/fragments/core-views";
 import { useAdapter } from "@/fragments/workspace-bridge-views";
+import { useRegistry } from "@/lib/use-registry";
 import { useNodeChildren } from "@/screens/chat/hooks/use-session-node";
 
 type TurnChild = Turn["children"][number];
@@ -99,15 +95,11 @@ export function TurnView({ turn }: { turn: Turn }): ReactElement {
   useNodeChildren(turn);
 
   const slots = useAdapter(Slots);
-  const registry = useAdapter(ViewRegistry);
+  // Subscribed adapter — re-renders when a late-registered viewKey
+  // arrives (plug-in extensibility path).
+  const registry = useRegistry(ViewRegistry);
   const turnBlocks = useSlot(slots, observeTurnBlocks);
   const viewByKind = useMemo(() => indexByKind(turnBlocks), [turnBlocks]);
-  // Subscribe to the registry so a late-registered plug-in component
-  // triggers a re-render of the (already-mounted) TurnView.
-  useSyncExternalStore(
-    (notify) => registry.observe(() => notify()),
-    () => registry,
-  );
 
   const items = groupChildren(turn.children);
   return (
