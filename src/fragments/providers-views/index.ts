@@ -1,12 +1,11 @@
 /**
- * Renderer fragment for `providers/`. The settings tab is wired
- * through `settings:tabs` slot + `ViewRegistry` (slot pattern C):
- * see `init-providers-views.ts`. `ProviderConfigGate` is still
- * named-exported because the chat surface renders it directly as
- * a full-pane empty-state until the chat surface deepening lands
- * in Wave 7.
+ * Renderer fragment for `providers/`. Bindings:
+ *   - `settings:tabs` -> `ProviderConfigPanel` (settings dialog tab).
+ *   - `chat:composer-actions` -> `ComposerModelPicker`.
+ * Both are wired through `ViewRegistry` in `init-providers-views.ts`
+ * (slot pattern C). `ProviderConfigGate` stays named-exported
+ * because the chat surface renders it directly as a full-pane
+ * empty-state from `chat-views/internal/chat-root.tsx`.
  */
-export { ActiveModelPicker } from "./internal/active-model-picker.js";
 export { ProviderConfigGate } from "./internal/provider-config-gate.js";
-export { ProviderConfigPanel } from "./internal/provider-config-panel.js";
 export { initProvidersViews as default } from "./public/init-providers-views.js";
