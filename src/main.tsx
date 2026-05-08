@@ -8,6 +8,7 @@ import { AppWorkspaceProvider } from "@/contexts/app-workspace-context";
 import initCatalogRegistry from "@/fragments/catalog-registry";
 import initChat from "@/fragments/chat";
 import initChatViews from "@/fragments/chat-views";
+import initCoreViews from "@/fragments/core-views";
 import initDock from "@/fragments/dock";
 import initDockViews from "@/fragments/dock-views";
 import initSpecStore from "@/fragments/spec-store";
@@ -54,6 +55,7 @@ async function bootstrap(root: HTMLElement): Promise<void> {
   register(initDock(ctx));
   register(initChat(ctx));
   // ── Renderer fragments register after logic fragments (ADR 0002) ──
+  register(initCoreViews(ctx)); // ViewRegistry adapter
   register(initDockViews(ctx));
   register(initChatViews(ctx)); // binds React ChatRoot to the chat catalog
 
