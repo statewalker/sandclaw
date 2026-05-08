@@ -2,7 +2,6 @@ import { defineRegistry, schema } from "@json-render/react";
 import { newRegistry } from "@statewalker/shared-registry";
 import { Slots } from "@statewalker/shared-slots";
 import { getWorkspace } from "@statewalker/workspace-api";
-import type { ComponentType } from "react";
 import { CatalogRegistry } from "../../catalog-registry/index.js";
 import {
   CHAT_CATALOG_ID,
@@ -54,17 +53,7 @@ export function initChatViews(
     },
     actions: {},
   });
-  register(
-    catalogs.register(CHAT_CATALOG_ID, {
-      catalog: chatCatalog,
-      // CatalogEntry expects `Record<string, unknown>` (no React
-      // dependency in the logic fragment); the cast is safe here
-      // because the entry is held opaquely — `<Renderer>` consumes
-      // `registry`, not this map.
-      components: { ChatRoot } as Record<string, ComponentType<unknown>>,
-      registry: chatRegistry,
-    }),
-  );
+  register(catalogs.register(CHAT_CATALOG_ID, chatRegistry));
   // `schema` import keeps json-render happy in case the catalog file
   // is tree-shaken out elsewhere; the registry built above already
   // pinned it.

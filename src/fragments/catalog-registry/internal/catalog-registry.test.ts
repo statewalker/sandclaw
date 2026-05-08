@@ -1,14 +1,9 @@
 import { Workspace } from "@statewalker/workspace-api";
 import { describe, expect, it, vi } from "vitest";
-import type { CatalogEntry } from "../public/types.js";
 import { CatalogRegistry } from "./catalog-registry.js";
 
-function makeEntry(label: string): CatalogEntry {
-  return {
-    catalog: { __label: label },
-    components: {},
-    registry: { __label: label },
-  };
+function makeEntry(label: string): unknown {
+  return { __label: label };
 }
 
 describe("CatalogRegistry", () => {
@@ -74,7 +69,7 @@ describe("CatalogRegistry", () => {
     const cb = vi.fn();
     reg.observe(cb);
     expect(cb).toHaveBeenCalledTimes(1);
-    const snap = cb.mock.calls[0]?.[0] as ReadonlyMap<string, CatalogEntry>;
+    const snap = cb.mock.calls[0]?.[0] as ReadonlyMap<string, unknown>;
     expect(snap.get("a")).toBe(a);
     expect(snap.get("b")).toBe(b);
   });

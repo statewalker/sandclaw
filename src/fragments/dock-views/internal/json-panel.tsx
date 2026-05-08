@@ -47,8 +47,8 @@ export function JsonPanel(
     );
   }
 
-  const catalogEntry = catalogs.get(record.catalogId);
-  if (!catalogEntry) {
+  const catalogRegistry = catalogs.get(record.catalogId);
+  if (!catalogRegistry) {
     return (
       <CatalogMissing
         catalogId={record.catalogId}
@@ -59,14 +59,14 @@ export function JsonPanel(
 
   // The json-render `<Renderer>` types the spec/registry strictly;
   // we cross from the deliberately-loose `unknown` storage in
-  // SpecStore + CatalogEntry to its concrete types here.
+  // SpecStore + CatalogRegistry to its concrete types here.
   // `<JSONUIProvider>` is required — it sets up the visibility /
   // validation / state contexts that `<Renderer>`'s internals
   // (e.g. `useVisibility`) read from.
   // biome-ignore lint/suspicious/noExplicitAny: json-render's Spec/Registry types live behind `unknown` in our store
   const Renderer$ = Renderer as any;
   // biome-ignore lint/suspicious/noExplicitAny: ditto for the registry shape
-  const registry$ = catalogEntry.registry as any;
+  const registry$ = catalogRegistry as any;
   return (
     <JSONUIProvider registry={registry$}>
       <Renderer$ spec={record.spec} registry={registry$} />

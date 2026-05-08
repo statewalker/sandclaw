@@ -1,7 +1,6 @@
 import { defineRegistry } from "@json-render/react";
 import { newRegistry } from "@statewalker/shared-registry";
 import { getWorkspace } from "@statewalker/workspace-api";
-import type { ComponentType } from "react";
 import { CatalogRegistry } from "@/fragments/catalog-registry";
 import {
   MARKDOWN_VIEWER_CATALOG_ID,
@@ -34,13 +33,7 @@ export function initMarkdownViewerViews(
     actions: {},
   });
 
-  register(
-    catalogs.register(MARKDOWN_VIEWER_CATALOG_ID, {
-      catalog: markdownViewerCatalog,
-      components: { MarkdownView } as Record<string, ComponentType<unknown>>,
-      registry,
-    }),
-  );
+  register(catalogs.register(MARKDOWN_VIEWER_CATALOG_ID, registry));
 
   return cleanup;
 }
