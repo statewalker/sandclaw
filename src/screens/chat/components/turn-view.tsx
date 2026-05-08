@@ -4,35 +4,47 @@ import {
   type ToolCall,
   type Turn,
 } from "@statewalker/ai-agent/state";
-import type { ReactElement } from "react";
+import { Slots } from "@statewalker/shared-slots";
+import { useSlot } from "@statewalker/shared-slots/react";
+import {
+  type ComponentType,
+  type ReactElement,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
+import {
+  observeTurnBlocks,
+  STANDARD_TURN_BLOCK_KINDS,
+  type TurnBlockContribution,
+} from "@/fragments/chat";
+import { ViewRegistry } from "@/fragments/core-views";
+import { useAdapter } from "@/fragments/workspace-bridge-views";
 import { useNodeChildren } from "@/screens/chat/hooks/use-session-node";
-import { ErrorBlock } from "./error-block";
-import { MessageView } from "./message-view";
-import { ToolCallsBlock } from "./tool-calls-block";
 
 type TurnChild = Turn["children"][number];
 
 interface ToolCallsRun {
-  kind: "tool-calls";
+  kind: typeof STANDARD_TURN_BLOCK_KINDS.TOOL_CALLS;
   /** Stable key derived from the first call's id — keeps React reconciliation
    *  happy when more tool calls join the run mid-stream. */
   key: string;
-  calls: ToolCall[];
+  payload: { calls: ToolCall[] };
 }
 
-interface SingleChild {
-  kind: "single";
-  child: TurnChild;
+interface SingleItem {
+  kind: string;
+  key: string;
+  payload: unknown;
 }
 
-type RenderItem = ToolCallsRun | SingleChild;
+type RenderItem = ToolCallsRun | SingleItem;
 
 /**
  * Walks the turn's children once and groups consecutive tool calls
- * into a single render item. Non-tool-call children are passed
- * through. The agent typically emits tool calls in a contiguous
- * burst (one or more, then the assistant message resumes), so this
- * groups them visually under one collapsible Reasoning step.
+ * into a single render item, then maps each remaining child to a
+ * standard turn-block kind. Plug-in node types fall through to
+ * `chat:turn-block:<NodeType>` so a plug-in fragment can register
+ * a renderer without editing this dispatch.
  */
 function groupChildren(children: readonly TurnChild[]): RenderItem[] {
   const items: RenderItem[] = [];
@@ -41,41 +53,84 @@ function groupChildren(children: readonly TurnChild[]): RenderItem[] {
     if (child.type === NodeType.toolCall) {
       const call = child as ToolCall;
       if (run) {
-        run.calls.push(call);
+        run.payload.calls.push(call);
       } else {
-        run = { kind: "tool-calls", key: `tools:${call.id}`, calls: [call] };
+        run = {
+          kind: STANDARD_TURN_BLOCK_KINDS.TOOL_CALLS,
+          key: `tools:${call.id}`,
+          payload: { calls: [call] },
+        };
         items.push(run);
       }
-    } else {
-      run = null;
-      items.push({ kind: "single", child });
+      continue;
     }
+    run = null;
+    const kind =
+      child.type === NodeType.userMessage
+        ? STANDARD_TURN_BLOCK_KINDS.USER_MESSAGE
+        : child.type === NodeType.agentMessage
+          ? STANDARD_TURN_BLOCK_KINDS.AGENT_MESSAGE
+          : child.type === NodeType.error
+            ? STANDARD_TURN_BLOCK_KINDS.ERROR
+            : `chat:turn-block:${child.type}`;
+    const payload =
+      child.type === NodeType.userMessage ||
+      child.type === NodeType.agentMessage
+        ? { message: child as Message }
+        : child.type === NodeType.error
+          ? { text: child.content ?? "" }
+          : { node: child };
+    items.push({ kind, key: child.id, payload });
   }
   return items;
 }
 
+/**
+ * `TurnView` walks `turn.children`, groups consecutive tool calls,
+ * and dispatches each item via the `chat:turn-blocks` slot. The
+ * slot maps `kind → viewKey`; the component is then resolved from
+ * `ViewRegistry`. Built-in renderers live alongside plug-in
+ * contributions in the same wiring path — there is no special
+ * built-in dispatch inside this component.
+ */
 export function TurnView({ turn }: { turn: Turn }): ReactElement {
   // Structural subscription only — token streaming into existing messages
   // does NOT re-render this component, only the affected MessageView.
   useNodeChildren(turn);
+
+  const slots = useAdapter(Slots);
+  const registry = useAdapter(ViewRegistry);
+  const turnBlocks = useSlot(slots, observeTurnBlocks);
+  const viewByKind = useMemo(() => indexByKind(turnBlocks), [turnBlocks]);
+  // Subscribe to the registry so a late-registered plug-in component
+  // triggers a re-render of the (already-mounted) TurnView.
+  useSyncExternalStore(
+    (notify) => registry.observe(() => notify()),
+    () => registry,
+  );
+
   const items = groupChildren(turn.children);
   return (
     <div className="flex flex-col gap-3">
       {items.map((item) => {
-        if (item.kind === "tool-calls") {
-          return <ToolCallsBlock key={item.key} calls={item.calls} />;
-        }
-        const child = item.child;
-        switch (child.type) {
-          case NodeType.userMessage:
-          case NodeType.agentMessage:
-            return <MessageView key={child.id} message={child as Message} />;
-          case NodeType.error:
-            return <ErrorBlock key={child.id} text={child.content ?? ""} />;
-          default:
-            return null;
-        }
+        const viewKey = viewByKind.get(item.kind);
+        const Component = viewKey ? registry.get(viewKey) : null;
+        if (!Component) return null;
+        const Cast = Component as ComponentType<{ props: unknown }>;
+        return <Cast key={item.key} props={item.payload} />;
       })}
     </div>
   );
+}
+
+function indexByKind(
+  contributions: readonly TurnBlockContribution[],
+): Map<string, string> {
+  const out = new Map<string, string>();
+  // First-claim-wins to mirror the Intents convention; plug-in
+  // fragments register before built-ins to override.
+  for (const c of contributions) {
+    if (!out.has(c.kind)) out.set(c.kind, c.viewKey);
+  }
+  return out;
 }

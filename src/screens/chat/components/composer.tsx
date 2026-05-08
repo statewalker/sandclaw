@@ -1,11 +1,22 @@
+import { Slots } from "@statewalker/shared-slots";
+import { useSlot } from "@statewalker/shared-slots/react";
 import { Send, Square } from "lucide-react";
-import { useState } from "react";
+import {
+  type ComponentType,
+  type ReactElement,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   PromptInput,
   PromptInputActions,
   PromptInputTextarea,
 } from "@/components/prompt-kit/prompt-input";
 import { Button } from "@/components/ui/button";
+import { type ComposerAction, observeComposerActions } from "@/fragments/chat";
+import { ViewRegistry } from "@/fragments/core-views";
+import { useAdapter } from "@/fragments/workspace-bridge-views";
 
 export interface ComposerProps {
   onSend: (text: string) => void;
@@ -15,14 +26,31 @@ export interface ComposerProps {
   placeholder?: string;
 }
 
+/**
+ * `Composer` reads `chat:composer-actions` and renders contributions
+ * leading or trailing the hard-coded Send/Stop buttons. Send/Stop
+ * stay built-in because they own draft state + focus; everything
+ * else (model picker, attach buttons, plug-in actions) flows
+ * through the slot.
+ */
 export function Composer({
   onSend,
   onStop,
   running,
   disabled,
   placeholder,
-}: ComposerProps): React.ReactElement {
+}: ComposerProps): ReactElement {
   const [draft, setDraft] = useState("");
+  const slots = useAdapter(Slots);
+  const registry = useAdapter(ViewRegistry);
+  const actions = useSlot(slots, observeComposerActions);
+  // Subscribe so a late-registered viewKey re-renders the actions row.
+  useSyncExternalStore(
+    (notify) => registry.observe(() => notify()),
+    () => registry,
+  );
+
+  const { leading, trailing } = useMemo(() => splitActions(actions), [actions]);
 
   const submit = (): void => {
     const text = draft.trim();
@@ -47,28 +75,68 @@ export function Composer({
             placeholder ?? "Send a message… (Shift+Enter for newline)"
           }
         />
-        <PromptInputActions className="justify-end">
-          {running ? (
-            <Button
-              onClick={onStop}
-              variant="destructive"
-              size="icon"
-              aria-label="Stop"
-            >
-              <Square />
-            </Button>
-          ) : (
-            <Button
-              onClick={submit}
-              disabled={disabled || !draft.trim()}
-              size="icon"
-              aria-label="Send"
-            >
-              <Send />
-            </Button>
-          )}
+        <PromptInputActions className="justify-between">
+          <div className="flex items-center gap-1">
+            {leading.map((action) => (
+              <ActionSlot key={action.id} action={action} registry={registry} />
+            ))}
+          </div>
+          <div className="flex items-center gap-1">
+            {trailing.map((action) => (
+              <ActionSlot key={action.id} action={action} registry={registry} />
+            ))}
+            {running ? (
+              <Button
+                onClick={onStop}
+                variant="destructive"
+                size="icon"
+                aria-label="Stop"
+              >
+                <Square />
+              </Button>
+            ) : (
+              <Button
+                onClick={submit}
+                disabled={disabled || !draft.trim()}
+                size="icon"
+                aria-label="Send"
+              >
+                <Send />
+              </Button>
+            )}
+          </div>
         </PromptInputActions>
       </PromptInput>
     </div>
   );
+}
+
+function splitActions(actions: readonly ComposerAction[]): {
+  leading: ComposerAction[];
+  trailing: ComposerAction[];
+} {
+  const leading: ComposerAction[] = [];
+  const trailing: ComposerAction[] = [];
+  for (const a of actions) {
+    if (a.position === "trailing") trailing.push(a);
+    else leading.push(a);
+  }
+  const cmp = (a: ComposerAction, b: ComposerAction) =>
+    (a.order ?? 100) - (b.order ?? 100) || a.id.localeCompare(b.id);
+  leading.sort(cmp);
+  trailing.sort(cmp);
+  return { leading, trailing };
+}
+
+function ActionSlot({
+  action,
+  registry,
+}: {
+  action: ComposerAction;
+  registry: ViewRegistry;
+}): ReactElement | null {
+  const Component = registry.get(action.viewKey);
+  if (!Component) return null;
+  const Cast = Component as ComponentType<unknown>;
+  return <Cast />;
 }

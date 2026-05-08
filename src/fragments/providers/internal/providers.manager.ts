@@ -7,8 +7,12 @@ import {
   type ActiveModelValue,
   AgentRuntimeAdapter,
 } from "@/fragments/agent-runtime";
+import { provideComposerAction } from "@/fragments/chat";
 import { provideSettingsTab } from "@/fragments/settings";
-import { PROVIDERS_SETTINGS_TAB_VIEW_KEY } from "../public/constants.js";
+import {
+  PROVIDERS_MODEL_PICKER_VIEW_KEY,
+  PROVIDERS_SETTINGS_TAB_VIEW_KEY,
+} from "../public/constants.js";
 import { provideRemoteProvider } from "../public/extension-points.js";
 import {
   handleSelectActiveModel,
@@ -101,6 +105,19 @@ export class ProvidersManager {
         id: "providers",
         title: "Providers",
         viewKey: PROVIDERS_SETTINGS_TAB_VIEW_KEY,
+        order: 10,
+      }),
+    );
+
+    // Lifetime-scoped contribution: the model picker is always
+    // present in the chat composer. The renderer (ComposerModelPicker
+    // in providers-views) handles the empty / unconfigured cases
+    // by surfacing a "Configure providers…" affordance.
+    register(
+      provideComposerAction(this.slots, {
+        id: "providers:model-picker",
+        viewKey: PROVIDERS_MODEL_PICKER_VIEW_KEY,
+        position: "leading",
         order: 10,
       }),
     );
