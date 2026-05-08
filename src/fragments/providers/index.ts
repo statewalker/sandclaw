@@ -8,6 +8,10 @@ export {
   newCustomProviderId,
 } from "./internal/providers-store.js";
 export {
+  PROVIDERS_MODEL_PICKER_VIEW_KEY,
+  PROVIDERS_SETTINGS_TAB_VIEW_KEY,
+} from "./public/constants.js";
+export {
   observeRemoteProviders,
   provideRemoteProvider,
 } from "./public/extension-points.js";

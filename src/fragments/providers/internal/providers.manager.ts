@@ -7,6 +7,8 @@ import {
   type ActiveModelValue,
   AgentRuntimeAdapter,
 } from "@/fragments/agent-runtime";
+import { provideSettingsTab } from "@/fragments/settings";
+import { PROVIDERS_SETTINGS_TAB_VIEW_KEY } from "../public/constants.js";
 import { provideRemoteProvider } from "../public/extension-points.js";
 import {
   handleSelectActiveModel,
@@ -87,6 +89,19 @@ export class ProvidersManager {
         this._applyActiveSelection(intent.payload);
         intent.resolve();
         return true;
+      }),
+    );
+
+    // Lifetime-scoped contribution: the providers tab is always
+    // available in the settings dialog regardless of workspace
+    // state. The tab content (rendered via ViewRegistry) handles
+    // the not-yet-loaded case itself.
+    register(
+      provideSettingsTab(this.slots, {
+        id: "providers",
+        title: "Providers",
+        viewKey: PROVIDERS_SETTINGS_TAB_VIEW_KEY,
+        order: 10,
       }),
     );
 

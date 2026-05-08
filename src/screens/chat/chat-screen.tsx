@@ -12,7 +12,7 @@ import { useWorkspace } from "@/contexts/workspace-context";
 import { runOpenChatSession } from "@/fragments/chat";
 import { DockHost } from "@/fragments/dock";
 import { DockViewHost } from "@/fragments/dock-views";
-import { ProviderSettingsDialog } from "@/fragments/providers-views";
+import { SettingsButton, SettingsDialog } from "@/fragments/settings-views";
 import { useAppWorkspace } from "@/fragments/workspace-bridge-views";
 import { SessionsPanel } from "@/screens/chat/components/sessions-panel";
 
@@ -27,7 +27,7 @@ function ShellHeader(): ReactElement {
       <span className="text-xs text-muted-foreground">/</span>
       <span className="text-xs text-muted-foreground">{label}</span>
       <div className="ml-auto" />
-      <ProviderSettingsDialog />
+      <SettingsButton />
       <Button size="sm" variant="ghost" onClick={() => void switchWorkspace()}>
         <LogOut className="h-3.5 w-3.5" /> Switch workspace
       </Button>
@@ -90,6 +90,7 @@ export function ChatScreen(): ReactElement {
           <MainPane />
         </ResizablePanel>
       </ResizablePanelGroup>
+      <SettingsDialog />
     </div>
   );
 }

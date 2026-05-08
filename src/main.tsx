@@ -13,6 +13,8 @@ import initDock from "@/fragments/dock";
 import initDockViews from "@/fragments/dock-views";
 import initProviders from "@/fragments/providers";
 import initProvidersViews from "@/fragments/providers-views";
+import initSettings from "@/fragments/settings";
+import initSettingsViews from "@/fragments/settings-views";
 import initSpecStore from "@/fragments/spec-store";
 import initWorkspaceBridge from "@/fragments/workspace-bridge";
 import initWorkspaceBridgeViews, {
@@ -61,12 +63,17 @@ async function bootstrap(root: HTMLElement): Promise<void> {
   register(initDock(ctx));
   register(initWorkspaceBridge(ctx));
   register(initAgentRuntime(ctx));
+  // settings/ registers BEFORE providers/ so the `settings:tabs`
+  // slot is declared by the time the providers manager contributes
+  // its tab entry from its constructor.
+  register(initSettings(ctx));
   register(initProviders(ctx));
   register(initChat(ctx));
   // ── Renderer fragments register after logic fragments (ADR 0002) ──
   register(initCoreViews(ctx)); // ViewRegistry adapter
   register(initWorkspaceBridgeViews(ctx));
   register(initDockViews(ctx));
+  register(initSettingsViews(ctx));
   register(initProvidersViews(ctx));
   register(initChatViews(ctx)); // binds React ChatRoot to the chat catalog
 
