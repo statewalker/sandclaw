@@ -6,8 +6,8 @@ import { useRuntime } from "@/contexts/runtime-context";
 import { runSetPanelTitle } from "@/fragments/dock";
 import { ChatPanel } from "@/screens/chat/components/chat-panel";
 import { useNodeProp } from "@/screens/chat/hooks/use-session-node";
-import { chatPanelId } from "./catalog.js";
-import { useChatSession } from "./use-chat-session.js";
+import { chatPanelId } from "../../chat/index.js";
+import { useChatSession } from "./hooks/use-chat-session.js";
 
 export interface ChatRootProps {
   sessionId: string;

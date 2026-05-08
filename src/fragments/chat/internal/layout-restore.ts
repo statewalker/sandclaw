@@ -1,5 +1,9 @@
-import type { SpecStore } from "../spec-store/index.js";
-import { CHAT_CATALOG_ID, chatSpecId, makeChatSpec } from "./catalog.js";
+import type { SpecStore } from "../../spec-store/index.js";
+import {
+  CHAT_CATALOG_ID,
+  chatSpecId,
+  makeChatSpec,
+} from "../public/catalog.js";
 
 const PANEL_ID_PREFIX = "chat:";
 
@@ -38,6 +42,10 @@ export function extractChatSessionIds(layoutJson: unknown): string[] {
  *
  * Idempotent: skipping ids whose specs already exist makes repeat
  * calls (hot reload, double-mount in StrictMode) safe.
+ *
+ * Layout source is currently localStorage; migrates to
+ * `SystemFiles/dock-layout.json` alongside the dock fragment's
+ * persistence migration in Wave 3.
  */
 export function restoreChatSpecsFromLayout(
   store: SpecStore,

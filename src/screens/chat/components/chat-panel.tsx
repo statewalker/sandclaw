@@ -5,7 +5,7 @@ import {
 } from "@/components/prompt-kit/chat-container";
 import { ScrollButton } from "@/components/prompt-kit/scroll-button";
 import { useRuntime } from "@/contexts/runtime-context";
-import type { ChatSessionState } from "@/fragments/chat-bootstrap/use-chat-session";
+import type { ChatSessionState } from "@/fragments/chat-views";
 import { useSendMessage } from "@/screens/chat/hooks/use-send-message";
 import { useInvalidateSessions } from "@/screens/chat/hooks/use-session-list";
 import { ChatHeader } from "./chat-header";

@@ -5,12 +5,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppWorkspace } from "@/contexts/app-workspace-context";
 import { useRuntime } from "@/contexts/runtime-context";
-import {
-  runOpenChatSession,
-  useFocusedChatTab,
-  useOpenChatTabs,
-} from "@/fragments/chat-bootstrap";
-import { chatPanelId } from "@/fragments/chat-bootstrap/catalog";
+import { chatPanelId, runOpenChatSession } from "@/fragments/chat";
+import { useFocusedChatTab, useOpenChatTabs } from "@/fragments/chat-views";
 import { runClosePanel } from "@/fragments/dock";
 import {
   useInvalidateSessions,

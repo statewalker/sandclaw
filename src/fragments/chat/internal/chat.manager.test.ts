@@ -2,12 +2,11 @@ import { Intents } from "@statewalker/shared-intents";
 import { getWorkspace } from "@statewalker/workspace-api";
 import type { DockviewApi, IDockviewPanel } from "dockview-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import initCatalogRegistry from "../catalog-registry/index.js";
-import initDock, { DockHost } from "../dock/index.js";
-import initSpecStore, { SpecStore } from "../spec-store/index.js";
-import { chatPanelId, chatSpecId } from "./catalog.js";
-import { initChatBootstrap } from "./init.js";
-import { runOpenChatSession } from "./intents.js";
+import initDock, { DockHost } from "../../dock/index.js";
+import initSpecStore, { SpecStore } from "../../spec-store/index.js";
+import { chatPanelId, chatSpecId } from "../public/catalog.js";
+import { initChat } from "../public/init-chat.js";
+import { runOpenChatSession } from "../public/intents.js";
 
 interface FakePanel {
   id: string;
@@ -69,10 +68,9 @@ afterEach(() => {
 describe("chat:open-session handler", () => {
   it("creates a per-session spec and opens a panel for a new session", async () => {
     const ctx: Record<string, unknown> = {};
-    const cleanupCatalogs = await initCatalogRegistry(ctx);
     const cleanupSpec = await initSpecStore(ctx);
     const cleanupDock = await initDock(ctx);
-    const cleanupChat = await initChatBootstrap(ctx);
+    const cleanupChat = await initChat(ctx);
     try {
       const ws = getWorkspace(ctx);
       const intents = ws.requireAdapter(Intents);
@@ -98,16 +96,14 @@ describe("chat:open-session handler", () => {
       await cleanupChat();
       await cleanupDock();
       await cleanupSpec();
-      await cleanupCatalogs();
     }
   });
 
   it("re-opening an already-open session focuses the existing panel without duplication", async () => {
     const ctx: Record<string, unknown> = {};
-    const cleanupCatalogs = await initCatalogRegistry(ctx);
     const cleanupSpec = await initSpecStore(ctx);
     const cleanupDock = await initDock(ctx);
-    const cleanupChat = await initChatBootstrap(ctx);
+    const cleanupChat = await initChat(ctx);
     try {
       const ws = getWorkspace(ctx);
       const intents = ws.requireAdapter(Intents);
@@ -126,16 +122,14 @@ describe("chat:open-session handler", () => {
       await cleanupChat();
       await cleanupDock();
       await cleanupSpec();
-      await cleanupCatalogs();
     }
   });
 
   it("opens a panel referencing an already-existing spec without re-creating the spec", async () => {
     const ctx: Record<string, unknown> = {};
-    const cleanupCatalogs = await initCatalogRegistry(ctx);
     const cleanupSpec = await initSpecStore(ctx);
     const cleanupDock = await initDock(ctx);
-    const cleanupChat = await initChatBootstrap(ctx);
+    const cleanupChat = await initChat(ctx);
     try {
       const ws = getWorkspace(ctx);
       const intents = ws.requireAdapter(Intents);
@@ -164,12 +158,11 @@ describe("chat:open-session handler", () => {
       await cleanupChat();
       await cleanupDock();
       await cleanupSpec();
-      await cleanupCatalogs();
     }
   });
 });
 
-describe("chat-bootstrap layout restore", () => {
+describe("chat layout restore", () => {
   it("re-allocates chat specs for chat-shaped panels in saved layout", async () => {
     storage.set(
       "chat-mini:dock-layout",
@@ -182,10 +175,9 @@ describe("chat-bootstrap layout restore", () => {
       }),
     );
     const ctx: Record<string, unknown> = {};
-    const cleanupCatalogs = await initCatalogRegistry(ctx);
     const cleanupSpec = await initSpecStore(ctx);
     const cleanupDock = await initDock(ctx);
-    const cleanupChat = await initChatBootstrap(ctx);
+    const cleanupChat = await initChat(ctx);
     try {
       const ws = getWorkspace(ctx);
       const store = ws.requireAdapter(SpecStore);
@@ -196,17 +188,15 @@ describe("chat-bootstrap layout restore", () => {
       await cleanupChat();
       await cleanupDock();
       await cleanupSpec();
-      await cleanupCatalogs();
     }
   });
 
   it("is a no-op when localStorage is missing or layout is malformed", async () => {
     storage.set("chat-mini:dock-layout", "not-json{{{");
     const ctx: Record<string, unknown> = {};
-    const cleanupCatalogs = await initCatalogRegistry(ctx);
     const cleanupSpec = await initSpecStore(ctx);
     const cleanupDock = await initDock(ctx);
-    const cleanupChat = await initChatBootstrap(ctx);
+    const cleanupChat = await initChat(ctx);
     try {
       // No throw, no specs allocated.
       const ws = getWorkspace(ctx);
@@ -216,7 +206,6 @@ describe("chat-bootstrap layout restore", () => {
       await cleanupChat();
       await cleanupDock();
       await cleanupSpec();
-      await cleanupCatalogs();
     }
   });
 
@@ -226,21 +215,21 @@ describe("chat-bootstrap layout restore", () => {
       JSON.stringify({ panels: { "chat:S-1": {} } }),
     );
     const ctx: Record<string, unknown> = {};
-    const cleanupCatalogs = await initCatalogRegistry(ctx);
     const cleanupSpec = await initSpecStore(ctx);
     const cleanupDock = await initDock(ctx);
     // First boot
-    const cleanupChat1 = await initChatBootstrap(ctx);
+    const cleanupChat1 = await initChat(ctx);
     try {
       const ws = getWorkspace(ctx);
       const store = ws.requireAdapter(SpecStore);
       const first = store.get(chatSpecId("S-1"));
       expect(first).not.toBeNull();
 
-      // Cleanup & re-boot chat-bootstrap (e.g. hot-reload) — pass should
-      // skip the already-present spec rather than throwing on duplicate id.
+      // Cleanup & re-boot chat (e.g. hot-reload) — pass should
+      // skip the already-present spec rather than throwing on
+      // duplicate id.
       await cleanupChat1();
-      const cleanupChat2 = await initChatBootstrap(ctx);
+      const cleanupChat2 = await initChat(ctx);
       try {
         const second = store.get(chatSpecId("S-1"));
         expect(second).not.toBeNull();
@@ -250,7 +239,6 @@ describe("chat-bootstrap layout restore", () => {
     } finally {
       await cleanupDock();
       await cleanupSpec();
-      await cleanupCatalogs();
     }
   });
 });
