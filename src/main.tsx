@@ -12,6 +12,8 @@ import initCoreViews from "@/fragments/core-views";
 import initDock from "@/fragments/dock";
 import initDockViews from "@/fragments/dock-views";
 import initFiles from "@/fragments/files";
+import initInlineContent from "@/fragments/inline-content";
+import initInlineContentViews from "@/fragments/inline-content-views";
 import initMarkdownViewer from "@/fragments/markdown-viewer";
 import initMarkdownViewerViews from "@/fragments/markdown-viewer-views";
 import initProviders from "@/fragments/providers";
@@ -78,6 +80,9 @@ async function bootstrap(root: HTMLElement): Promise<void> {
   // `files:mime-renderers` slot is declared by the time it
   // contributes its renderer.
   register(initMarkdownViewer(ctx));
+  // inline-content/ ships the InlineContentRegistry adapter; the
+  // paired renderer fragment registers built-in components.
+  register(initInlineContent(ctx));
   register(initChat(ctx));
   // ── Renderer fragments register after logic fragments (ADR 0002) ──
   register(initCoreViews(ctx)); // ViewRegistry adapter
@@ -86,6 +91,7 @@ async function bootstrap(root: HTMLElement): Promise<void> {
   register(initSettingsViews(ctx));
   register(initProvidersViews(ctx));
   register(initMarkdownViewerViews(ctx)); // binds React MarkdownView to the markdown-viewer catalog
+  register(initInlineContentViews(ctx)); // built-in inline components: metric-card, line-chart, file-card, action-button
   register(initChatViews(ctx)); // binds React ChatRoot to the chat catalog
 
   // NOTE: `workspace.open()` is intentionally NOT called here.
