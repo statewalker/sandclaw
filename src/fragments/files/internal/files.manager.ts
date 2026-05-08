@@ -5,12 +5,8 @@ import { Slots } from "@statewalker/shared-slots";
 import { extname, readFile, writeText } from "@statewalker/webrun-files";
 import type { Workspace } from "@statewalker/workspace-api";
 import { provideAgentTool } from "@/fragments/agent-runtime";
-import {
-  observeMimeRenderers,
-  // imported for forward-compat; the slot is intentionally unused
-  // by the manager — consumers (visualize handler, file-explorer
-  // UI) will consume it directly.
-} from "../public/extension-points.js";
+import { runShowDockPanel } from "@/fragments/dock";
+import { SpecStore } from "@/fragments/spec-store";
 import {
   handleDeleteFile,
   handleLoadDirectory,
@@ -43,15 +39,17 @@ export interface FilesManagerOptions {
  *     primary `FilesApi`. Handlers no-op while the workspace is
  *     closed (they `reject` with a clear error message).
  *
- * `files:visualize` is a stub in Wave 5.1: it picks a matching
- * `MimeRenderer` from the slot but the panel-creation chain
- * (SpecStore + DockHost) lands with the markdown-viewer fragment
- * pair in Wave 5.2.
+ * `files:visualize` resolves a matching `MimeRenderer` from the
+ * slot, calls `buildPanel(uri)` to obtain spec + deterministic ids,
+ * registers the spec in `SpecStore`, and opens a dock panel via
+ * `runShowDockPanel`. Spec eviction on panel close is owned by the
+ * dock manager (non-persistent specs evict on last unmount).
  */
 export class FilesManager {
   private readonly workspace: Workspace;
   private readonly intents: Intents;
   private readonly slots: Slots;
+  private readonly store: SpecStore;
   private readonly _cleanup: () => Promise<void>;
   private _cycleCleanup: Array<() => void> = [];
 
@@ -59,6 +57,7 @@ export class FilesManager {
     this.workspace = workspace;
     this.intents = workspace.requireAdapter(Intents);
     this.slots = workspace.requireAdapter(Slots);
+    this.store = workspace.requireAdapter(SpecStore);
 
     const [register, cleanup] = newRegistry();
     this._cleanup = cleanup;
@@ -108,9 +107,8 @@ export class FilesManager {
     );
     register(
       handleVisualizeFile(this.intents, (intent) => {
-        // Wave 5.1 stub: resolve immediately. Wave 5.2 wires the
-        // mime-renderer lookup + panel creation.
-        const mime = guessMimeType(intent.payload.uri);
+        const { uri } = intent.payload;
+        const mime = guessMimeType(uri);
         const renderer = pickRenderer(
           this.slots.getSnapshot<MimeRenderer>("files:mime-renderers"),
           mime,
@@ -119,14 +117,12 @@ export class FilesManager {
           intent.reject(new Error(`No mime-renderer registered for "${mime}"`));
           return true;
         }
-        // TODO(W5.2): create spec via SpecStore + open via DockHost.
-        intent.resolve();
+        void this._openVisualizePanel(renderer, uri)
+          .then(() => intent.resolve())
+          .catch((error) => intent.reject(error));
         return true;
       }),
     );
-    // Touch the renderer-observe export so it isn't tree-shaken
-    // before its consumer (Wave 5.2) lands.
-    void observeMimeRenderers;
 
     // ── Per-cycle: agent:tools contribution ─────────────────────
     register(workspace.onLoad(() => this._onLoad()));
@@ -220,6 +216,25 @@ export class FilesManager {
         "files:* intents require an open workspace — call runChangeWorkspace first",
       );
     }
+  }
+
+  private async _openVisualizePanel(
+    renderer: MimeRenderer,
+    uri: string,
+  ): Promise<void> {
+    const plan = renderer.buildPanel(uri);
+    if (!this.store.get(plan.specId)) {
+      this.store.create({
+        id: plan.specId,
+        catalogId: plan.catalogId,
+        spec: plan.spec,
+        // Non-persistent: dock manager evicts on last panel close.
+      });
+    }
+    await runShowDockPanel(this.intents, {
+      panelId: plan.panelId,
+      specId: plan.specId,
+    }).promise;
   }
 }
 

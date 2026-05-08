@@ -10,6 +10,8 @@ import {
   type AgentToolContribution,
   observeAgentTools,
 } from "@/fragments/agent-runtime";
+import { handleShowDockPanel } from "@/fragments/dock";
+import { SpecStore } from "@/fragments/spec-store";
 import {
   provideMimeRenderer,
   runDeleteFile,
@@ -135,21 +137,32 @@ describe("FilesManager", () => {
 });
 
 describe("pickRenderer", () => {
+  const buildPanel = () => ({
+    catalogId: "x",
+    spec: {},
+    panelId: "x",
+    specId: "x",
+  });
+
   it("returns the lowest-order match for a literal mime type", () => {
     const renderers = [
-      { mimeTypePattern: "text/markdown", viewKey: "md:a", order: 100 },
-      { mimeTypePattern: "text/markdown", viewKey: "md:b", order: 10 },
+      { mimeTypePattern: "text/markdown", buildPanel, order: 100 },
+      { mimeTypePattern: "text/markdown", buildPanel, order: 10 },
     ];
-    expect(pickRenderer(renderers, "text/markdown")?.viewKey).toBe("md:b");
+    expect(pickRenderer(renderers, "text/markdown")?.order).toBe(10);
   });
 
   it("matches glob patterns", () => {
     const renderers = [
-      { mimeTypePattern: "image/*", viewKey: "image:any" },
-      { mimeTypePattern: "text/*", viewKey: "text:any", order: 50 },
+      { mimeTypePattern: "image/*", buildPanel },
+      { mimeTypePattern: "text/*", buildPanel, order: 50 },
     ];
-    expect(pickRenderer(renderers, "image/png")?.viewKey).toBe("image:any");
-    expect(pickRenderer(renderers, "text/markdown")?.viewKey).toBe("text:any");
+    expect(pickRenderer(renderers, "image/png")?.mimeTypePattern).toBe(
+      "image/*",
+    );
+    expect(pickRenderer(renderers, "text/markdown")?.mimeTypePattern).toBe(
+      "text/*",
+    );
   });
 
   it("returns undefined when nothing matches", () => {
@@ -157,7 +170,7 @@ describe("pickRenderer", () => {
   });
 });
 
-describe("runVisualizeFile (Wave 5.1 stub)", () => {
+describe("runVisualizeFile", () => {
   it("rejects when no mime-renderer is registered for the URI", async () => {
     const files = new MemFilesApi();
     const { ws, manager } = bootWorkspace(files);
@@ -171,22 +184,65 @@ describe("runVisualizeFile (Wave 5.1 stub)", () => {
     await manager.close();
   });
 
-  it("resolves when a renderer matches (panel creation deferred to W5.2)", async () => {
+  it("creates a spec, opens a dock panel, and is idempotent on reopen", async () => {
     const files = new MemFilesApi();
-    const { ws, manager } = bootWorkspace(files);
+    const ws = new Workspace();
+    ws.setAdapter(ActiveModel);
+    ws.setAdapter(AgentRuntimeAdapter);
+    ws.setFileSystem(files, "test");
+    const manager = new FilesManager({ workspace: ws });
     const slots = ws.requireAdapter(Slots);
-    await ws.open();
+    const store = ws.requireAdapter(SpecStore);
     const intents = ws.requireAdapter(Intents);
+
+    // Stand-in dock handler — replaces the dock fragment in this
+    // unit test. Captures show-panel calls for assertion.
+    const shows: Array<{ panelId: string; specId: string }> = [];
+    const disposeDock = handleShowDockPanel(intents, (intent) => {
+      shows.push({
+        panelId: intent.payload.panelId,
+        specId: intent.payload.specId,
+      });
+      intent.resolve();
+      return true;
+    });
+
+    await ws.open();
 
     provideMimeRenderer(slots, {
       mimeTypePattern: "text/markdown",
-      viewKey: "markdown-viewer:panel",
+      buildPanel: (uri) => ({
+        catalogId: "markdown-viewer",
+        spec: {
+          root: "panel",
+          elements: {
+            panel: { type: "MarkdownView", props: { uri }, children: [] },
+          },
+        },
+        panelId: `markdown-viewer:${uri}`,
+        specId: `spec:markdown-viewer:${uri}`,
+      }),
     });
 
-    await expect(
-      runVisualizeFile(intents, { uri: "/note.md" }).promise,
-    ).resolves.toBeUndefined();
+    await runVisualizeFile(intents, { uri: "/note.md" }).promise;
+    expect(shows).toEqual([
+      {
+        panelId: "markdown-viewer:/note.md",
+        specId: "spec:markdown-viewer:/note.md",
+      },
+    ]);
+    expect(store.get("spec:markdown-viewer:/note.md")).not.toBeNull();
+    expect(store.get("spec:markdown-viewer:/note.md")?.catalogId).toBe(
+      "markdown-viewer",
+    );
 
+    // Reopen: same spec id, no duplicate create — dock is asked
+    // again (it focuses internally), but SpecStore.create is NOT
+    // called twice.
+    await runVisualizeFile(intents, { uri: "/note.md" }).promise;
+    expect(shows).toHaveLength(2);
+
+    disposeDock();
     await manager.close();
   });
 });

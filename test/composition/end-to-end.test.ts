@@ -1,4 +1,5 @@
 import { Intents } from "@statewalker/shared-intents";
+import { Slots } from "@statewalker/shared-slots";
 import { writeText } from "@statewalker/webrun-files";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import { getWorkspace, runChangeWorkspace } from "@statewalker/workspace-api";
@@ -9,13 +10,20 @@ import initAgentRuntime, {
 import initCatalogRegistry from "@/fragments/catalog-registry";
 import initChat from "@/fragments/chat";
 import initDock from "@/fragments/dock";
-import initFiles from "@/fragments/files";
+import initFiles, {
+  type MimeRenderer,
+  runVisualizeFile,
+} from "@/fragments/files";
+import initMarkdownViewer, {
+  MARKDOWN_VIEWER_CATALOG_ID,
+  markdownViewerSpecId,
+} from "@/fragments/markdown-viewer";
 import initProviders, {
   emptyProvidersConfig,
   Providers,
 } from "@/fragments/providers";
 import initSettings from "@/fragments/settings";
-import initSpecStore from "@/fragments/spec-store";
+import initSpecStore, { SpecStore } from "@/fragments/spec-store";
 import initWorkspaceBridge from "@/fragments/workspace-bridge";
 
 /**
@@ -62,6 +70,7 @@ describe("chat-mini end-to-end (logic fragments)", () => {
     cleanups.push(initSettings(ctx));
     cleanups.push(initProviders(ctx));
     cleanups.push(initFiles(ctx));
+    cleanups.push(initMarkdownViewer(ctx));
     cleanups.push(initChat(ctx));
 
     try {
@@ -69,6 +78,8 @@ describe("chat-mini end-to-end (logic fragments)", () => {
       const intents = workspace.requireAdapter(Intents);
       const providers = workspace.requireAdapter(Providers);
       const adapter = workspace.requireAdapter(AgentRuntimeAdapter);
+      const slots = workspace.requireAdapter(Slots);
+      const store = workspace.requireAdapter(SpecStore);
 
       // Pre-seed providers.json so the providers manager picks it
       // up on workspace.open(). Mirrors the real flow where the
@@ -109,6 +120,26 @@ describe("chat-mini end-to-end (logic fragments)", () => {
       });
       await vi.runAllTimersAsync();
       expect(adapter.getState().status).toBe("no-active-model");
+
+      // Wave 5.2: markdown-viewer registers into the
+      // `files:mime-renderers` slot, and `files:visualize` for an
+      // .md URI registers a spec in `SpecStore` and asks the dock
+      // fragment to open a panel. The dock host queues the call
+      // until a real `<DockviewReact>` mounts (no React here), so
+      // we don't await the visualize promise — we only verify the
+      // synchronous SpecStore.create runs before the queued await.
+      const renderers = slots.getSnapshot<MimeRenderer>("files:mime-renderers");
+      expect(renderers).toHaveLength(1);
+      expect(renderers[0]?.mimeTypePattern).toBe("text/markdown");
+
+      await writeText(files, "/note.md", "# hello");
+      // Suppress the never-settling promise — the dock host's
+      // pending queue holds the show-panel call indefinitely.
+      void runVisualizeFile(intents, { uri: "/note.md" }).promise.catch(
+        () => {},
+      );
+      const specRecord = store.get(markdownViewerSpecId("/note.md"));
+      expect(specRecord?.catalogId).toBe(MARKDOWN_VIEWER_CATALOG_ID);
     } finally {
       for (const fn of cleanups.reverse()) await fn();
     }

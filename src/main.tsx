@@ -12,6 +12,8 @@ import initCoreViews from "@/fragments/core-views";
 import initDock from "@/fragments/dock";
 import initDockViews from "@/fragments/dock-views";
 import initFiles from "@/fragments/files";
+import initMarkdownViewer from "@/fragments/markdown-viewer";
+import initMarkdownViewerViews from "@/fragments/markdown-viewer-views";
 import initProviders from "@/fragments/providers";
 import initProvidersViews from "@/fragments/providers-views";
 import initSettings from "@/fragments/settings";
@@ -72,6 +74,10 @@ async function bootstrap(root: HTMLElement): Promise<void> {
   // files/ registers AFTER agent-runtime/ so its `agent:tools`
   // slot contribution arrives once the manager is observing.
   register(initFiles(ctx));
+  // markdown-viewer/ registers AFTER files/ so the
+  // `files:mime-renderers` slot is declared by the time it
+  // contributes its renderer.
+  register(initMarkdownViewer(ctx));
   register(initChat(ctx));
   // ── Renderer fragments register after logic fragments (ADR 0002) ──
   register(initCoreViews(ctx)); // ViewRegistry adapter
@@ -79,6 +85,7 @@ async function bootstrap(root: HTMLElement): Promise<void> {
   register(initDockViews(ctx));
   register(initSettingsViews(ctx));
   register(initProvidersViews(ctx));
+  register(initMarkdownViewerViews(ctx)); // binds React MarkdownView to the markdown-viewer catalog
   register(initChatViews(ctx)); // binds React ChatRoot to the chat catalog
 
   // NOTE: `workspace.open()` is intentionally NOT called here.

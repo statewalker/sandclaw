@@ -1,10 +1,28 @@
 import type { FileInfo, FileStats } from "@statewalker/webrun-files";
 
 /**
+ * Plan returned by a `MimeRenderer.buildPanel`. The viewer fragment
+ * owns its catalog id, spec shape, and deterministic ids — so opening
+ * the same URI twice focuses the existing panel rather than creating a
+ * duplicate. The visualize handler feeds this directly into
+ * `SpecStore.create` + `runShowDockPanel`.
+ */
+export interface MimePanelPlan {
+  catalogId: string;
+  /** json-render spec referencing `catalogId`. Held opaquely. */
+  spec: unknown;
+  panelId: string;
+  specId: string;
+  /** Optional dock tab title; defaults to the URI when omitted. */
+  title?: string;
+}
+
+/**
  * Slot value contributed to `files:mime-renderers`. The `files:visualize`
- * default handler resolves a contribution by `mimeTypePattern` (a glob
- * with `*` as a single wildcard segment) and creates a panel that
- * looks up `viewKey` in `ViewRegistry`. Slot pattern C.
+ * handler resolves a contribution by `mimeTypePattern` (a glob with `*`
+ * as wildcard) and calls `buildPanel(uri)` to obtain the spec + ids,
+ * then creates the spec in `SpecStore` and opens the panel via
+ * `runShowDockPanel`. Slot pattern C.
  */
 export interface MimeRenderer {
   /**
@@ -12,10 +30,14 @@ export interface MimeRenderer {
    * Examples: `"text/markdown"`, `"image/*"`, `"application/json"`.
    */
   mimeTypePattern: string;
-  /** ViewRegistry key resolved by the rendering panel. */
-  viewKey: string;
   /** Sort order; lower numbers win when multiple match. Default: 100. */
   order?: number;
+  /**
+   * Returns the panel/spec inputs for the given URI. The viewer
+   * fragment is the only place that knows its catalog id and spec
+   * shape — this keeps `files/` agnostic of any concrete viewer.
+   */
+  buildPanel(uri: string): MimePanelPlan;
 }
 
 /**

@@ -35,5 +35,6 @@ export type {
   Indexer,
   LoadedFile,
   MimeIcon,
+  MimePanelPlan,
   MimeRenderer,
 } from "./public/types.js";
