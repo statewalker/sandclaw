@@ -4,8 +4,9 @@ import {
   ChatContainerRoot,
 } from "@/components/prompt-kit/chat-container";
 import { ScrollButton } from "@/components/prompt-kit/scroll-button";
-import { useRuntime } from "@/contexts/runtime-context";
+import { AgentRuntimeAdapter } from "@/fragments/agent-runtime";
 import type { ChatSessionState } from "@/fragments/chat-views";
+import { useAdapterValue } from "@/lib/use-adapter-value";
 import { useSendMessage } from "@/screens/chat/hooks/use-send-message";
 import { useInvalidateSessions } from "@/screens/chat/hooks/use-session-list";
 import { ChatHeader } from "./chat-header";
@@ -18,7 +19,7 @@ export interface ChatPanelProps {
 }
 
 export function ChatPanel({ chatSession }: ChatPanelProps): React.ReactElement {
-  const { state } = useRuntime();
+  const state = useAdapterValue(AgentRuntimeAdapter, (a) => a.getState());
   const { session, isLoading, error } = chatSession;
   const { send, abort, progress } = useSendMessage(session);
   const invalidate = useInvalidateSessions();

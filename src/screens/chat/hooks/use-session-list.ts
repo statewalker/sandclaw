@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { useRuntime } from "@/contexts/runtime-context";
+import { AgentRuntimeAdapter } from "@/fragments/agent-runtime";
+import { useAdapterValue } from "@/lib/use-adapter-value";
 
 export const SESSIONS_QUERY_KEY = ["chat-mini", "sessions"] as const;
 
@@ -16,7 +17,7 @@ export function useSessionList(): {
   error: unknown;
   refresh: () => void;
 } {
-  const { state } = useRuntime();
+  const state = useAdapterValue(AgentRuntimeAdapter, (a) => a.getState());
   const runtime = state.status === "ready" ? state.runtime : undefined;
   const queryClient = useQueryClient();
 

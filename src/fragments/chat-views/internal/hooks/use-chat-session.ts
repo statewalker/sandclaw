@@ -1,6 +1,7 @@
 import type { Session } from "@statewalker/ai-agent/runtime";
 import { useEffect, useState } from "react";
-import { useRuntime } from "@/contexts/runtime-context";
+import { AgentRuntimeAdapter } from "@/fragments/agent-runtime";
+import { useAdapterValue } from "@/lib/use-adapter-value";
 import { setSessionModel } from "@/services/session-utils";
 
 export interface ChatSessionState {
@@ -18,7 +19,7 @@ export interface ChatSessionState {
  * intent, so every tab loads through this same path.
  */
 export function useChatSession(sessionId: string): ChatSessionState {
-  const { state } = useRuntime();
+  const state = useAdapterValue(AgentRuntimeAdapter, (a) => a.getState());
   const [session, setSession] = useState<Session | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

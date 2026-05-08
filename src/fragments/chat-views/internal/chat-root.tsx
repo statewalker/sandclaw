@@ -1,9 +1,10 @@
 import { Intents } from "@statewalker/shared-intents";
 import { type ReactElement, useEffect } from "react";
-import { useRuntime } from "@/contexts/runtime-context";
+import { AgentRuntimeAdapter } from "@/fragments/agent-runtime";
 import { runSetPanelTitle } from "@/fragments/dock";
 import { ProviderConfigGate } from "@/fragments/providers-views";
 import { useAppWorkspace } from "@/fragments/workspace-bridge-views";
+import { useAdapterValue } from "@/lib/use-adapter-value";
 import { ChatPanel } from "@/screens/chat/components/chat-panel";
 import { useNodeProp } from "@/screens/chat/hooks/use-session-node";
 import { chatPanelId } from "../../chat/index.js";
@@ -37,7 +38,7 @@ function truncateMiddle(s: string, max = TAB_TITLE_MAX): string {
  * shows the chat title (truncated mid-string when long).
  */
 export function ChatRoot({ sessionId }: ChatRootProps): ReactElement {
-  const { state } = useRuntime();
+  const state = useAdapterValue(AgentRuntimeAdapter, (a) => a.getState());
   const chatSession = useChatSession(sessionId);
   const sessionState = chatSession.session?.state;
   const showGate =

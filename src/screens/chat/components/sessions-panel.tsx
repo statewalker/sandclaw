@@ -3,11 +3,12 @@ import { Plus } from "lucide-react";
 import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useRuntime } from "@/contexts/runtime-context";
+import { AgentRuntimeAdapter } from "@/fragments/agent-runtime";
 import { chatPanelId, runOpenChatSession } from "@/fragments/chat";
 import { useFocusedChatTab, useOpenChatTabs } from "@/fragments/chat-views";
 import { runClosePanel } from "@/fragments/dock";
 import { useAppWorkspace } from "@/fragments/workspace-bridge-views";
+import { useAdapterValue } from "@/lib/use-adapter-value";
 import {
   useInvalidateSessions,
   useSessionList,
@@ -15,7 +16,7 @@ import {
 import { SessionRow } from "./session-row";
 
 export function SessionsPanel(): React.ReactElement {
-  const { state } = useRuntime();
+  const state = useAdapterValue(AgentRuntimeAdapter, (a) => a.getState());
   const workspace = useAppWorkspace();
   const intents = workspace.requireAdapter(Intents);
   const { data, isLoading } = useSessionList();

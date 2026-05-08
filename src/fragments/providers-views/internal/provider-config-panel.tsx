@@ -7,13 +7,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useProvidersConfig, useRuntime } from "@/contexts/runtime-context";
-import type {
-  CanonicalCredentials,
-  CanonicalProviderName,
-  CustomProvider,
-  ProvidersConfig,
+import {
+  type CanonicalCredentials,
+  type CanonicalProviderName,
+  type CustomProvider,
+  Providers,
+  type ProvidersConfig,
 } from "@/fragments/providers";
+import { useAdapter } from "@/fragments/workspace-bridge-views";
+import { useAdapterValue } from "@/lib/use-adapter-value";
 import { ActiveModelPicker } from "./active-model-picker.js";
 import { CanonicalForm } from "./canonical-form.js";
 import { CustomProvidersList } from "./custom-providers-list.js";
@@ -28,8 +30,12 @@ const CANONICAL_TABS = [
 }>;
 
 export function ProviderConfigPanel(): React.ReactElement {
-  const { saveProviders } = useRuntime();
-  const config: ProvidersConfig = useProvidersConfig();
+  const providers = useAdapter(Providers);
+  const config = useAdapterValue(Providers, (p) => p.config);
+  const saveProviders = useCallback(
+    (next: ProvidersConfig) => providers.saveProviders(next),
+    [providers],
+  );
 
   const setCanonical = useCallback(
     async (

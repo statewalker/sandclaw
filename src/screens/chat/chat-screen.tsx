@@ -74,10 +74,10 @@ export function ChatScreen(): ReactElement {
     // fallback for state transitions.
     return <div />;
   }
-  // The runtime lifecycle is now owned by the `agent-runtime`
+  // The runtime lifecycle is owned by the `agent-runtime`
   // fragment (registered in `main.tsx`). The chat-screen just
-  // composes UI; consumers read state via `useRuntime()` (which
-  // reads `AgentRuntimeAdapter` + `ProvidersBootstrap`).
+  // composes UI; consumers read state via
+  // `useAdapterValue(AgentRuntimeAdapter, a => a.getState())`.
   return (
     <div className="flex h-full w-full flex-col">
       <ShellHeader />

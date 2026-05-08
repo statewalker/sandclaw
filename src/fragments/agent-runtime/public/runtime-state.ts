@@ -4,9 +4,7 @@ import { BaseClass } from "@statewalker/shared-baseclass";
 /**
  * Discriminated state machine consumed by the chat surface and any
  * other fragment that needs to know whether the agent is usable.
- * Mirrors the legacy shape from `contexts/runtime-context.tsx` so
- * existing consumers (composer, send button, chat-root gate) port
- * without semantic changes.
+ * Read via `useAdapterValue(AgentRuntimeAdapter, a => a.getState())`.
  */
 export type RuntimeState =
   | { status: "loading" }
