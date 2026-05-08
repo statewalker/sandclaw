@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import { LocalModelsTab } from "@/components/local-models/local-models-tab";
 import {
   Card,
   CardContent,
@@ -129,7 +128,6 @@ export function ProviderConfigPanel(): React.ReactElement {
               <TabsTrigger value="openai-compatible">
                 OpenAI-compatible
               </TabsTrigger>
-              <TabsTrigger value="local">Local models</TabsTrigger>
             </TabsList>
             {CANONICAL_TABS.map((p) => (
               <TabsContent key={p.name} value={p.name}>
@@ -147,17 +145,6 @@ export function ProviderConfigPanel(): React.ReactElement {
                 onSave={upsertCustom}
                 onAdd={upsertCustom}
                 onDelete={removeCustom}
-              />
-            </TabsContent>
-            <TabsContent value="local">
-              <LocalModelsTab
-                onActivated={(catalogKey) =>
-                  saveProviders({
-                    ...config,
-                    active: { providerId: "local", modelId: catalogKey },
-                    local: { lastActivatedKey: catalogKey },
-                  })
-                }
               />
             </TabsContent>
           </Tabs>

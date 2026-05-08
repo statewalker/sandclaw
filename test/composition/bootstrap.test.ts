@@ -1,16 +1,10 @@
-import type {
-  ProviderV3 as _ProviderV3,
-  LanguageModelV3,
-  ProviderV3,
-} from "@ai-sdk/provider";
-import type { ModelManager } from "@statewalker/ai-agent/models";
+import type { ProviderV3 as _ProviderV3, ProviderV3 } from "@ai-sdk/provider";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import { describe, expect, it, vi } from "vitest";
 import {
   buildRuntime as _buildRuntime,
   type BuildRuntimeInput,
 } from "@/fragments/agent-runtime/internal/build-runtime";
-import { createManagerProvider } from "@/services/local-models/manager-provider";
 
 /**
  * Adapter so existing test bodies (written against the old
@@ -41,20 +35,6 @@ function stubProvider(): ProviderV3 {
   return { languageModel: vi.fn() } as unknown as ProviderV3;
 }
 
-function fakeManagerWithModel(
-  key: string,
-  model: LanguageModelV3 | undefined,
-): ModelManager {
-  return {
-    store: {
-      getLanguageModel(k: string) {
-        if (k !== key || !model) throw new Error(`not ready: ${k}`);
-        return model;
-      },
-    },
-  } as unknown as ModelManager;
-}
-
 describe("chat-mini composition", () => {
   describe("wireRuntime", () => {
     it("builds a runtime against MemFilesApi with the system path hidden from tools", async () => {
@@ -79,7 +59,6 @@ describe("chat-mini composition", () => {
 
     it("normalizes systemFolder regardless of leading/trailing slashes", async () => {
       const files = new MemFilesApi();
-      // Build twice with different surface syntaxes — both must succeed.
       const a = await wireRuntime(files, [stubProvider()], {
         systemFolder: ".s",
       });
@@ -88,38 +67,6 @@ describe("chat-mini composition", () => {
       });
       expect(a).toBeDefined();
       expect(b).toBeDefined();
-    });
-
-    it("accepts a local provider built by createManagerProvider", async () => {
-      const files = new MemFilesApi();
-      const stubModel = { fake: "lm" } as unknown as LanguageModelV3;
-      const manager = fakeManagerWithModel("webllm:stub", stubModel);
-      const provider = createManagerProvider(manager, "webllm:stub");
-      const runtime = await wireRuntime(files, [provider]);
-      const agent = runtime.createAgent({
-        name: "test",
-        defaultModel: "webllm:stub",
-      });
-      // Resolves the model by routing through the local provider — should
-      // return our stub without throwing.
-      const session = agent.createSession({ title: "t" });
-      expect(session).toBeDefined();
-    });
-
-    it("does not crash when the local provider is rebuilt without the active model", async () => {
-      const files = new MemFilesApi();
-      // First build: local model active.
-      const stubModel = { fake: "lm" } as unknown as LanguageModelV3;
-      const liveManager = fakeManagerWithModel("webllm:stub", stubModel);
-      const live = createManagerProvider(liveManager, "webllm:stub");
-      const r1 = await wireRuntime(files, [live]);
-      expect(r1).toBeDefined();
-
-      // Subsequent rebuild: no local provider, just a remote stub. Mirrors
-      // the deactivate → switch-to-remote flow.
-      const r2 = await wireRuntime(files, [stubProvider()]);
-      const sessions = await r2.listSessions();
-      expect(Array.isArray(sessions)).toBe(true);
     });
   });
 
