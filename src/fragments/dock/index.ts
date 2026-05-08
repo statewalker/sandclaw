@@ -1,6 +1,5 @@
-export { DockHost } from "./dock-host.js";
-export { DockViewHost } from "./dock-view-host.js";
-export { initDockFragment as default } from "./init.js";
+export { DockHost } from "./public/dock-host.js";
+export { initDock as default } from "./public/init-dock.js";
 export {
   type ClosePanelPayload,
   type FocusPanelPayload,
@@ -14,5 +13,5 @@ export {
   runShowDockPanel,
   type SetPanelTitlePayload,
   type ShowDockPanelPayload,
-} from "./intents.js";
-export { JsonPanel } from "./json-panel.js";
+} from "./public/intents.js";
+export type { PanelPosition } from "./public/types.js";

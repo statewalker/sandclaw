@@ -3,9 +3,9 @@ import { Intents } from "@statewalker/shared-intents";
 import type { IDockviewPanelProps } from "dockview-react";
 import { type ReactElement, useSyncExternalStore } from "react";
 import { useAppWorkspace } from "@/contexts/app-workspace-context";
-import { CatalogRegistry } from "../catalog-registry/index.js";
-import { type SpecRecord, SpecStore } from "../spec-store/index.js";
-import { runClosePanel } from "./intents.js";
+import { CatalogRegistry } from "../../catalog-registry/index.js";
+import { runClosePanel } from "../../dock/index.js";
+import { type SpecRecord, SpecStore } from "../../spec-store/index.js";
 
 interface JsonPanelParams {
   specId: string;

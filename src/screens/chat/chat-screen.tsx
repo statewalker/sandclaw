@@ -13,7 +13,8 @@ import { useAppWorkspace } from "@/contexts/app-workspace-context";
 import { RuntimeProvider } from "@/contexts/runtime-context";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { runOpenChatSession } from "@/fragments/chat-bootstrap";
-import { DockHost, DockViewHost } from "@/fragments/dock";
+import { DockHost } from "@/fragments/dock";
+import { DockViewHost } from "@/fragments/dock-views";
 import { SessionsPanel } from "@/screens/chat/components/sessions-panel";
 
 const SESSION_PARAM = "s";

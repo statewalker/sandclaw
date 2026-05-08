@@ -3,7 +3,7 @@ import { type ReactElement, useEffect } from "react";
 import { ProviderConfigGate } from "@/components/providers/provider-config-gate";
 import { useAppWorkspace } from "@/contexts/app-workspace-context";
 import { useRuntime } from "@/contexts/runtime-context";
-import { runSetPanelTitle } from "@/fragments/dock/intents";
+import { runSetPanelTitle } from "@/fragments/dock";
 import { ChatPanel } from "@/screens/chat/components/chat-panel";
 import { useNodeProp } from "@/screens/chat/hooks/use-session-node";
 import { chatPanelId } from "./catalog.js";

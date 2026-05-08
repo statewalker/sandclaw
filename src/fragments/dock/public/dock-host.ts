@@ -17,9 +17,14 @@ interface PendingPanel {
  * The dock fragment's `init` runs during boot, so the intent
  * handlers it registers are reachable immediately. The
  * `<DockviewReact>` component, however, only mounts inside the
- * React tree (via `MainShell`). Any `runShowDockPanel` call between
- * those two events is queued; the queue drains synchronously on
- * `setApi`. After the api is set, calls are dispatched directly.
+ * React tree (via the renderer fragment's DockViewHost). Any
+ * `runShowDockPanel` call between those two events is queued; the
+ * queue drains synchronously on `setApi`. After the api is set,
+ * calls are dispatched directly.
+ *
+ * Layout persistence is currently localStorage-keyed; this moves
+ * to `SystemFiles/dock-layout.json` once the workspace lifecycle
+ * (ADR 0001) is wired up by `workspace-bridge` (Wave 3).
  */
 export class DockHost {
   private _api: DockviewApi | null = null;

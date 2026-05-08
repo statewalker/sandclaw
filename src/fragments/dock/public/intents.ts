@@ -1,16 +1,17 @@
 import { newIntent } from "@statewalker/shared-intents";
+import type { PanelPosition } from "./types.js";
 
 export interface ShowDockPanelPayload {
   panelId: string;
   specId: string;
-  position?: "left" | "right" | "top" | "bottom" | "within";
+  position?: PanelPosition;
   activate?: boolean;
 }
 
 /**
  * The payload deliberately omits any DockView `component` field
- * (vision audit C7) — the dock fragment is the only place that
- * knows the panel kind is `"json"`.
+ * (vision audit C7 / proposal §5.5) — the dock fragment is the only
+ * place that knows the panel kind is `"json"`.
  */
 export const [runShowDockPanel, handleShowDockPanel] = newIntent<
   ShowDockPanelPayload,

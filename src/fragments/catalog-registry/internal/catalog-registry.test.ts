@@ -1,6 +1,7 @@
 import { Workspace } from "@statewalker/workspace-api";
 import { describe, expect, it, vi } from "vitest";
-import { type CatalogEntry, CatalogRegistry } from "./catalog-registry.js";
+import type { CatalogEntry } from "../public/types.js";
+import { CatalogRegistry } from "./catalog-registry.js";
 
 function makeEntry(label: string): CatalogEntry {
   return {

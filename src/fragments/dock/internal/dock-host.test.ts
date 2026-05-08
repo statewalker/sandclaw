@@ -1,6 +1,6 @@
 import type { DockviewApi, IDockviewPanel } from "dockview-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DockHost } from "./dock-host.js";
+import { DockHost } from "../public/dock-host.js";
 
 interface FakePanel {
   id: string;

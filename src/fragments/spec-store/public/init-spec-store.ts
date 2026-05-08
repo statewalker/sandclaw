@@ -1,8 +1,8 @@
 import { Intents } from "@statewalker/shared-intents";
 import { newRegistry } from "@statewalker/shared-registry";
 import { getWorkspace } from "@statewalker/workspace-api";
+import { SpecStore } from "../internal/spec-store.js";
 import { handleCreateSpec, handlePatchSpec } from "./intents.js";
-import { SpecStore } from "./spec-store.js";
 
 /**
  * Attach a `SpecStore` to the workspace and register the default

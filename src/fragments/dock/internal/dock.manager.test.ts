@@ -2,11 +2,14 @@ import { Intents } from "@statewalker/shared-intents";
 import { getWorkspace } from "@statewalker/workspace-api";
 import type { DockviewApi, IDockviewPanel } from "dockview-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { initSpecStore } from "../spec-store/init.js";
-import { SpecStore } from "../spec-store/spec-store.js";
-import { DockHost } from "./dock-host.js";
-import { initDockFragment } from "./init.js";
-import { runClosePanel, runFocusPanel, runShowDockPanel } from "./intents.js";
+import initSpecStore, { SpecStore } from "../../spec-store/index.js";
+import { DockHost } from "../public/dock-host.js";
+import { initDock } from "../public/init-dock.js";
+import {
+  runClosePanel,
+  runFocusPanel,
+  runShowDockPanel,
+} from "../public/intents.js";
 
 interface FakePanel {
   id: string;
@@ -61,11 +64,11 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("dock:* intent handlers", () => {
+describe("dock:* intent handlers (DockManager)", () => {
   it("runShowDockPanel queues and resolves once the api attaches", async () => {
     const ctx: Record<string, unknown> = {};
     const cleanupSpec = await initSpecStore(ctx);
-    const cleanupDock = await initDockFragment(ctx);
+    const cleanupDock = await initDock(ctx);
     try {
       const ws = getWorkspace(ctx);
       const intents = ws.requireAdapter(Intents);
@@ -91,7 +94,7 @@ describe("dock:* intent handlers", () => {
   it("runShowDockPanel after attach opens immediately", async () => {
     const ctx: Record<string, unknown> = {};
     const cleanupSpec = await initSpecStore(ctx);
-    const cleanupDock = await initDockFragment(ctx);
+    const cleanupDock = await initDock(ctx);
     try {
       const ws = getWorkspace(ctx);
       const intents = ws.requireAdapter(Intents);
@@ -113,7 +116,7 @@ describe("dock:* intent handlers", () => {
   it("runClosePanel evicts a transient spec on close", async () => {
     const ctx: Record<string, unknown> = {};
     const cleanupSpec = await initSpecStore(ctx);
-    const cleanupDock = await initDockFragment(ctx);
+    const cleanupDock = await initDock(ctx);
     try {
       const ws = getWorkspace(ctx);
       const intents = ws.requireAdapter(Intents);
@@ -139,7 +142,7 @@ describe("dock:* intent handlers", () => {
   it("runClosePanel keeps a persistent spec", async () => {
     const ctx: Record<string, unknown> = {};
     const cleanupSpec = await initSpecStore(ctx);
-    const cleanupDock = await initDockFragment(ctx);
+    const cleanupDock = await initDock(ctx);
     try {
       const ws = getWorkspace(ctx);
       const intents = ws.requireAdapter(Intents);
@@ -167,7 +170,7 @@ describe("dock:* intent handlers", () => {
   it("runFocusPanel focuses an existing panel", async () => {
     const ctx: Record<string, unknown> = {};
     const cleanupSpec = await initSpecStore(ctx);
-    const cleanupDock = await initDockFragment(ctx);
+    const cleanupDock = await initDock(ctx);
     try {
       const ws = getWorkspace(ctx);
       const intents = ws.requireAdapter(Intents);
@@ -191,7 +194,7 @@ describe("dock:* intent handlers", () => {
   it("runClosePanel keeps the spec while another panel still references it", async () => {
     const ctx: Record<string, unknown> = {};
     const cleanupSpec = await initSpecStore(ctx);
-    const cleanupDock = await initDockFragment(ctx);
+    const cleanupDock = await initDock(ctx);
     try {
       const ws = getWorkspace(ctx);
       const intents = ws.requireAdapter(Intents);
@@ -224,7 +227,7 @@ describe("dock:* intent handlers", () => {
   it("runFocusPanel on missing panel resolves without error", async () => {
     const ctx: Record<string, unknown> = {};
     const cleanupSpec = await initSpecStore(ctx);
-    const cleanupDock = await initDockFragment(ctx);
+    const cleanupDock = await initDock(ctx);
     try {
       const ws = getWorkspace(ctx);
       const intents = ws.requireAdapter(Intents);

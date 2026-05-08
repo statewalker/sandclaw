@@ -1,24 +1,4 @@
-import type { ComponentType } from "react";
-
-/**
- * One entry in the workspace's catalog registry. Holds the json-render
- * triple — declaration, components, and the bound registry that
- * `<Renderer>` consumes — for a single named catalog (e.g.
- * `"files-explorer"`, `"markdown-viewer"`, `"chat"`).
- *
- * Fields are typed as `unknown` for `catalog` and `registry` because
- * the registry doesn't introspect json-render's shapes; consumers
- * cast at usage time. Decoupling from `@json-render/*` types here
- * means a json-render upgrade doesn't ripple through the registry.
- */
-export interface CatalogEntry {
-  /** Result of `defineCatalog(schema, { components, actions })`. */
-  catalog: unknown;
-  /** Map of component name → React component, as passed to `defineRegistry`. */
-  components: Record<string, ComponentType<unknown>>;
-  /** Result of `defineRegistry(catalog, { components }).registry`. */
-  registry: unknown;
-}
+import type { CatalogEntry } from "../public/types.js";
 
 /**
  * Workspace adapter holding json-render catalogs by id.

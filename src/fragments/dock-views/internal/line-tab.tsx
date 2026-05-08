@@ -7,7 +7,7 @@ import { X } from "lucide-react";
 import { type ReactElement, useCallback, useSyncExternalStore } from "react";
 import { useAppWorkspace } from "@/contexts/app-workspace-context";
 import { cn } from "@/lib/utils";
-import { runClosePanel } from "./intents.js";
+import { runClosePanel } from "../../dock/index.js";
 
 /**
  * Shadcn standard tab styling — see https://ui.shadcn.com/docs/components/radix/tabs.

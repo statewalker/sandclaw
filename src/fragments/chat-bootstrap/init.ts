@@ -2,7 +2,7 @@ import { Intents } from "@statewalker/shared-intents";
 import { newRegistry } from "@statewalker/shared-registry";
 import { getWorkspace } from "@statewalker/workspace-api";
 import { CatalogRegistry } from "../catalog-registry/index.js";
-import { runShowDockPanel } from "../dock/intents.js";
+import { runShowDockPanel } from "../dock/index.js";
 import { SpecStore } from "../spec-store/index.js";
 import {
   CHAT_CATALOG_ENTRY,

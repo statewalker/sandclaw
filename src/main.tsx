@@ -7,7 +7,8 @@ import { App } from "@/app";
 import { AppWorkspaceProvider } from "@/contexts/app-workspace-context";
 import initCatalogRegistry from "@/fragments/catalog-registry";
 import initChatBootstrap from "@/fragments/chat-bootstrap";
-import initDockFragment from "@/fragments/dock";
+import initDock from "@/fragments/dock";
+import initDockViews from "@/fragments/dock-views";
 import initSpecStore from "@/fragments/spec-store";
 import "@/index.css";
 
@@ -49,8 +50,10 @@ async function bootstrap(root: HTMLElement): Promise<void> {
   register(initPlatformWeb(ctx));
   register(initCatalogRegistry(ctx));
   register(initSpecStore(ctx));
-  register(initDockFragment(ctx));
+  register(initDock(ctx));
   register(initChatBootstrap(ctx)); // registers the `chat` catalog with `ChatRoot`
+  // Renderer fragments register after logic fragments (ADR 0002).
+  register(initDockViews(ctx));
 
   // NOTE: `workspace.open()` is intentionally NOT called here.
   // It would require `setFileSystem(filesApi, label)` first, but

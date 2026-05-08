@@ -1,5 +1,5 @@
 import { newIntent } from "@statewalker/shared-intents";
-import type { Spec, SpecPatch } from "./spec-store.js";
+import type { Spec, SpecPatch } from "./types.js";
 
 export interface CreateSpecPayload {
   catalogId: string;

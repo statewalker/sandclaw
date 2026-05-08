@@ -1,6 +1,6 @@
 import { newRegistry } from "@statewalker/shared-registry";
 import { getWorkspace } from "@statewalker/workspace-api";
-import { CatalogRegistry } from "./catalog-registry.js";
+import { CatalogRegistry } from "../internal/catalog-registry.js";
 
 /**
  * Attach a `CatalogRegistry` to the workspace. After this fragment

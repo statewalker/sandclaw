@@ -1,8 +1,8 @@
 import { Intents } from "@statewalker/shared-intents";
 import { getWorkspace } from "@statewalker/workspace-api";
 import { describe, expect, it, vi } from "vitest";
-import { initSpecStore } from "./init.js";
-import { runCreateSpec, runPatchSpec } from "./intents.js";
+import { initSpecStore } from "../public/init-spec-store.js";
+import { runCreateSpec, runPatchSpec } from "../public/intents.js";
 import { SpecStore } from "./spec-store.js";
 
 describe("SpecStore", () => {

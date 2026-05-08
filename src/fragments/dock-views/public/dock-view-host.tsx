@@ -1,11 +1,11 @@
 import type { Workspace } from "@statewalker/workspace-api";
 import { DockviewReact, type DockviewReadyEvent } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
-import "./dock-view-host.css";
+import "../internal/dock-view-host.css";
 import { type ReactElement, useCallback, useEffect } from "react";
-import { DockHost } from "./dock-host.js";
-import { JsonPanel } from "./json-panel.js";
-import { LineTab } from "./line-tab.js";
+import { DockHost } from "../../dock/index.js";
+import { JsonPanel } from "../internal/json-panel.js";
+import { LineTab } from "../internal/line-tab.js";
 
 const components = { json: JsonPanel } as const;
 
@@ -14,10 +14,10 @@ interface DockViewHostProps {
 }
 
 /**
- * The DockView host component. Mount this once in the React tree
- * (inside `MainShell`). On `onReady`, captures the `DockviewApi`
- * and binds it to the workspace's `DockHost` adapter so the
- * `dock:*` intent handlers can dispatch (or replay queued
+ * The DockView host component (named mount point — App.tsx renders
+ * this when the workspace is open). On `onReady`, captures the
+ * `DockviewApi` and binds it to the workspace's `DockHost` adapter
+ * so the `dock:*` intent handlers can dispatch (or replay queued
  * dispatches) against a real DockView instance.
  *
  * One DockView component kind is registered: `"json"` →

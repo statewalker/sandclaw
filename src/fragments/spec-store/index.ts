@@ -1,4 +1,5 @@
-export { initSpecStore as default } from "./init.js";
+export { SpecStore } from "./internal/spec-store.js";
+export { initSpecStore as default } from "./public/init-spec-store.js";
 export {
   type CreateSpecPayload,
   type CreateSpecResult,
@@ -7,12 +8,11 @@ export {
   type PatchSpecPayload,
   runCreateSpec,
   runPatchSpec,
-} from "./intents.js";
-export {
-  type Spec,
-  type SpecCreateInput,
-  type SpecMeta,
-  type SpecPatch,
-  type SpecRecord,
-  SpecStore,
-} from "./spec-store.js";
+} from "./public/intents.js";
+export type {
+  Spec,
+  SpecCreateInput,
+  SpecMeta,
+  SpecPatch,
+  SpecRecord,
+} from "./public/types.js";

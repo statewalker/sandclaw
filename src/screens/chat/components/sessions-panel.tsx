@@ -11,7 +11,7 @@ import {
   useOpenChatTabs,
 } from "@/fragments/chat-bootstrap";
 import { chatPanelId } from "@/fragments/chat-bootstrap/catalog";
-import { runClosePanel } from "@/fragments/dock/intents";
+import { runClosePanel } from "@/fragments/dock";
 import {
   useInvalidateSessions,
   useSessionList,

@@ -2,11 +2,9 @@ import { Intents } from "@statewalker/shared-intents";
 import { getWorkspace } from "@statewalker/workspace-api";
 import type { DockviewApi, IDockviewPanel } from "dockview-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { initCatalogRegistry } from "../catalog-registry/init.js";
-import { DockHost } from "../dock/dock-host.js";
-import { initDockFragment } from "../dock/init.js";
-import { initSpecStore } from "../spec-store/init.js";
-import { SpecStore } from "../spec-store/spec-store.js";
+import initCatalogRegistry from "../catalog-registry/index.js";
+import initDock, { DockHost } from "../dock/index.js";
+import initSpecStore, { SpecStore } from "../spec-store/index.js";
 import { chatPanelId, chatSpecId } from "./catalog.js";
 import { initChatBootstrap } from "./init.js";
 import { runOpenChatSession } from "./intents.js";
@@ -73,7 +71,7 @@ describe("chat:open-session handler", () => {
     const ctx: Record<string, unknown> = {};
     const cleanupCatalogs = await initCatalogRegistry(ctx);
     const cleanupSpec = await initSpecStore(ctx);
-    const cleanupDock = await initDockFragment(ctx);
+    const cleanupDock = await initDock(ctx);
     const cleanupChat = await initChatBootstrap(ctx);
     try {
       const ws = getWorkspace(ctx);
@@ -108,7 +106,7 @@ describe("chat:open-session handler", () => {
     const ctx: Record<string, unknown> = {};
     const cleanupCatalogs = await initCatalogRegistry(ctx);
     const cleanupSpec = await initSpecStore(ctx);
-    const cleanupDock = await initDockFragment(ctx);
+    const cleanupDock = await initDock(ctx);
     const cleanupChat = await initChatBootstrap(ctx);
     try {
       const ws = getWorkspace(ctx);
@@ -136,7 +134,7 @@ describe("chat:open-session handler", () => {
     const ctx: Record<string, unknown> = {};
     const cleanupCatalogs = await initCatalogRegistry(ctx);
     const cleanupSpec = await initSpecStore(ctx);
-    const cleanupDock = await initDockFragment(ctx);
+    const cleanupDock = await initDock(ctx);
     const cleanupChat = await initChatBootstrap(ctx);
     try {
       const ws = getWorkspace(ctx);
@@ -186,7 +184,7 @@ describe("chat-bootstrap layout restore", () => {
     const ctx: Record<string, unknown> = {};
     const cleanupCatalogs = await initCatalogRegistry(ctx);
     const cleanupSpec = await initSpecStore(ctx);
-    const cleanupDock = await initDockFragment(ctx);
+    const cleanupDock = await initDock(ctx);
     const cleanupChat = await initChatBootstrap(ctx);
     try {
       const ws = getWorkspace(ctx);
@@ -207,7 +205,7 @@ describe("chat-bootstrap layout restore", () => {
     const ctx: Record<string, unknown> = {};
     const cleanupCatalogs = await initCatalogRegistry(ctx);
     const cleanupSpec = await initSpecStore(ctx);
-    const cleanupDock = await initDockFragment(ctx);
+    const cleanupDock = await initDock(ctx);
     const cleanupChat = await initChatBootstrap(ctx);
     try {
       // No throw, no specs allocated.
@@ -230,7 +228,7 @@ describe("chat-bootstrap layout restore", () => {
     const ctx: Record<string, unknown> = {};
     const cleanupCatalogs = await initCatalogRegistry(ctx);
     const cleanupSpec = await initSpecStore(ctx);
-    const cleanupDock = await initDockFragment(ctx);
+    const cleanupDock = await initDock(ctx);
     // First boot
     const cleanupChat1 = await initChatBootstrap(ctx);
     try {
