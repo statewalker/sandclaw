@@ -11,6 +11,7 @@ import initChatViews from "@/fragments/chat-views";
 import initCoreViews from "@/fragments/core-views";
 import initDock from "@/fragments/dock";
 import initDockViews from "@/fragments/dock-views";
+import initFiles from "@/fragments/files";
 import initProviders from "@/fragments/providers";
 import initProvidersViews from "@/fragments/providers-views";
 import initSettings from "@/fragments/settings";
@@ -68,6 +69,9 @@ async function bootstrap(root: HTMLElement): Promise<void> {
   // its tab entry from its constructor.
   register(initSettings(ctx));
   register(initProviders(ctx));
+  // files/ registers AFTER agent-runtime/ so its `agent:tools`
+  // slot contribution arrives once the manager is observing.
+  register(initFiles(ctx));
   register(initChat(ctx));
   // ── Renderer fragments register after logic fragments (ADR 0002) ──
   register(initCoreViews(ctx)); // ViewRegistry adapter

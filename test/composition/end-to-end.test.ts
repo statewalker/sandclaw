@@ -9,6 +9,7 @@ import initAgentRuntime, {
 import initCatalogRegistry from "@/fragments/catalog-registry";
 import initChat from "@/fragments/chat";
 import initDock from "@/fragments/dock";
+import initFiles from "@/fragments/files";
 import initProviders, {
   emptyProvidersConfig,
   Providers,
@@ -60,6 +61,7 @@ describe("chat-mini end-to-end (logic fragments)", () => {
     cleanups.push(initAgentRuntime(ctx));
     cleanups.push(initSettings(ctx));
     cleanups.push(initProviders(ctx));
+    cleanups.push(initFiles(ctx));
     cleanups.push(initChat(ctx));
 
     try {

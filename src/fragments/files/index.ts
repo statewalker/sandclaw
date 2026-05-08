@@ -1,0 +1,39 @@
+export {
+  observeEditorFactories,
+  observeIndexers,
+  observeMimeIcons,
+  observeMimeRenderers,
+  provideEditorFactory,
+  provideIndexer,
+  provideMimeIcon,
+  provideMimeRenderer,
+} from "./public/extension-points.js";
+export { initFiles as default } from "./public/init-files.js";
+export {
+  type DeleteFilePayload,
+  handleDeleteFile,
+  handleLoadDirectory,
+  handleLoadFile,
+  handleMoveFile,
+  handleVisualizeFile,
+  handleWriteFile,
+  type LoadDirectoryPayload,
+  type LoadFilePayload,
+  type MoveFilePayload,
+  runDeleteFile,
+  runLoadDirectory,
+  runLoadFile,
+  runMoveFile,
+  runVisualizeFile,
+  runWriteFile,
+  type VisualizeFilePayload,
+  type WriteFilePayload,
+} from "./public/intents.js";
+export type {
+  DirectoryEntry,
+  EditorFactory,
+  Indexer,
+  LoadedFile,
+  MimeIcon,
+  MimeRenderer,
+} from "./public/types.js";

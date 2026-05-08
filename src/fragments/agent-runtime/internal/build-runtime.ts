@@ -5,7 +5,6 @@ import {
   type SkillInfo,
   type ToolInput,
 } from "@statewalker/ai-agent/runtime";
-import { createFileTools } from "@statewalker/ai-agent/tools";
 import type { FilesApi } from "@statewalker/webrun-files";
 
 const DEFAULT_SYSTEM_FOLDER = "/.settings";
@@ -19,9 +18,9 @@ export interface BuildRuntimeInput {
   files: FilesApi;
   systemFolder?: string;
   provider: ProviderV3;
-  /** Slot-contributed tools. The fragment also installs the
-   * built-in file tools unconditionally (interim until Wave 5.1
-   * moves them to `files/`). */
+  /** Slot-contributed tools. The built-in file tools come through
+   * this slot via the `files/` fragment (Wave 5.1) — there is no
+   * implicit tool installation in this builder. */
   tools: readonly ToolInput[];
   skills: readonly SkillInfo[];
   /** Already-deduped (last-wins by id). Empty record means no MCP. */
@@ -30,13 +29,10 @@ export interface BuildRuntimeInput {
 
 /**
  * Pure builder: takes resolved inputs and returns a built
- * `AgentRuntime`. Replaces `services/wire-runtime.ts`. The slot
- * snapshot is materialized at the call site; this function is a
- * one-shot construction with no observation responsibility.
- *
- * `createFileTools` is installed inline. Wave 5.1 will move it into
- * the `files` fragment as an `agent:tools` contribution; this
- * function will then drop the `addTools(createFileTools(...))` line.
+ * `AgentRuntime`. Tools, skills, and MCP servers come from the
+ * `agent:*` slots — the manager passes the snapshots in as
+ * `input.tools` / `input.skills` / `input.mcpServers`. The builder
+ * itself installs nothing implicitly.
  */
 export async function buildRuntime(
   input: BuildRuntimeInput,
@@ -48,13 +44,6 @@ export async function buildRuntime(
     systemPath,
   );
   runtime.addModelProvider(input.provider);
-
-  // Built-in file tools (interim; moves to `files/` fragment in W5.1).
-  // Empty exclusion list — `setSystemPath` already hides the system
-  // subtree from the tools view.
-  runtime.addTools((ctx) =>
-    createFileTools(ctx.files, { excludedPrefixes: [] }),
-  );
 
   if (input.tools.length > 0) {
     runtime.addTools(...input.tools);
