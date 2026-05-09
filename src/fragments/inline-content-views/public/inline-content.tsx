@@ -1,9 +1,9 @@
 import type { ReactElement } from "react";
+import { useRegistry } from "@/fragments/core-views";
 import {
   InlineContentRegistry,
   type InlineContentSpec,
 } from "@/fragments/inline-content";
-import { useRegistry } from "@/lib/use-registry";
 
 /**
  * Resolves `spec.componentId` against the workspace's

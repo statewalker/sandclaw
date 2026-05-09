@@ -44,9 +44,27 @@ The `Secrets` and `Settings` workspace adapters build on top of
   catalog component names; registers named components into
   `ViewRegistry` so logic fragments can reference them by
   viewKey from slot values.
-- **Core renderer fragment** — `core-views/`. Activates
-  `@json-render/shadcn`'s prebuilt bindings, registers the
-  `ViewRegistry` adapter, mounts the React root.
+- **Renderer-only fragment** — a `<name>-views/` fragment with **no
+  paired logic fragment**. Permitted for substrate or shared-primitive
+  concerns where there is no per-feature business logic to own.
+  Two canonical examples ship today:
+  - `core-views/` — activates `@json-render/shadcn`'s prebuilt
+    bindings, registers the `ViewRegistry` adapter, owns
+    `createRoot`, mounts the React root, hosts the `AppRoot`
+    component that switches between picker and main shell based
+    on `WorkspaceShellAdapter`. Public surface re-exports the
+    substrate hooks (`useAdapterValue`, `useRegistry`,
+    `IdentifiableRegistry`).
+  - `shadcn-views/` — re-exports the local shadcn primitives
+    (`Button`, `Card`, `Dialog`, `ResizablePanelGroup`, …) plus
+    the `cn()` className helper. Other renderer fragments import
+    primitives from here instead of from a non-fragment
+    `src/components/` directory.
+
+  See ADR 0002 §"Renderer-only fragments" for the rule. The
+  principle: every React component the app ships from lives
+  inside a renderer fragment; shared primitives are a renderer
+  fragment too.
 - **ViewKey** — string identifier for a registered React
   component in `ViewRegistry`. Logic fragments contribute
   viewKeys (data) into slots; renderer fragments register the
@@ -90,6 +108,7 @@ identity (imported from the owning fragment's `public/`).
 | `Slots` | (substrate — `@statewalker/shared-slots`) | Extension-point bus |
 | `SpecStore` | `spec-store` | Addressable json-render specs |
 | `CatalogRegistry` | `catalog-registry` | Id-keyed catalog singletons |
+| `WorkspaceShellAdapter` | `workspace-bridge` | FS-Access shell state machine: `{ status: 'loading' \| 'unsupported' \| 'empty' \| 'needs-permission' \| 'ready', label?, reason? }` with `BaseClass.notify()`. Owns silent-restore from a stored `FileSystemDirectoryHandle`, drives `runChangeWorkspace` internally on `granted`, exposes `workspace:reconnect` / `workspace:disconnect` intents. Read by `workspace-bridge-views`'s picker and by `core-views`' `AppRoot` to switch between picker and main shell. See ADR 0004. |
 | `ActiveModel` | `agent-runtime` | Singular `{provider, modelId, sourceId}` pointer the agent uses; written by `providers` (and future `local-models`), read by `agent-runtime` to project into `AgentRuntimeAdapter`'s unified `RuntimeState` |
 | `AgentRuntimeAdapter` | `agent-runtime` | Unified `RuntimeState` discriminated union (`loading` / `no-providers` / `no-active-model` / `error` / `ready { runtime, agent, … }`); single source of truth for "can the chat send a message?" |
 | `InlineContentRegistry` | `inline-content` (logic) + `inline-content-views` (renderers) | Resolved json-render registry built from contributions to `inline-content:components` (logic side declares `{name, schema}`; renderer side registers React for `name`); read by any surface (chat, future report viewer, etc.) that renders AI-emitted inline UI |
@@ -119,3 +138,6 @@ Slot keys match the declaring fragment's id.
 | `chat:turn-blocks` | `chat` | `{ kind, render }` |
 | `chat:composer-actions` | `chat` | `ComposerAction` |
 | `inline-content:components` | `inline-content` | `InlineComponentContribution` |
+| `dock:side-panels` | `dock` | `{ id, side: 'left' \| 'right', order?, viewKey, defaultSize? }` — fixed side panels rendered alongside `DockViewHost` in `MainShell`. SessionsPanel from `chat-views` is the first contributor. |
+| `dock:header-items` | `dock` | `{ id, slot: 'leading' \| 'trailing', order?, viewKey }` — items rendered in `MainShell`'s `ShellHeader`. Contributors today: workspace-bridge-views (workspace label + switch button), settings-views (settings button). |
+| `dock:overlays` | `dock` | `{ id, viewKey }` — modal/dialog/overlay components mounted alongside `MainShell`. Settings dialog from `settings-views` is the first contributor. |

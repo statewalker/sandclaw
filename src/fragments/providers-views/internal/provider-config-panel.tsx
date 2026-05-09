@@ -1,12 +1,6 @@
 import { useCallback } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAdapterValue } from "@/fragments/core-views";
+
 import {
   type CanonicalCredentials,
   type CanonicalProviderName,
@@ -14,8 +8,18 @@ import {
   Providers,
   type ProvidersConfig,
 } from "@/fragments/providers";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/fragments/shadcn-views";
 import { useAdapter } from "@/fragments/workspace-bridge-views";
-import { useAdapterValue } from "@/lib/use-adapter-value";
 import { ActiveModelPicker } from "./active-model-picker.js";
 import { CanonicalForm } from "./canonical-form.js";
 import { CustomProvidersList } from "./custom-providers-list.js";

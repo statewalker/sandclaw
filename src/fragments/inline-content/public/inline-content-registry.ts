@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { IdentifiableRegistry } from "@/lib/identifiable-registry";
+import { IdentifiableRegistry } from "@/fragments/core-views";
 
 /**
  * Generic shape of an inline content component. Concrete components

@@ -10,7 +10,10 @@ import {
   STANDARD_TURN_BLOCK_KINDS,
 } from "../../chat/index.js";
 import { ViewRegistry } from "../../core-views/index.js";
+import { provideDockOverlay, provideDockSidePanel } from "../../dock/index.js";
 import { ChatRoot } from "../internal/chat-root.js";
+import { DeepLinkMount } from "../internal/deep-link-mount.js";
+import { SessionsPanel } from "../internal/sessions-panel.js";
 import {
   AgentMessageBlock,
   ErrorTurnBlock,
@@ -18,24 +21,22 @@ import {
   UserMessageBlock,
 } from "../internal/turn-block-views.js";
 
+const SESSIONS_PANEL_VIEW_KEY = "chat:sessions-panel";
+const DEEP_LINK_VIEW_KEY = "chat:deep-link";
+
 /**
- * Renderer-fragment init for chat-views (per ADR 0002). Three
- * concerns:
+ * Renderer-fragment init for chat-views (per ADR 0002). Concerns:
  *
- *  1. `chat` catalog binding — `<Renderer>` resolves the chat
- *     panel's `ChatRoot` element.
- *  2. Turn-block components — registers built-in renderers
- *     (UserMessage, AgentMessage, ToolCallsRun, Error) into
- *     `ViewRegistry` under `STANDARD_TURN_BLOCK_KINDS.*` viewKeys,
- *     and contributes matching `{kind, viewKey}` entries to the
- *     `chat:turn-blocks` slot. `TurnView` consumes both — there is
- *     no built-in dispatch; plug-in fragments register the same
- *     way.
- *
- * Boot order: register AFTER `initChat` (logic). The composer
- * actions slot is contributed to by other logic fragments
- * (e.g. `providers/`) — `chat-views` does not contribute composer
- * actions itself.
+ *  1. `chat` catalog binding — `<Renderer>` resolves the chat panel's
+ *     `ChatRoot` element.
+ *  2. Turn-block components — registers built-in renderers into
+ *     `ViewRegistry` and contributes matching `{kind, viewKey}` entries
+ *     to the `chat:turn-blocks` slot.
+ *  3. Sessions panel — registers `SessionsPanel` and contributes a
+ *     `dock:side-panels` entry on the left at 280px default size.
+ *  4. Deep-link mount — registers `DeepLinkMount` and contributes a
+ *     `dock:overlays` entry; the component fires `chat:open-session`
+ *     once after `WorkspaceShellAdapter` reaches `ready`.
  */
 export default function initChatViews(
   ctx: Record<string, unknown>,
@@ -54,9 +55,6 @@ export default function initChatViews(
     actions: {},
   });
   register(catalogs.register(CHAT_CATALOG_ID, chatRegistry));
-  // `schema` import keeps json-render happy in case the catalog file
-  // is tree-shaken out elsewhere; the registry built above already
-  // pinned it.
   void schema;
 
   // ── Turn-block components ───────────────────────────────────
@@ -87,6 +85,36 @@ export default function initChatViews(
     );
     register(provideTurnBlock(slots, { kind, viewKey: kind }));
   }
+
+  // ── Sessions panel (dock side panel) ────────────────────────
+  register(
+    views.register(
+      SESSIONS_PANEL_VIEW_KEY,
+      SessionsPanel as unknown as Parameters<typeof views.register>[1],
+    ),
+  );
+  register(
+    provideDockSidePanel(slots, {
+      id: "chat:sessions",
+      side: "left",
+      viewKey: SESSIONS_PANEL_VIEW_KEY,
+      defaultSize: 280,
+    }),
+  );
+
+  // ── Deep-link mount (dock overlay; renders nothing) ─────────
+  register(
+    views.register(
+      DEEP_LINK_VIEW_KEY,
+      DeepLinkMount as unknown as Parameters<typeof views.register>[1],
+    ),
+  );
+  register(
+    provideDockOverlay(slots, {
+      id: "chat:deep-link",
+      viewKey: DEEP_LINK_VIEW_KEY,
+    }),
+  );
 
   return cleanup;
 }

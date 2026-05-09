@@ -3,21 +3,21 @@ import {
   type ModelConfig,
 } from "@statewalker/ai-agent/models";
 import { useMemo } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   type CanonicalProviderName,
   canonicalLabel,
   listConfiguredProviders,
   type ProvidersConfig,
 } from "@/fragments/providers";
+import {
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/fragments/shadcn-views";
 
 interface CatalogModel {
   modelId: string;

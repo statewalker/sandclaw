@@ -1,6 +1,6 @@
 import { Intents } from "@statewalker/shared-intents";
 import { type ReactElement, useEffect, useState } from "react";
-import { Markdown } from "@/components/prompt-kit/markdown";
+import { Markdown } from "@/fragments/chat-views";
 import { runLoadFile } from "@/fragments/files";
 import { useAppWorkspace } from "@/fragments/workspace-bridge-views";
 

@@ -4,13 +4,7 @@ import {
 } from "@statewalker/ai-agent/models";
 import { Intents } from "@statewalker/shared-intents";
 import { type ReactElement, useMemo } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { useAdapterValue } from "@/fragments/core-views";
 import {
   type CanonicalProviderName,
   canonicalLabel,
@@ -20,8 +14,14 @@ import {
   runOpenProviderConfig,
   runSelectActiveModel,
 } from "@/fragments/providers";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/fragments/shadcn-views";
 import { useAdapter } from "@/fragments/workspace-bridge-views";
-import { useAdapterValue } from "@/lib/use-adapter-value";
 
 interface FlatChoice {
   /** "providerId::modelId" — encoded so we can round-trip through the Select. */

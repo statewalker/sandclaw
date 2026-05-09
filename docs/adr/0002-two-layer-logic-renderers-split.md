@@ -80,16 +80,34 @@ Folder name: `<fragment>-views/`. Examples: `chat-views`,
   `ViewRegistry` (string-keyed) so logic fragments can reference
   them by viewKey from slot values.
 
-### Plus one core-renderer fragment
+### Renderer-only fragments
 
-`core-views/` (or `app-views/`). Mounts the rendering subsystem:
+A renderer fragment **may exist without a paired logic fragment**
+when its concern is rendering substrate or shared primitives —
+there is no per-feature business logic to own, only React-side
+infrastructure. Two canonical examples ship today:
 
-- Activates `@json-render/shadcn`'s 36 prebuilt component
-  bindings.
-- Registers the `ViewRegistry` adapter on the workspace.
-- Mounts the React root; renders the App component which
-  switches between `<DirectoryPickerEmptyState>` and `<DockHost>`
-  based on workspace state.
+- `core-views/` — the rendering substrate. Activates
+  `@json-render/shadcn`'s 36 prebuilt component bindings,
+  registers the `ViewRegistry` adapter on the workspace, owns
+  `createRoot`, hosts the `AppRoot` component which switches
+  between `<DirectoryPickerEmptyState>` and `<MainShell>` based
+  on `WorkspaceShellAdapter` (see ADR 0003 + 0004). Public
+  surface re-exports the substrate hooks (`useAdapterValue`,
+  `useRegistry`, `IdentifiableRegistry`).
+- `shadcn-views/` — shared shadcn primitives. Public surface
+  re-exports `Button`, `Card`, `Dialog`, `ResizablePanelGroup`,
+  …, plus the `cn()` className helper. Other renderer fragments
+  import primitives from here (e.g.
+  `import { Button } from "@/fragments/shadcn-views"`) instead
+  of from a non-fragment `src/components/ui/`. This fragment
+  has no logic pair because shadcn is a vendor library; there
+  is nothing per-feature to own on the logic side.
+
+Both follow the same `<name>-views/` naming and `public/` /
+`internal/` boundary as paired renderer fragments. The principle:
+**every React component the app ships from lives inside a
+renderer fragment**, even shared primitives.
 
 ### Boot order
 
@@ -143,6 +161,18 @@ For json-render catalog contributions
 description? }` (catalog declaration). The paired renderer
 fragment binds the React component for that name into the
 fragment's registry.
+
+The same patterns apply to the dock fragment's shell-composition
+slots (declared by `dock`, consumed by `dock-views`' `MainShell`):
+
+- `dock:side-panels` (Pattern C — viewKey lookup): fixed side
+  panels shown alongside `DockViewHost`. Carries
+  `{ id, side: 'left'|'right', order?, viewKey, defaultSize? }`.
+- `dock:header-items` (Pattern C): items rendered in the shell
+  header. Carries `{ id, slot: 'leading'|'trailing', order?,
+  viewKey }`.
+- `dock:overlays` (Pattern C): modals / dialogs mounted next to
+  `MainShell`. Carries `{ id, viewKey }`.
 
 ### Reuse direction
 

@@ -4,7 +4,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/fragments/shadcn-views";
 import { ProviderConfigPanel } from "../internal/provider-config-panel.js";
 
 /**

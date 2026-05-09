@@ -3,14 +3,17 @@ import { Eye, EyeOff, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   type CustomProvider,
   newCustomProviderId,
 } from "@/fragments/providers";
+import {
+  Button,
+  Card,
+  CardContent,
+  Input,
+  Label,
+} from "@/fragments/shadcn-views";
 import { type TestResult, testCustomConnection } from "./test-connection.js";
 
 const schema = z.object({

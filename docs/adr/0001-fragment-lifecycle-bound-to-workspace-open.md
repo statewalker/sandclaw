@@ -104,6 +104,40 @@ from `dock`. The two states are observable via the workspace's
 - **Tests.** Each manager test exercises at least two `onLoad` /
   `onUnload` cycles to prove re-entrancy.
 
+## 2026-05-09 amendment — workspace-bridge collapse
+
+The original ADR left the silent-restore + permission flow for the
+FS-Access handle inside a React-side `WorkspaceProvider` context
+(`src/contexts/workspace-context.tsx`), with `WorkspaceBridgeManager`
+only registering the canonical `workspace:change` handler. That
+split was always temporary; the manager docstring referred to a
+"Wave 3.3" collapse.
+
+That collapse is now scheduled (Architecture migration wave). After
+it lands:
+
+- The FS-Access handle store (IndexedDB) and FilesApi factory
+  (`createBrowserFilesApi`) move into
+  `workspace-bridge/internal/`.
+- `WorkspaceBridgeManager` constructs a `WorkspaceShellAdapter`
+  (a workspace adapter) on first use and runs silent-restore from
+  the stored handle. When permission is `granted` it fires
+  `runChangeWorkspace` internally; otherwise it publishes a
+  `needs-permission` or `empty` status.
+- Two new intents are added: `workspace:reconnect` (re-request
+  permission then `runChangeWorkspace`) and `workspace:disconnect`
+  (`workspace.close()` + clear the stored handle).
+- The picker UI (`<DirectoryPickerEmptyState/>` /
+  `<ReconnectBanner/>`) lives in `workspace-bridge-views/internal/`
+  and reads `WorkspaceShellAdapter` via `useAdapterValue`.
+- `src/contexts/workspace-context.tsx`, `src/services/handle-store.ts`,
+  `src/services/files-api-factory.ts`, `src/components/common/*`
+  cease to exist.
+
+The "App.tsx switches between picker and dock" promise is fulfilled
+by `core-views`' `AppRoot` reading `WorkspaceShellAdapter`. See
+ADR 0003 (mount path) and ADR 0004 (adapter location).
+
 ## Why this is hard to reverse
 
 Once a fragment is written assuming "the workspace is always open

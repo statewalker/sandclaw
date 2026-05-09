@@ -1,4 +1,4 @@
-import { IdentifiableRegistry } from "@/lib/identifiable-registry";
+import { IdentifiableRegistry } from "@/fragments/core-views";
 
 /**
  * Workspace adapter holding json-render catalogs by id.

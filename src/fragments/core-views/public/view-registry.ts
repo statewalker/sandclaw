@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { IdentifiableRegistry } from "@/lib/identifiable-registry";
+import { IdentifiableRegistry } from "../internal/identifiable-registry.js";
 
 /**
  * Generic shape of a view component registered in `ViewRegistry`.

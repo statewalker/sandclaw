@@ -1,14 +1,14 @@
 import { Intents } from "@statewalker/shared-intents";
 import { type ReactElement, useEffect } from "react";
 import { AgentRuntimeAdapter } from "@/fragments/agent-runtime";
+import { useAdapterValue } from "@/fragments/core-views";
 import { runSetPanelTitle } from "@/fragments/dock";
 import { ProviderConfigGate } from "@/fragments/providers-views";
 import { useAppWorkspace } from "@/fragments/workspace-bridge-views";
-import { useAdapterValue } from "@/lib/use-adapter-value";
-import { ChatPanel } from "@/screens/chat/components/chat-panel";
-import { useNodeProp } from "@/screens/chat/hooks/use-session-node";
 import { chatPanelId } from "../../chat/index.js";
 import { useChatSession } from "../public/hooks/use-chat-session.js";
+import { ChatPanel } from "./chat-panel.js";
+import { useNodeProp } from "./hooks/use-session-node.js";
 
 export interface ChatRootProps {
   sessionId: string;

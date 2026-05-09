@@ -1,9 +1,7 @@
 import initPlatformWeb from "@statewalker/platform-browser";
 import { newRegistry } from "@statewalker/shared-registry";
 import { Workspace } from "@statewalker/workspace-api";
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import { App } from "@/app";
+import { QueryClient } from "@tanstack/react-query";
 import initAgentRuntime from "@/fragments/agent-runtime";
 import initCatalogRegistry from "@/fragments/catalog-registry";
 import initChat from "@/fragments/chat";
@@ -20,89 +18,66 @@ import initProviders from "@/fragments/providers";
 import initProvidersViews from "@/fragments/providers-views";
 import initSettings from "@/fragments/settings";
 import initSettingsViews from "@/fragments/settings-views";
+import initShadcnViews from "@/fragments/shadcn-views";
 import initSpecStore from "@/fragments/spec-store";
 import initWorkspaceBridge from "@/fragments/workspace-bridge";
-import initWorkspaceBridgeViews, {
-  AppWorkspaceProvider,
-} from "@/fragments/workspace-bridge-views";
+import initWorkspaceBridgeViews from "@/fragments/workspace-bridge-views";
 import "@/index.css";
 
-const container = document.getElementById("app");
-if (!container) {
-  throw new Error("Root element #app not found");
-}
+// Pure boot script — no JSX, no React imports. The React mount is
+// owned by `core-views`' init (per ADR 0003). `main.tsx` only:
+//   1. Builds the Workspace and the boot context.
+//   2. Registers logic fragments first (existing order), then renderer
+//      fragments (existing order with `shadcn-views` inserted between
+//      `core-views` and `workspace-bridge-views` so primitives are
+//      available before any other renderer mounts).
+//   3. Attaches the existing `beforeunload` cleanup hook.
+const workspace = new Workspace();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+const ctx: Record<string, unknown> = {
+  "workspace:workspace": workspace,
+  "core-views:query-client": queryClient,
+};
 
-void bootstrap(container);
+const [register, cleanup] = newRegistry();
 
-async function bootstrap(root: HTMLElement): Promise<void> {
-  const workspace = new Workspace();
-  const ctx: Record<string, unknown> = { "workspace:workspace": workspace };
+// ── Logic fragments (last to register, last to claim per the
+// "first claim wins" intents convention) ─────────────────────
+register(initPlatformWeb(ctx));
+register(initCatalogRegistry(ctx));
+register(initSpecStore(ctx));
+register(initDock(ctx));
+register(initWorkspaceBridge(ctx));
+register(initAgentRuntime(ctx));
+register(initSettings(ctx));
+register(initProviders(ctx));
+register(initFiles(ctx));
+register(initMarkdownViewer(ctx));
+register(initInlineContent(ctx));
+register(initChat(ctx));
 
-  // ── Plug-ins-first registration convention ───────────────────
-  // Third-party fragment `init`s should register BEFORE built-in
-  // fragment `init`s, so plug-in handlers register first and claim
-  // first per the `Intents` "first claim wins" rule. Built-ins
-  // serve as the fallback chain. v1 ships no third-party
-  // fragments, but the boot sequence below honors the convention
-  // so the future plug-in-system change has a clear contract:
-  // append a `register(initPluginX(ctx))` line BEFORE the built-in
-  // block to make X override the built-in handler for any intent
-  // it claims.
-  const [register, cleanup] = newRegistry();
+// ── Renderer fragments register after logic fragments (ADR 0002) ──
+// `shadcn-views` is registered between `core-views` and
+// `workspace-bridge-views` so the shadcn primitives are available
+// before any other renderer mounts. `core-views`' init owns the
+// React mount via `createRoot(...).render(<AppRoot/>)`.
+register(initCoreViews(ctx));
+register(initShadcnViews(ctx));
+register(initWorkspaceBridgeViews(ctx));
+register(initDockViews(ctx));
+register(initSettingsViews(ctx));
+register(initProvidersViews(ctx));
+register(initMarkdownViewerViews(ctx));
+register(initInlineContentViews(ctx));
+register(initChatViews(ctx));
 
-  // ── Built-in fragments (last to register, last to claim) ─────
-  register(initPlatformWeb(ctx));
-  register(initCatalogRegistry(ctx));
-  register(initSpecStore(ctx));
-  register(initDock(ctx));
-  register(initWorkspaceBridge(ctx));
-  register(initAgentRuntime(ctx));
-  // settings/ registers BEFORE providers/ so the `settings:tabs`
-  // slot is declared by the time the providers manager contributes
-  // its tab entry from its constructor.
-  register(initSettings(ctx));
-  register(initProviders(ctx));
-  // files/ registers AFTER agent-runtime/ so its `agent:tools`
-  // slot contribution arrives once the manager is observing.
-  register(initFiles(ctx));
-  // markdown-viewer/ registers AFTER files/ so the
-  // `files:mime-renderers` slot is declared by the time it
-  // contributes its renderer.
-  register(initMarkdownViewer(ctx));
-  // inline-content/ ships the InlineContentRegistry adapter; the
-  // paired renderer fragment registers built-in components.
-  register(initInlineContent(ctx));
-  register(initChat(ctx));
-  // ── Renderer fragments register after logic fragments (ADR 0002) ──
-  register(initCoreViews(ctx)); // ViewRegistry adapter
-  register(initWorkspaceBridgeViews(ctx));
-  register(initDockViews(ctx));
-  register(initSettingsViews(ctx));
-  register(initProvidersViews(ctx));
-  register(initMarkdownViewerViews(ctx)); // binds React MarkdownView to the markdown-viewer catalog
-  register(initInlineContentViews(ctx)); // built-in inline components: metric-card, line-chart, file-card, action-button
-  register(initChatViews(ctx)); // binds React ChatRoot to the chat catalog
-
-  // NOTE: `workspace.open()` is intentionally NOT called here.
-  // It would require `setFileSystem(filesApi, label)` first, but
-  // chat-mini's FilesApi is created lazily by the existing
-  // WorkspaceContext provider only after the user picks a
-  // directory. None of the substrate adapters (Slots, Intents,
-  // SpecStore, CatalogRegistry, DockHost) require `open()` —
-  // `requireAdapter` auto-instantiates them on first use.
-  // The FilesApi-aware bridge that calls `setFileSystem` +
-  // `open()` lands with §7 (MainShell DockView rewire), where
-  // future fragments will subscribe to `workspace.onLoad`.
-
-  window.addEventListener("beforeunload", () => {
-    void cleanup();
-  });
-
-  createRoot(root).render(
-    <StrictMode>
-      <AppWorkspaceProvider workspace={workspace}>
-        <App />
-      </AppWorkspaceProvider>
-    </StrictMode>,
-  );
-}
+window.addEventListener("beforeunload", () => {
+  void cleanup();
+});

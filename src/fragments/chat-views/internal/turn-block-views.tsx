@@ -1,8 +1,8 @@
 import type { Message, ToolCall } from "@statewalker/ai-agent/state";
 import type { ReactElement } from "react";
-import { ErrorBlock } from "@/screens/chat/components/error-block";
-import { MessageView } from "@/screens/chat/components/message-view";
-import { ToolCallsBlock } from "@/screens/chat/components/tool-calls-block";
+import { ErrorBlock } from "./error-block.js";
+import { MessageView } from "./message-view.js";
+import { ToolCallsBlock } from "./tool-calls-block.js";
 
 /**
  * Adapter components that bridge the slot-pattern's `{ props: unknown }`
