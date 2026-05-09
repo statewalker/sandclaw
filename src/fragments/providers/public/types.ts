@@ -43,15 +43,3 @@ export interface ProviderDescriptor {
     | readonly ProviderModelInfo[]
     | Promise<readonly ProviderModelInfo[]>;
 }
-
-// Re-export ProvidersConfig + helpers since the legacy UI components
-// depend on them. Wave 4.2 lifts the implementation into the fragment
-// internals; the public surface keeps the same types so callers can
-// migrate without touching their internals.
-export type {
-  CanonicalCredentials,
-  CanonicalProviderName,
-  ConfiguredProvider,
-  CustomProvider,
-  ProvidersConfig,
-} from "../internal/providers-store.js";

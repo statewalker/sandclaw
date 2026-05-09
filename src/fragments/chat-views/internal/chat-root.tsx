@@ -8,7 +8,7 @@ import { useAdapterValue } from "@/lib/use-adapter-value";
 import { ChatPanel } from "@/screens/chat/components/chat-panel";
 import { useNodeProp } from "@/screens/chat/hooks/use-session-node";
 import { chatPanelId } from "../../chat/index.js";
-import { useChatSession } from "./hooks/use-chat-session.js";
+import { useChatSession } from "../public/hooks/use-chat-session.js";
 
 export interface ChatRootProps {
   sessionId: string;

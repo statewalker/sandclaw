@@ -1,2 +1,2 @@
-export { CatalogRegistry } from "./internal/catalog-registry.js";
-export { initCatalogRegistry as default } from "./public/init-catalog-registry.js";
+export * from "./public/index.js";
+export { default } from "./public/init.js";

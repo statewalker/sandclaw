@@ -1,6 +1,2 @@
-export {
-  SettingsButton,
-  type SettingsButtonProps,
-} from "./internal/settings-button.js";
-export { SettingsDialog } from "./internal/settings-dialog.js";
-export { initSettingsViews as default } from "./public/init-settings-views.js";
+export * from "./public/index.js";
+export { default } from "./public/init.js";

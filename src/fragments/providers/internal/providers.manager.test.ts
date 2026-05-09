@@ -5,12 +5,12 @@ import { Workspace } from "@statewalker/workspace-api";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ActiveModel, AgentRuntimeAdapter } from "@/fragments/agent-runtime";
 import { Providers } from "../public/providers.adapter.js";
-import type { ProviderDescriptor } from "../public/types.js";
-import { ProvidersManager } from "./providers.manager.js";
 import {
   emptyProvidersConfig,
   type ProvidersConfig,
-} from "./providers-store.js";
+} from "../public/providers-store.js";
+import type { ProviderDescriptor } from "../public/types.js";
+import { ProvidersManager } from "./providers.manager.js";
 
 async function writeProvidersJson(
   files: MemFilesApi,

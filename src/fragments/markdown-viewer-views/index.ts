@@ -1,1 +1,2 @@
-export { initMarkdownViewerViews as default } from "./public/init-markdown-viewer-views.js";
+export * from "./public/index.js";
+export { default } from "./public/init.js";

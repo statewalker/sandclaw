@@ -9,7 +9,7 @@ import {
   observeInlineComponents,
 } from "@/fragments/inline-content";
 import { AppWorkspaceProvider } from "@/fragments/workspace-bridge-views";
-import { initInlineContentViews } from "../public/init-inline-content-views.js";
+import initInlineContentViews from "../public/init.js";
 import { InlineContent } from "../public/inline-content.js";
 
 function mount(ws: Workspace, ui: ReactElement) {

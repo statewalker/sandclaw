@@ -19,17 +19,17 @@ import {
   type SelectActiveModelPayload,
 } from "../public/intents.js";
 import { Providers } from "../public/providers.adapter.js";
-import type { ProviderDescriptor } from "../public/types.js";
-import { buildAnthropicDescriptor } from "./builtins/anthropic.js";
-import { buildCustomDescriptor } from "./builtins/custom.js";
-import { buildGoogleDescriptor } from "./builtins/google.js";
-import { buildOpenAIDescriptor } from "./builtins/openai.js";
 import {
   emptyProvidersConfig,
   loadProvidersConfig,
   type ProvidersConfig,
   saveProvidersConfig,
-} from "./providers-store.js";
+} from "../public/providers-store.js";
+import type { ProviderDescriptor } from "../public/types.js";
+import { buildAnthropicDescriptor } from "./builtins/anthropic.js";
+import { buildCustomDescriptor } from "./builtins/custom.js";
+import { buildGoogleDescriptor } from "./builtins/google.js";
+import { buildOpenAIDescriptor } from "./builtins/openai.js";
 
 export interface ProvidersManagerOptions {
   workspace: Workspace;

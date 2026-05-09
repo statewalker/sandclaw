@@ -2,7 +2,7 @@ import { BaseClass } from "@statewalker/shared-baseclass";
 import {
   emptyProvidersConfig,
   type ProvidersConfig,
-} from "../internal/providers-store.js";
+} from "../public/providers-store.js";
 
 /**
  * Workspace-adapter exposing the loaded `ProvidersConfig` reactively.

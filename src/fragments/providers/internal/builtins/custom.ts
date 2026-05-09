@@ -1,9 +1,9 @@
+import { createRemoteProvider } from "../../public/create-remote-provider.js";
+import type { CustomProvider } from "../../public/providers-store.js";
 import type {
   ProviderDescriptor,
   ProviderModelInfo,
 } from "../../public/types.js";
-import { createRemoteProvider } from "../create-remote-provider.js";
-import type { CustomProvider } from "../providers-store.js";
 
 /**
  * Build a `ProviderDescriptor` for a user-defined OpenAI-compatible

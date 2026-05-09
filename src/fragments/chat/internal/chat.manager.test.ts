@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import initDock, { DockHost } from "../../dock/index.js";
 import initSpecStore, { SpecStore } from "../../spec-store/index.js";
 import { chatPanelId, chatSpecId } from "../public/catalog.js";
-import { initChat } from "../public/init-chat.js";
+import initChat from "../public/init.js";
 import { runOpenChatSession } from "../public/intents.js";
 
 interface FakePanel {

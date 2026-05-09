@@ -4,7 +4,7 @@ import type { DockviewApi, IDockviewPanel } from "dockview-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import initSpecStore, { SpecStore } from "../../spec-store/index.js";
 import { DockHost } from "../public/dock-host.js";
-import { initDock } from "../public/init-dock.js";
+import initDock from "../public/init.js";
 import {
   runClosePanel,
   runFocusPanel,

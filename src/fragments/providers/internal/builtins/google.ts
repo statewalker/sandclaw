@@ -1,9 +1,9 @@
 import { createDefaultCatalog } from "@statewalker/ai-agent/models";
+import { createRemoteProvider } from "../../public/create-remote-provider.js";
 import type {
   ProviderDescriptor,
   ProviderModelInfo,
 } from "../../public/types.js";
-import { createRemoteProvider } from "../create-remote-provider.js";
 
 function listGoogleModels(): readonly ProviderModelInfo[] {
   const catalog = createDefaultCatalog();

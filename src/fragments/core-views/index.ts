@@ -1,2 +1,2 @@
-export { initCoreViews as default } from "./public/init-core-views.js";
-export { type ViewComponent, ViewRegistry } from "./public/view-registry.js";
+export * from "./public/index.js";
+export { default } from "./public/init.js";
