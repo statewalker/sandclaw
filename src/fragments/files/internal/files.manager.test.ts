@@ -21,7 +21,7 @@ import {
   runVisualizeFile,
   runWriteFile,
 } from "../index.js";
-import { FilesManager, pickRenderer } from "./files.manager.js";
+import { FilesManager, guessMimeType, pickRenderer } from "./files.manager.js";
 
 function bootWorkspace(files: MemFilesApi): {
   ws: Workspace;
@@ -167,6 +167,26 @@ describe("pickRenderer", () => {
 
   it("returns undefined when nothing matches", () => {
     expect(pickRenderer([], "text/plain")).toBeUndefined();
+  });
+
+  it("guessMimeType maps common video extensions to video/*", () => {
+    expect(guessMimeType("/x/y.mp4").startsWith("video/")).toBe(true);
+    expect(guessMimeType("/x/y.webm").startsWith("video/")).toBe(true);
+    expect(guessMimeType("/x/y.ogg").startsWith("video/")).toBe(true);
+    expect(guessMimeType("/x/y.mov").startsWith("video/")).toBe(true);
+  });
+
+  it("pickRenderer resolves the video/* contribution for .mp4 and .webm", () => {
+    const renderers = [
+      { mimeTypePattern: "video/*", buildPanel },
+      { mimeTypePattern: "image/*", buildPanel },
+    ];
+    expect(
+      pickRenderer(renderers, guessMimeType("/x/y.mp4"))?.mimeTypePattern,
+    ).toBe("video/*");
+    expect(
+      pickRenderer(renderers, guessMimeType("/x/y.webm"))?.mimeTypePattern,
+    ).toBe("video/*");
   });
 });
 

@@ -258,6 +258,10 @@ const MIME_TYPES: Readonly<Record<string, string>> = {
   ".svg": "image/svg+xml",
   ".webp": "image/webp",
   ".pdf": "application/pdf",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".ogg": "video/ogg",
+  ".mov": "video/quicktime",
 };
 
 export function guessMimeType(pathOrUri: string): string {

@@ -7,6 +7,7 @@ import {
   provideInlineComponent,
 } from "@/fragments/inline-content";
 import { ActionButton } from "../internal/components/action-button.js";
+import { DirectoryCard } from "../internal/components/directory-card.js";
 import { FileCard } from "../internal/components/file-card.js";
 import { LineChart } from "../internal/components/line-chart.js";
 import { MetricCard } from "../internal/components/metric-card.js";
@@ -38,6 +39,15 @@ const BUILTINS: ReadonlyArray<{
       description: "File reference; clicking fires files:visualize.",
     },
     component: FileCard,
+  },
+  {
+    descriptor: {
+      id: "directory-card",
+      label: "Directory Card",
+      description:
+        "Directory reference; clicking children fires files:visualize.",
+    },
+    component: DirectoryCard,
   },
   {
     descriptor: {

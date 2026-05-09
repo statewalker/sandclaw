@@ -4,9 +4,13 @@ import {
   NodeType,
   type Session,
 } from "@statewalker/ai-agent/state";
-import { act, render } from "@testing-library/react";
+import { Intents } from "@statewalker/shared-intents";
+import { Workspace } from "@statewalker/workspace-api";
+import { act, fireEvent, render } from "@testing-library/react";
 import { Profiler, type ProfilerOnRenderCallback } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { handleVisualizeFile } from "@/fragments/files";
+import { AppWorkspaceProvider } from "@/fragments/workspace-bridge-views";
 import { MessageView } from "./message-view.js";
 
 function makeSession(): Session {
@@ -18,6 +22,10 @@ function makeAssistantMessage(session: Session): Message {
   const turn = session.addTurn();
   turn.addUserMessage("hello");
   return turn.addAgentMessage();
+}
+
+function makeUserMessage(session: Session, text: string): Message {
+  return session.addTurn().addUserMessage(text);
 }
 
 /**
@@ -43,6 +51,15 @@ function makeProfiledMessageView(): {
   return { Component, getCount: (id) => counts.get(id) ?? 0 };
 }
 
+function renderWithWorkspace(
+  ui: React.ReactElement,
+  ws: Workspace = new Workspace(),
+): ReturnType<typeof render> {
+  return render(
+    <AppWorkspaceProvider workspace={ws}>{ui}</AppWorkspaceProvider>,
+  );
+}
+
 describe("MessageView streaming re-render", () => {
   let cleanup: (() => void) | undefined;
 
@@ -59,7 +76,7 @@ describe("MessageView streaming re-render", () => {
     const otherMessage = makeAssistantMessage(session);
 
     const profiled = makeProfiledMessageView();
-    const utils = render(
+    const utils = renderWithWorkspace(
       <>
         <profiled.Component id="streaming" message={streamingMessage} />
         <profiled.Component id="other" message={otherMessage} />
@@ -94,7 +111,9 @@ describe("MessageView streaming re-render", () => {
     const message = makeAssistantMessage(session);
 
     const profiled = makeProfiledMessageView();
-    const utils = render(<profiled.Component id="msg" message={message} />);
+    const utils = renderWithWorkspace(
+      <profiled.Component id="msg" message={message} />,
+    );
     cleanup = () => utils.unmount();
     const base = profiled.getCount("msg");
 
@@ -110,5 +129,51 @@ describe("MessageView streaming re-render", () => {
     const renders = profiled.getCount("msg") - base;
     expect(renders).toBeGreaterThanOrEqual(1);
     expect(renders).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("MessageView file:// linkifier", () => {
+  let cleanup: (() => void) | undefined;
+
+  afterEach(() => {
+    cleanup?.();
+    cleanup = undefined;
+  });
+
+  it("renders file:// URIs in message text as anchors that fire runVisualizeFile on click", () => {
+    const session = makeSession();
+    const message = makeUserMessage(
+      session,
+      "Open file:///abs/path/to/foo.md please.",
+    );
+    const ws = new Workspace();
+    const intents = ws.requireAdapter(Intents);
+
+    const visualize = vi.fn();
+    const dispose = handleVisualizeFile(intents, (intent) => {
+      visualize(intent.payload);
+      intent.resolve();
+      return true;
+    });
+
+    const utils = renderWithWorkspace(<MessageView message={message} />, ws);
+    cleanup = () => {
+      utils.unmount();
+      dispose();
+    };
+
+    const anchor = utils.container.querySelector(
+      'a[href="file:///abs/path/to/foo.md"]',
+    );
+    expect(anchor).not.toBeNull();
+    expect(anchor?.textContent).toBe("file:///abs/path/to/foo.md");
+
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+    fireEvent(anchor as Element, event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(visualize).toHaveBeenCalledWith({
+      uri: "file:///abs/path/to/foo.md",
+    });
   });
 });

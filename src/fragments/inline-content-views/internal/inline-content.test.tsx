@@ -1,8 +1,10 @@
+import { Intents } from "@statewalker/shared-intents";
 import { Slots } from "@statewalker/shared-slots";
 import { Workspace } from "@statewalker/workspace-api";
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { handleLoadDirectory, handleVisualizeFile } from "@/fragments/files";
 import {
   type InlineComponentDescriptor,
   InlineContentRegistry,
@@ -19,7 +21,7 @@ function mount(ws: Workspace, ui: ReactElement) {
 }
 
 describe("inline-content-views built-ins", () => {
-  it("registers all four built-ins under stable ids", async () => {
+  it("registers all five built-ins under stable ids", async () => {
     const ws = new Workspace();
     const ctx: Record<string, unknown> = { "workspace:workspace": ws };
     const cleanup = initInlineContentViews(ctx);
@@ -28,6 +30,7 @@ describe("inline-content-views built-ins", () => {
     expect(registry.get("metric-card")).not.toBeNull();
     expect(registry.get("line-chart")).not.toBeNull();
     expect(registry.get("file-card")).not.toBeNull();
+    expect(registry.get("directory-card")).not.toBeNull();
     expect(registry.get("action-button")).not.toBeNull();
 
     await cleanup();
@@ -46,6 +49,7 @@ describe("inline-content-views built-ins", () => {
     });
     expect(descriptors.map((d) => d.id).sort()).toEqual([
       "action-button",
+      "directory-card",
       "file-card",
       "line-chart",
       "metric-card",
@@ -120,6 +124,125 @@ describe("inline-content-views built-ins", () => {
     expect(utils.getByText(/Unknown inline component/i)).toBeTruthy();
 
     utils.unmount();
+    await cleanup();
+  });
+
+  it("DirectoryCard renders explicit entries without firing runLoadDirectory", async () => {
+    const ws = new Workspace();
+    const ctx: Record<string, unknown> = { "workspace:workspace": ws };
+    const cleanup = initInlineContentViews(ctx);
+    const intents = ws.requireAdapter(Intents);
+
+    const loadDir = vi.fn();
+    const disposeLoad = handleLoadDirectory(intents, (intent) => {
+      loadDir(intent.payload);
+      intent.resolve([]);
+      return true;
+    });
+
+    const utils = mount(
+      ws,
+      <InlineContent
+        spec={{
+          componentId: "directory-card",
+          props: {
+            uri: "file:///docs",
+            name: "docs",
+            entries: [
+              { name: "a.md", kind: "file" },
+              { name: "sub", kind: "directory" },
+            ],
+          },
+        }}
+      />,
+    );
+
+    expect(utils.getByText("docs")).toBeTruthy();
+    expect(utils.getByText("a.md")).toBeTruthy();
+    expect(utils.getByText("sub/")).toBeTruthy();
+    expect(loadDir).not.toHaveBeenCalled();
+
+    utils.unmount();
+    disposeLoad();
+    await cleanup();
+  });
+
+  it("DirectoryCard lazy-loads entries via runLoadDirectory when entries are omitted", async () => {
+    const ws = new Workspace();
+    const ctx: Record<string, unknown> = { "workspace:workspace": ws };
+    const cleanup = initInlineContentViews(ctx);
+    const intents = ws.requireAdapter(Intents);
+
+    const loadDir = vi.fn();
+    const disposeLoad = handleLoadDirectory(intents, (intent) => {
+      loadDir(intent.payload);
+      intent.resolve([
+        { name: "a.md", path: "/docs/a.md", kind: "file" },
+        { name: "sub", path: "/docs/sub", kind: "directory" },
+      ]);
+      return true;
+    });
+
+    const utils = mount(
+      ws,
+      <InlineContent
+        spec={{
+          componentId: "directory-card",
+          props: { uri: "file:///docs" },
+        }}
+      />,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(loadDir).toHaveBeenCalledTimes(1);
+    expect(loadDir).toHaveBeenCalledWith({ path: "/docs", recursive: false });
+    expect(utils.getByText("a.md")).toBeTruthy();
+    expect(utils.getByText("sub/")).toBeTruthy();
+
+    utils.unmount();
+    disposeLoad();
+    await cleanup();
+  });
+
+  it("DirectoryCard fires runVisualizeFile when an entry is clicked", async () => {
+    const ws = new Workspace();
+    const ctx: Record<string, unknown> = { "workspace:workspace": ws };
+    const cleanup = initInlineContentViews(ctx);
+    const intents = ws.requireAdapter(Intents);
+
+    const visualize = vi.fn();
+    const disposeVisualize = handleVisualizeFile(intents, (intent) => {
+      visualize(intent.payload);
+      intent.resolve();
+      return true;
+    });
+
+    const utils = mount(
+      ws,
+      <InlineContent
+        spec={{
+          componentId: "directory-card",
+          props: {
+            uri: "file:///docs",
+            entries: [
+              { name: "a.md", kind: "file" },
+              { name: "sub", kind: "directory" },
+            ],
+          },
+        }}
+      />,
+    );
+
+    fireEvent.click(utils.getByText("a.md"));
+    fireEvent.click(utils.getByText("sub/"));
+
+    expect(visualize).toHaveBeenCalledTimes(2);
+    expect(visualize).toHaveBeenNthCalledWith(1, { uri: "file:///docs/a.md" });
+    expect(visualize).toHaveBeenNthCalledWith(2, { uri: "file:///docs/sub" });
+
+    utils.unmount();
+    disposeVisualize();
     await cleanup();
   });
 

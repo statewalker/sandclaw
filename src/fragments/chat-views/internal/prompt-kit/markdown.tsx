@@ -1,16 +1,27 @@
 import { marked } from "marked";
-import { memo, useId, useMemo } from "react";
+import { type ComponentProps, memo, useId, useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/fragments/shadcn-views";
 import { CodeBlock, CodeBlockCode } from "./code-block";
 
+type PluggableList = NonNullable<
+  ComponentProps<typeof ReactMarkdown>["remarkPlugins"]
+>;
+type UrlTransform = NonNullable<
+  ComponentProps<typeof ReactMarkdown>["urlTransform"]
+>;
+
 export type MarkdownProps = {
   children: string;
   id?: string;
   className?: string;
   components?: Partial<Components>;
+  /** Extra remark plugins appended to the defaults (`remarkGfm`, `remarkBreaks`). */
+  remarkPlugins?: PluggableList;
+  /** Custom URL transform; defaults to identity (no sanitization beyond ReactMarkdown's). */
+  urlTransform?: UrlTransform;
 };
 
 function parseMarkdownIntoBlocks(markdown: string): string[] {
@@ -60,22 +71,32 @@ const INITIAL_COMPONENTS: Partial<Components> = {
 const MemoizedMarkdownBlock = memo(
   function MarkdownBlock({
     content,
-    components = INITIAL_COMPONENTS,
+    components,
+    remarkPlugins,
+    urlTransform,
   }: {
     content: string;
-    components?: Partial<Components>;
+    components: Partial<Components>;
+    remarkPlugins: PluggableList;
+    urlTransform: UrlTransform | undefined;
   }) {
     return (
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks]}
+        remarkPlugins={remarkPlugins}
         components={components}
+        urlTransform={urlTransform}
       >
         {content}
       </ReactMarkdown>
     );
   },
   function propsAreEqual(prevProps, nextProps) {
-    return prevProps.content === nextProps.content;
+    return (
+      prevProps.content === nextProps.content &&
+      prevProps.components === nextProps.components &&
+      prevProps.remarkPlugins === nextProps.remarkPlugins &&
+      prevProps.urlTransform === nextProps.urlTransform
+    );
   },
 );
 
@@ -85,11 +106,21 @@ function MarkdownComponent({
   children,
   id,
   className,
-  components = INITIAL_COMPONENTS,
+  components,
+  remarkPlugins,
+  urlTransform,
 }: MarkdownProps) {
   const generatedId = useId();
   const blockId = id ?? generatedId;
   const blocks = useMemo(() => parseMarkdownIntoBlocks(children), [children]);
+  const mergedComponents = useMemo<Partial<Components>>(
+    () => ({ ...INITIAL_COMPONENTS, ...components }),
+    [components],
+  );
+  const mergedPlugins = useMemo<PluggableList>(
+    () => [remarkGfm, remarkBreaks, ...(remarkPlugins ?? [])],
+    [remarkPlugins],
+  );
 
   return (
     <div className={className}>
@@ -97,7 +128,9 @@ function MarkdownComponent({
         <MemoizedMarkdownBlock
           key={`${blockId}-block-${index}`}
           content={block}
-          components={components}
+          components={mergedComponents}
+          remarkPlugins={mergedPlugins}
+          urlTransform={urlTransform}
         />
       ))}
     </div>
