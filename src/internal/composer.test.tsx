@@ -4,7 +4,8 @@ import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { provideComposerAction } from "@repo/chat-mini.chat";
-import initCoreReact, { newViewRegistry } from "@statewalker/core-react";
+import initCoreReact from "@statewalker/core-react/fragment";
+import { newViewRegistry } from "@statewalker/core-react";
 import { AppWorkspaceProvider } from "@statewalker/core-react";
 import { Composer } from "./composer.js";
 

@@ -10,8 +10,9 @@ import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { provideTurnBlock, STANDARD_TURN_BLOCK_KINDS } from "@repo/chat-mini.chat";
-import initChatViews from "@repo/chat-mini.chat-react";
-import initCoreReact, { newViewRegistry } from "@statewalker/core-react";
+import initChatReact from "@repo/chat-mini.chat-react/fragment";
+import initCoreReact from "@statewalker/core-react/fragment";
+import { newViewRegistry } from "@statewalker/core-react";
 import { AppWorkspaceProvider } from "@statewalker/core-react";
 import { TurnView } from "./turn-view.js";
 
@@ -42,7 +43,7 @@ describe("TurnView slot dispatch", () => {
     const ws = newWorkspace();
     const ctx: Record<string, unknown> = { "workspace:workspace": ws };
     cleanups.push(initCoreReact(ctx));
-    cleanups.push(initChatViews(ctx));
+    cleanups.push(initChatReact(ctx));
 
     const session = makeSession();
     const turn = session.addTurn();
@@ -60,7 +61,7 @@ describe("TurnView slot dispatch", () => {
     const ws = newWorkspace();
     const ctx: Record<string, unknown> = { "workspace:workspace": ws };
     cleanups.push(initCoreReact(ctx));
-    cleanups.push(initChatViews(ctx));
+    cleanups.push(initChatReact(ctx));
 
     const session = makeSession();
     const turn = session.addTurn();
@@ -99,7 +100,7 @@ describe("TurnView slot dispatch", () => {
         viewKey: customViewKey,
       }),
     );
-    cleanups.push(initChatViews(ctx));
+    cleanups.push(initChatReact(ctx));
 
     const session = makeSession();
     const turn = session.addTurn();

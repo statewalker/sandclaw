@@ -56,8 +56,12 @@
   },
   "peerDependencies": {"react": ">=18", "react-dom": ">=18"},
   "devDependencies": {
+    "@statewalker/webrun-files-mem": "catalog:",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "jsdom": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "typescript": "catalog:",
