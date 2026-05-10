@@ -1,8 +1,8 @@
-import { Intents } from "@statewalker/shared-intents";
-import { useEffect, useRef } from "react";
 import { runOpenChatSession } from "@repo/chat-mini.chat";
-import { WorkspaceShellAdapter } from "@statewalker/workspace-bridge";
 import { useAdapter, useAppWorkspace } from "@statewalker/core-react";
+import { Intents } from "@statewalker/shared-intents";
+import { WorkspaceShellAdapter } from "@statewalker/workspace-bridge";
+import { useEffect, useRef } from "react";
 
 const SESSION_PARAM = "s";
 
