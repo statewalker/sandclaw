@@ -1,4 +1,4 @@
-import { newViewRegistry, type ViewComponent } from "@statewalker/core-react";
+import { coreViewsSlot, type ViewComponent } from "@statewalker/core-react";
 import { dockHeaderItemsSlot } from "@statewalker/dock";
 import { OpenSettingsCommand } from "@statewalker/settings";
 import { Commands } from "@statewalker/shared-commands";
@@ -25,13 +25,18 @@ export function initSystemMenu(
   ctx: Record<string, unknown>,
 ): () => Promise<void> {
   const workspace = getWorkspace(ctx);
-  const views = newViewRegistry(workspace);
   const slots = workspace.requireAdapter(Slots);
   const intents = workspace.requireAdapter(Commands);
 
   const [register, cleanup] = newRegistry();
 
-  register(views.register(SYSTEM_MENU_VIEW_KEY, SystemMenu as ViewComponent));
+  register(
+    slots.register(
+      coreViewsSlot,
+      SYSTEM_MENU_VIEW_KEY,
+      SystemMenu as ViewComponent,
+    ),
+  );
   register(
     slots.provide(dockHeaderItemsSlot, {
       id: "app-shell:system-menu",
