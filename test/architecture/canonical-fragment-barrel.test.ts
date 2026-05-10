@@ -1,99 +1,170 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * Every fragment under `src/fragments/<name>/` must follow this
- * canonical shape so that fragments are uniformly composable and
- * the barrel cannot leak `internal/` modules:
+ * Workspace meta-test: walks a hardcoded list of every @statewalker/* and
+ * @repo/chat-mini.* package that chat-mini.app boots, verifying each one
+ * has the canonical fragment-package shape.
  *
- *   - `index.ts` (the barrel) is exactly the two-line canonical
- *     form — re-export `public/index.js` + the default from
- *     `public/init.js`. Nothing else.
+ * The hardcoded list is the forcing function (per spec D9): when a new
+ * substrate package is added, the contributor must update the list, which
+ * makes the new package's shape requirements visible at review time.
  *
- *   - `public/init.ts` (or `init.tsx`) exists and exports the
- *     fragment's init function as default.
+ * Shape requirements for every package:
+ *   - `package.json#exports["."]` exists.
+ *   - `package.json#exports["./fragment"]` exists and resolves to a file
+ *     with a default export (the init function).
  *
- *   - `public/index.ts` exists. It MAY be empty (`export {};`)
- *     for fragments whose only public artifact is the init
- *     function (e.g. a renderer fragment that only registers
- *     React components into shared registries).
+ * Additional requirements for renderer packages (suffix `-react`):
+ *   - `package.json#exports["./styles"]` exists and points to a CSS file
+ *     containing a Tailwind v4 `@source "./**\/*.{ts,tsx}"` directive.
  *
- *   - The barrel file does NOT mention `./internal/` anywhere.
- *
- * Vite's `import.meta.glob` loads file contents at test time, so
- * this test runs without filesystem APIs.
+ * Workspace path resolution: `import.meta.url` is the test file inside
+ * `chat-mini.app/test/architecture/`. From there each package lives at
+ * `../../../../../<package-dir>/` for `@repo/chat-mini.*` packages or
+ * `../../../../../../statewalker-workbench/packages/<x>/` etc. The map
+ * below names each one explicitly.
  */
 
-const barrels = import.meta.glob("/src/fragments/*/index.ts", {
-  eager: true,
-  query: "?raw",
-  import: "default",
-}) as Record<string, string>;
-
-const publicIndexes = import.meta.glob("/src/fragments/*/public/index.ts", {
-  eager: true,
-  query: "?raw",
-  import: "default",
-}) as Record<string, string>;
-
-const initFiles = import.meta.glob("/src/fragments/*/public/init.{ts,tsx}", {
-  eager: true,
-  query: "?raw",
-  import: "default",
-}) as Record<string, string>;
-
-const CANONICAL_BARREL = `export * from "./public/index.js";
-export { default } from "./public/init.js";
-`;
-
-function fragmentName(barrelPath: string): string {
-  // "/src/fragments/<name>/index.ts" -> "<name>"
-  const m = barrelPath.match(/\/src\/fragments\/([^/]+)\/index\.ts$/);
-  if (!m?.[1]) throw new Error(`unexpected barrel path: ${barrelPath}`);
-  return m[1];
+interface PackageEntry {
+  npmName: string;
+  // Path relative to the umbrella root, e.g. "workspaces/statewalker-workbench/packages/core-react".
+  rootRelPath: string;
+  isRenderer: boolean;
 }
 
-describe("architecture: canonical fragment shape", () => {
-  it("every fragment barrel is exactly the canonical two-line form", () => {
-    const violations: string[] = [];
-    for (const [path, src] of Object.entries(barrels)) {
-      if (src !== CANONICAL_BARREL) {
-        violations.push(
-          `${path}\n  expected:\n${CANONICAL_BARREL}  got:\n${src}`,
-        );
-      }
-    }
-    if (violations.length > 0) {
-      throw new Error(
-        `Barrel deviation:\n${violations.join("\n---\n")}\n\n` +
-          `Each fragment's index.ts must be exactly:\n${CANONICAL_BARREL}`,
-      );
-    }
+const SUBSTRATE_REACT_PACKAGES = [
+  "core-react",
+  "shadcn-react",
+  "dock-react",
+  "files-react",
+  "settings-react",
+  "workspace-bridge-react",
+  "inline-content-react",
+  "image-viewer-react",
+  "markdown-viewer-react",
+  "pdf-viewer-react",
+  "video-viewer-react",
+];
+
+const SUBSTRATE_LOGIC_PACKAGES = [
+  "dock",
+  "files",
+  "settings",
+  "workspace-bridge",
+  "inline-content",
+  "json-render",
+];
+
+const AI_LOGIC_PACKAGES = ["ai-agent-runtime", "ai-providers"];
+const AI_REACT_PACKAGES = ["ai-providers-react"];
+
+const CHAT_LOGIC_PACKAGES = [{ npmName: "@repo/chat-mini.chat", dir: "chat-mini.chat" }];
+const CHAT_REACT_PACKAGES = [
+  { npmName: "@repo/chat-mini.chat-react", dir: "chat-mini.chat-react" },
+];
+
+function workbenchEntries(): PackageEntry[] {
+  const out: PackageEntry[] = [];
+  for (const name of SUBSTRATE_LOGIC_PACKAGES) {
+    out.push({
+      npmName: `@statewalker/${name}`,
+      rootRelPath: `workspaces/statewalker-workbench/packages/${name}`,
+      isRenderer: false,
+    });
+  }
+  for (const name of SUBSTRATE_REACT_PACKAGES) {
+    out.push({
+      npmName: `@statewalker/${name}`,
+      rootRelPath: `workspaces/statewalker-workbench/packages/${name}`,
+      isRenderer: true,
+    });
+  }
+  return out;
+}
+
+function aiEntries(): PackageEntry[] {
+  const out: PackageEntry[] = [];
+  for (const name of AI_LOGIC_PACKAGES) {
+    out.push({
+      npmName: `@statewalker/${name}`,
+      rootRelPath: `workspaces/statewalker-ai/packages/${name}`,
+      isRenderer: false,
+    });
+  }
+  for (const name of AI_REACT_PACKAGES) {
+    out.push({
+      npmName: `@statewalker/${name}`,
+      rootRelPath: `workspaces/statewalker-ai/packages/${name}`,
+      isRenderer: true,
+    });
+  }
+  return out;
+}
+
+function chatEntries(): PackageEntry[] {
+  const out: PackageEntry[] = [];
+  for (const { npmName, dir } of CHAT_LOGIC_PACKAGES) {
+    out.push({
+      npmName,
+      rootRelPath: `workspaces/statewalker-apps/apps/${dir}`,
+      isRenderer: false,
+    });
+  }
+  for (const { npmName, dir } of CHAT_REACT_PACKAGES) {
+    out.push({
+      npmName,
+      rootRelPath: `workspaces/statewalker-apps/apps/${dir}`,
+      isRenderer: true,
+    });
+  }
+  return out;
+}
+
+const PACKAGES: PackageEntry[] = [...workbenchEntries(), ...aiEntries(), ...chatEntries()];
+
+// chat-mini.app/test/architecture/<this>.test.ts → umbrella root. `process.cwd()`
+// is the chat-mini.app package root when vitest runs from there.
+const UMBRELLA_ROOT = join(process.cwd(), "..", "..", "..", "..");
+
+function readJSON(path: string): Record<string, unknown> {
+  return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+}
+
+describe("architecture: canonical fragment package shape", () => {
+  it.each(PACKAGES)("$npmName declares . and ./fragment exports", (pkg) => {
+    const pj = readJSON(join(UMBRELLA_ROOT, pkg.rootRelPath, "package.json"));
+    expect(pj.name).toBe(pkg.npmName);
+    const exports = pj.exports as Record<string, string> | undefined;
+    expect(exports, `${pkg.npmName}: package.json has no exports`).toBeDefined();
+    expect(exports?.["."], `${pkg.npmName}: missing "." export`).toBeDefined();
+    expect(exports?.["./fragment"], `${pkg.npmName}: missing "./fragment" export`).toBeDefined();
   });
 
-  it("every fragment has public/index.ts and public/init.{ts,tsx}", () => {
-    const missing: string[] = [];
-    for (const path of Object.keys(barrels)) {
-      const name = fragmentName(path);
-      const publicIndex = `/src/fragments/${name}/public/index.ts`;
-      const initTs = `/src/fragments/${name}/public/init.ts`;
-      const initTsx = `/src/fragments/${name}/public/init.tsx`;
-      if (!(publicIndex in publicIndexes)) {
-        missing.push(`${name}: missing ${publicIndex}`);
-      }
-      if (!(initTs in initFiles) && !(initTsx in initFiles)) {
-        missing.push(`${name}: missing public/init.ts or public/init.tsx`);
-      }
-    }
-    expect(missing).toEqual([]);
-  });
+  it.each(PACKAGES.filter((p) => p.isRenderer))(
+    "$npmName declares ./styles export with @source directive",
+    (pkg) => {
+      const pjPath = join(UMBRELLA_ROOT, pkg.rootRelPath, "package.json");
+      const pj = readJSON(pjPath);
+      const exports = (pj.exports ?? {}) as Record<string, string>;
+      expect(exports["./styles"], `${pkg.npmName}: missing "./styles" export`).toBeDefined();
+      const cssPath = join(UMBRELLA_ROOT, pkg.rootRelPath, exports["./styles"] as string);
+      const css = readFileSync(cssPath, "utf8");
+      expect(css, `${pkg.npmName}: ./styles CSS does not declare @source`).toMatch(/@source\s+"/);
+    },
+  );
 
-  it("every public/init.{ts,tsx} has a default export", () => {
-    const violations: string[] = [];
-    for (const [path, src] of Object.entries(initFiles)) {
-      if (!/\bexport\s+default\b/.test(src)) {
-        violations.push(`${path}: no \`export default\` found`);
-      }
-    }
-    expect(violations).toEqual([]);
+  it.each(PACKAGES)("$npmName fragment.ts exports a default", (pkg) => {
+    const pjPath = join(UMBRELLA_ROOT, pkg.rootRelPath, "package.json");
+    const pj = readJSON(pjPath);
+    const exports = (pj.exports ?? {}) as Record<string, string>;
+    const fragmentRel = exports["./fragment"];
+    if (!fragmentRel) return; // covered by the export-shape test
+    const src = readFileSync(join(UMBRELLA_ROOT, pkg.rootRelPath, fragmentRel), "utf8");
+    expect(
+      /\bexport\s+default\b/.test(src) || /\bexport\s*\{\s*default\b/.test(src),
+      `${pkg.npmName}: ${fragmentRel} has no default export`,
+    ).toBe(true);
   });
 });

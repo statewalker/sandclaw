@@ -4,27 +4,23 @@ import { writeText } from "@statewalker/webrun-files";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import { getWorkspace, runChangeWorkspace } from "@statewalker/workspace-api";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import initAgentRuntime, {
-  AgentRuntimeAdapter,
-} from "@/fragments/agent-runtime";
-import initCatalogRegistry from "@/fragments/catalog-registry";
-import initChat from "@/fragments/chat";
-import initDock from "@/fragments/dock";
-import initFiles, {
-  type MimeRenderer,
-  runVisualizeFile,
-} from "@/fragments/files";
-import initMarkdownViewer, {
+import initAgentRuntime from "@statewalker/ai-agent-runtime/fragment";
+import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
+import initJsonRender from "@statewalker/json-render/fragment";
+import { SpecStore } from "@statewalker/json-render";
+import initChat from "@repo/chat-mini.chat/fragment";
+import initDock from "@statewalker/dock/fragment";
+import initFiles from "@statewalker/files/fragment";
+import { type MimeRenderer, runVisualizeFile } from "@statewalker/files";
+import initMarkdownViewer from "@statewalker/markdown-viewer-react/fragment";
+import {
   MARKDOWN_VIEWER_CATALOG_ID,
   markdownViewerSpecId,
-} from "@/fragments/markdown-viewer";
-import initProviders, {
-  emptyProvidersConfig,
-  Providers,
-} from "@/fragments/providers";
-import initSettings from "@/fragments/settings";
-import initSpecStore, { SpecStore } from "@/fragments/spec-store";
-import initWorkspaceBridge from "@/fragments/workspace-bridge";
+} from "@statewalker/markdown-viewer-react";
+import initProviders from "@statewalker/ai-providers/fragment";
+import { emptyProvidersConfig, Providers } from "@statewalker/ai-providers";
+import initSettings from "@statewalker/settings/fragment";
+import initWorkspaceBridge from "@statewalker/workspace-bridge/fragment";
 
 /**
  * End-to-end integration test for the M3 milestone (Wave 4.4).
@@ -62,8 +58,7 @@ describe("chat-mini end-to-end (logic fragments)", () => {
     const ctx: Record<string, unknown> = {};
     const cleanups: Array<() => Promise<void> | void> = [];
 
-    cleanups.push(initCatalogRegistry(ctx));
-    cleanups.push(initSpecStore(ctx));
+    cleanups.push(await initJsonRender(ctx));
     cleanups.push(initDock(ctx));
     cleanups.push(initWorkspaceBridge(ctx));
     cleanups.push(initAgentRuntime(ctx));
