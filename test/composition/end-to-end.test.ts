@@ -1,8 +1,8 @@
-import { Intents } from "@statewalker/shared-intents";
+import { Commands } from "@statewalker/shared-commands";
 import { Slots } from "@statewalker/shared-slots";
 import { writeText } from "@statewalker/webrun-files";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
-import { getWorkspace, runChangeWorkspace } from "@statewalker/workspace";
+import { ChangeWorkspaceCommand, getWorkspace } from "@statewalker/workspace";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import initAgentRuntime from "@statewalker/ai-agent-runtime/fragment";
 import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
@@ -11,14 +11,13 @@ import { SpecStore } from "@statewalker/spec-store";
 import initChat from "@repo/chat-mini.chat/fragment";
 import initDock from "@statewalker/dock/fragment";
 import initFiles from "@statewalker/files/fragment";
-import { type MimeRenderer, runVisualizeFile } from "@statewalker/files";
+import { VisualizeFileCommand, mimeRenderersSlot } from "@statewalker/files";
 import initMarkdownViewer from "@statewalker/markdown-viewer-react/fragment";
 import {
-  MARKDOWN_VIEWER_CATALOG_ID,
-  markdownViewerSpecId,
+  MARKDOWN_VIEWER_CATALOG_ID, markdownViewerSpecId
 } from "@statewalker/markdown-viewer-react";
 import initProviders from "@statewalker/ai-providers/fragment";
-import { emptyProvidersConfig, Providers } from "@statewalker/ai-providers";
+import { Providers, emptyProvidersConfig } from "@statewalker/ai-providers";
 import initSettings from "@statewalker/settings/fragment";
 import initWorkspaceBridge from "@statewalker/workspace-bridge/fragment";
 
@@ -70,7 +69,7 @@ describe("chat-mini end-to-end (logic fragments)", () => {
 
     try {
       const workspace = getWorkspace(ctx);
-      const intents = workspace.requireAdapter(Intents);
+      const intents = workspace.requireAdapter(Commands);
       const providers = workspace.requireAdapter(Providers);
       const adapter = workspace.requireAdapter(AgentRuntimeAdapter);
       const slots = workspace.requireAdapter(Slots);
@@ -94,7 +93,7 @@ describe("chat-mini end-to-end (logic fragments)", () => {
       // workspace-bridge handler runs close → setFileSystem →
       // open, which fires onLoad listeners (chat, providers,
       // ...) and triggers the rebuild chain.
-      await runChangeWorkspace(intents, { files, label: "test" }).promise;
+      await intents.call(ChangeWorkspaceCommand, { files, label: "test" }).promise;
 
       // Drain debounced rebuild + buildRuntime promise.
       await vi.runAllTimersAsync();
@@ -123,14 +122,14 @@ describe("chat-mini end-to-end (logic fragments)", () => {
       // until a real `<DockviewReact>` mounts (no React here), so
       // we don't await the visualize promise — we only verify the
       // synchronous SpecStore.create runs before the queued await.
-      const renderers = slots.getSnapshot<MimeRenderer>("files:mime-renderers");
+      const renderers = slots.getSnapshot(mimeRenderersSlot);
       expect(renderers).toHaveLength(1);
       expect(renderers[0]?.mimeTypePattern).toBe("text/markdown");
 
       await writeText(files, "/note.md", "# hello");
       // Suppress the never-settling promise — the dock host's
       // pending queue holds the show-panel call indefinitely.
-      void runVisualizeFile(intents, { uri: "/note.md" }).promise.catch(
+      void intents.call(VisualizeFileCommand, { uri: "/note.md" }).promise.catch(
         () => {},
       );
       const specRecord = store.get(markdownViewerSpecId("/note.md"));
