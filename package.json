@@ -31,15 +31,25 @@
     "@statewalker/settings": "workspace:*",
     "@statewalker/settings-react": "workspace:*",
     "@statewalker/shadcn-react": "workspace:*",
+    "@statewalker/shared-intents": "catalog:",
     "@statewalker/shared-registry": "catalog:",
+    "@statewalker/shared-slots": "catalog:",
     "@statewalker/video-viewer-react": "workspace:*",
     "@statewalker/workspace-api": "catalog:",
     "@statewalker/workspace-bridge": "workspace:*",
     "@statewalker/workspace-bridge-react": "workspace:*",
-    "@tanstack/react-query": "^5.66.10"
+    "@tanstack/react-query": "^5.66.10",
+    "lucide-react": "catalog:"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
+    "@types/react": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "typescript": "catalog:"
   },
   "sideEffects": false,

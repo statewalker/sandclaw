@@ -18,6 +18,7 @@ import { Workspace } from "@statewalker/workspace-api";
 import initWorkspaceBridge from "@statewalker/workspace-bridge/fragment";
 import initWorkspaceBridgeReact from "@statewalker/workspace-bridge-react/fragment";
 import { QueryClient } from "@tanstack/react-query";
+import { initSystemMenu } from "./system-menu-init.js";
 
 /**
  * Init function shape used by every workbench fragment: takes the
@@ -148,6 +149,11 @@ export function bootShell(options: BootShellOptions = {}): BootShellResult {
   register(initPdfViewerReact(ctx));
   register(initVideoViewerReact(ctx));
   register(initInlineContentReact(ctx));
+
+  // System menu — collapses Settings + Switch-workspace into a single
+  // trailing-header dropdown. Registered after the substrate views
+  // so its view key resolution sees the populated registry.
+  register(initSystemMenu(ctx));
 
   // ── 5. App-specific renderer fragments ───────────────────────
   for (const init of options.renderers ?? []) {
