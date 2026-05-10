@@ -46,6 +46,7 @@
     "@statewalker/dock": "workspace:*",
     "@statewalker/dock-react": "workspace:*",
     "@statewalker/files": "workspace:*",
+    "@statewalker/files-react": "workspace:*",
     "@statewalker/image-viewer-react": "workspace:*",
     "@statewalker/inline-content": "workspace:*",
     "@statewalker/inline-content-react": "workspace:*",
