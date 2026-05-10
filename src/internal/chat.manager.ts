@@ -1,8 +1,12 @@
+import { runShowDockPanel } from "@statewalker/dock";
+import {
+  DOCK_LAYOUT_STORAGE_KEY,
+  restorePanelSpecsFromLayout,
+  SpecStore,
+} from "@statewalker/json-render";
 import { Intents } from "@statewalker/shared-intents";
 import { newRegistry } from "@statewalker/shared-registry";
 import type { Workspace } from "@statewalker/workspace-api";
-import { runShowDockPanel } from "@statewalker/dock";
-import { SpecStore } from "@statewalker/json-render";
 import {
   CHAT_CATALOG_ID,
   chatPanelId,
@@ -10,9 +14,6 @@ import {
   makeChatSpec,
 } from "../public/catalog.js";
 import { handleOpenChatSession } from "../public/intents.js";
-import { restoreChatSpecsFromLayout } from "./layout-restore.js";
-
-const LAYOUT_KEY = "chat-mini:dock-layout";
 
 export interface ChatManagerOptions {
   workspace: Workspace;
@@ -48,7 +49,15 @@ export class ChatManager {
     // so the dock host's `fromJSON` finds them ready. Runs BEFORE
     // React mounts the DockView host. Layout source is still
     // localStorage; migrates to SystemFiles in Wave 3.
-    restoreChatSpecsFromLayout(this.store, globalThis.localStorage, LAYOUT_KEY);
+    restorePanelSpecsFromLayout({
+      store: this.store,
+      storage: globalThis.localStorage,
+      layoutKey: DOCK_LAYOUT_STORAGE_KEY,
+      panelIdPrefix: "chat:",
+      catalogId: CHAT_CATALOG_ID,
+      buildSpec: (sessionId) => makeChatSpec(sessionId),
+      buildSpecId: (sessionId) => chatSpecId(sessionId),
+    });
 
     this._register(
       handleOpenChatSession(this.intents, (intent) => {
