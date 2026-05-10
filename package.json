@@ -40,7 +40,7 @@
     "@statewalker/inline-content-react": "workspace:*",
     "@statewalker/shadcn-react": "workspace:*",
     "@statewalker/shared-baseclass": "catalog:",
-    "@statewalker/shared-intents": "catalog:",
+    "@statewalker/shared-commands": "catalog:",
     "@statewalker/shared-registry": "catalog:",
     "@statewalker/shared-slots": "catalog:",
     "@statewalker/webrun-files": "catalog:",

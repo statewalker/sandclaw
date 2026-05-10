@@ -1,12 +1,9 @@
 import { defineRegistry, schema } from "@json-render/react";
 import {
-  CHAT_CATALOG_ID,
-  chatCatalog,
-  provideTurnBlock,
-  STANDARD_TURN_BLOCK_KINDS,
+  CHAT_CATALOG_ID, STANDARD_TURN_BLOCK_KINDS, chatCatalog, turnBlocksSlot
 } from "@repo/chat-mini.chat";
 import { newViewRegistry } from "@statewalker/core-react";
-import { provideDockOverlay, provideDockSidePanel } from "@statewalker/dock";
+import { dockOverlaysSlot, dockSidePanelsSlot } from "@statewalker/dock";
 import { newCatalogRegistry } from "@statewalker/catalog-registry";
 import { newRegistry } from "@statewalker/shared-registry";
 import { Slots } from "@statewalker/shared-slots";
@@ -15,10 +12,7 @@ import { ChatRoot } from "../internal/chat-root.js";
 import { DeepLinkMount } from "../internal/deep-link-mount.js";
 import { SessionsPanel } from "../internal/sessions-panel.js";
 import {
-  AgentMessageBlock,
-  ErrorTurnBlock,
-  ToolCallsRunBlock,
-  UserMessageBlock,
+  AgentMessageBlock, ErrorTurnBlock, ToolCallsRunBlock, UserMessageBlock
 } from "../internal/turn-block-views.js";
 
 const SESSIONS_PANEL_VIEW_KEY = "chat:sessions-panel";
@@ -83,7 +77,7 @@ export default function initChatViews(
         component as unknown as Parameters<typeof views.register>[1],
       ),
     );
-    register(provideTurnBlock(slots, { kind, viewKey: kind }));
+    register(slots.provide(turnBlocksSlot, { kind, viewKey: kind }));
   }
 
   // ── Sessions panel (dock side panel) ────────────────────────
@@ -94,7 +88,7 @@ export default function initChatViews(
     ),
   );
   register(
-    provideDockSidePanel(slots, {
+    slots.provide(dockSidePanelsSlot, {
       id: "chat:sessions",
       side: "left",
       viewKey: SESSIONS_PANEL_VIEW_KEY,
@@ -110,7 +104,7 @@ export default function initChatViews(
     ),
   );
   register(
-    provideDockOverlay(slots, {
+    slots.provide(dockOverlaysSlot, {
       id: "chat:deep-link",
       viewKey: DEEP_LINK_VIEW_KEY,
     }),

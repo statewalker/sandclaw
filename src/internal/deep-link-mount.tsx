@@ -1,6 +1,6 @@
-import { runOpenChatSession } from "@repo/chat-mini.chat";
+import { OpenChatSessionCommand } from "@repo/chat-mini.chat";
 import { useAdapter, useAppWorkspace } from "@statewalker/core-react";
-import { Intents } from "@statewalker/shared-intents";
+import { Commands } from "@statewalker/shared-commands";
 import { WorkspaceShellAdapter } from "@statewalker/workspace-bridge";
 import { useEffect, useRef } from "react";
 
@@ -10,16 +10,16 @@ const SESSION_PARAM = "s";
  * Non-rendering component contributed to `dock:overlays` by chat-views.
  * Reads `window.location.search` once on mount; if `?s=<id>` is present,
  * subscribes to `WorkspaceShellAdapter` and fires
- * `runOpenChatSession({ sessionId })` exactly once when the adapter
- * reaches `ready`. After that single firing, the URL is no longer
- * consulted — tab focus changes do not write the URL back.
+ * `intents.call(OpenChatSessionCommand, { sessionId })` exactly once
+ * when the adapter reaches `ready`. After that single firing, the URL
+ * is no longer consulted — tab focus changes do not write the URL back.
  *
  * Replaces the previous router-side `useSearchParams` deep-link path
  * (ADR 0003: no React Router at the app root).
  */
 export function DeepLinkMount(): null {
   const workspace = useAppWorkspace();
-  const intents = useAdapter(Intents);
+  const intents = useAdapter(Commands);
   const ranRef = useRef(false);
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export function DeepLinkMount(): null {
       if (ranRef.current) return;
       if (shell.getState().status === "ready") {
         ranRef.current = true;
-        runOpenChatSession(intents, { sessionId });
+        intents.call(OpenChatSessionCommand, { sessionId });
       }
     };
     fire();

@@ -1,23 +1,22 @@
-import { Intents } from "@statewalker/shared-intents";
+import { Commands } from "@statewalker/shared-commands";
 import { Plus } from "lucide-react";
 import { useCallback } from "react";
 import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
-import { chatPanelId, runOpenChatSession } from "@repo/chat-mini.chat";
+import { OpenChatSessionCommand, chatPanelId } from "@repo/chat-mini.chat";
 import { useFocusedChatTab, useOpenChatTabs } from "@repo/chat-mini.chat-react";
 import { useAdapterValue } from "@statewalker/core-react";
-import { runClosePanel } from "@statewalker/dock";
+import { ClosePanelCommand } from "@statewalker/dock";
 import { Button, ScrollArea } from "@statewalker/shadcn-react";
 import { useAppWorkspace } from "@statewalker/core-react";
 import {
-  useInvalidateSessions,
-  useSessionList,
+  useInvalidateSessions, useSessionList
 } from "./hooks/use-session-list.js";
 import { SessionRow } from "./session-row";
 
 export function SessionsPanel(): React.ReactElement {
   const state = useAdapterValue(AgentRuntimeAdapter, (a) => a.getState());
   const workspace = useAppWorkspace();
-  const intents = workspace.requireAdapter(Intents);
+  const intents = workspace.requireAdapter(Commands);
   const { data, isLoading } = useSessionList();
   const invalidate = useInvalidateSessions();
   const focusedSessionId = useFocusedChatTab();
@@ -25,7 +24,7 @@ export function SessionsPanel(): React.ReactElement {
 
   const open = useCallback(
     (id: string): void => {
-      runOpenChatSession(intents, { sessionId: id });
+      intents.call(OpenChatSessionCommand, { sessionId: id });
     },
     [intents],
   );
@@ -35,7 +34,7 @@ export function SessionsPanel(): React.ReactElement {
     const session = state.agent.createSession();
     await session.save();
     invalidate();
-    runOpenChatSession(intents, { sessionId: session.id });
+    intents.call(OpenChatSessionCommand, { sessionId: session.id });
   }, [state, invalidate, intents]);
 
   const onRename = useCallback(
@@ -57,7 +56,7 @@ export function SessionsPanel(): React.ReactElement {
       // dock fragment evicts the chat spec when the last referencing
       // panel closes (chat specs are persistent so eviction is
       // skipped — that's fine, the spec lingers harmlessly).
-      runClosePanel(intents, { panelId: chatPanelId(id) });
+      intents.call(ClosePanelCommand, { panelId: chatPanelId(id) });
       await state.runtime.deleteSession(id);
       invalidate();
     },

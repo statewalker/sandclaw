@@ -1,9 +1,11 @@
-import { type ComposerAction, observeComposerActions } from "@repo/chat-mini.chat";
+import { type ComposerAction, composerActionsSlot } from "@repo/chat-mini.chat";
 import {
   compareByOrderAndId,
+  type KeyedSlotView,
   useAdapter,
   useSlot,
   useViewRegistry,
+  type ViewComponent,
 } from "@statewalker/core-react";
 import { Button } from "@statewalker/shadcn-react";
 import { Slots } from "@statewalker/shared-slots";
@@ -47,7 +49,7 @@ export function Composer({
   // Subscribed adapter — re-renders when a contributed action's
   // viewKey is registered late.
   const registry = useViewRegistry();
-  const actions = useSlot(slots, observeComposerActions);
+  const actions = useSlot(slots, composerActionsSlot);
 
   const { leading, trailing } = useMemo(() => splitActions(actions), [actions]);
 
@@ -130,7 +132,7 @@ function ActionSlot({
   registry,
 }: {
   action: ComposerAction;
-  registry: ViewRegistry;
+  registry: KeyedSlotView<ViewComponent>;
 }): ReactElement | null {
   const Component = registry.get(action.viewKey);
   if (!Component) return null;

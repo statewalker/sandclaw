@@ -3,7 +3,7 @@ import { Workspace } from "@statewalker/workspace";
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { provideComposerAction } from "@repo/chat-mini.chat";
+import { composerActionsSlot } from "@repo/chat-mini.chat";
 import initCoreReact from "@statewalker/core-react/fragment";
 import { newViewRegistry } from "@statewalker/core-react";
 import { AppWorkspaceProvider } from "@statewalker/core-react";
@@ -39,7 +39,7 @@ describe("Composer composer-actions slot", () => {
       )) as () => void,
     );
     cleanups.push(
-      provideComposerAction(slots, {
+      slots.provide(composerActionsSlot, {
         id: "plugin:fake-picker",
         viewKey: "plugin:fake-picker",
         position: "leading",
@@ -79,7 +79,7 @@ describe("Composer composer-actions slot", () => {
       )) as () => void,
     );
     cleanups.push(
-      provideComposerAction(slots, {
+      slots.provide(composerActionsSlot, {
         id: "a",
         viewKey: "plugin:a",
         position: "leading",
@@ -87,7 +87,7 @@ describe("Composer composer-actions slot", () => {
       }),
     );
     cleanups.push(
-      provideComposerAction(slots, {
+      slots.provide(composerActionsSlot, {
         id: "b",
         viewKey: "plugin:b",
         position: "leading",

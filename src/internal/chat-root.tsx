@@ -1,8 +1,8 @@
-import { Intents } from "@statewalker/shared-intents";
+import { Commands } from "@statewalker/shared-commands";
 import { type ReactElement, useEffect } from "react";
 import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
 import { useAdapterValue } from "@statewalker/core-react";
-import { runSetPanelTitle } from "@statewalker/dock";
+import { SetPanelTitleCommand } from "@statewalker/dock";
 import { ProviderConfigGate } from "@statewalker/ai-providers-react";
 import { useAppWorkspace } from "@statewalker/core-react";
 import { chatPanelId } from "@repo/chat-mini.chat";
@@ -73,11 +73,11 @@ function TabTitleBinder({
   >["state"];
 }): null {
   const workspace = useAppWorkspace();
-  const intents = workspace.requireAdapter(Intents);
+  const intents = workspace.requireAdapter(Commands);
   const title = useNodeProp(sessionState, (s) => s.title);
   useEffect(() => {
     const display = truncateMiddle(title?.trim() || FALLBACK_TITLE);
-    runSetPanelTitle(intents, {
+    intents.call(SetPanelTitleCommand, {
       panelId: chatPanelId(sessionId),
       title: display,
     });

@@ -1,15 +1,12 @@
 import {
-  createAgentNodeFactory,
-  type Message,
-  NodeType,
-  type Session,
+  NodeType, createAgentNodeFactory, type Message, type Session
 } from "@statewalker/ai-agent/state";
-import { Intents } from "@statewalker/shared-intents";
+import { Commands } from "@statewalker/shared-commands";
 import { Workspace } from "@statewalker/workspace";
 import { act, fireEvent, render } from "@testing-library/react";
 import { Profiler, type ProfilerOnRenderCallback } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { handleVisualizeFile } from "@statewalker/files";
+import { VisualizeFileCommand } from "@statewalker/files";
 import { AppWorkspaceProvider } from "@statewalker/core-react";
 import { MessageView } from "./message-view.js";
 
@@ -147,10 +144,10 @@ describe("MessageView file:// linkifier", () => {
       "Open file:///abs/path/to/foo.md please.",
     );
     const ws = new Workspace();
-    const intents = ws.requireAdapter(Intents);
+    const intents = ws.requireAdapter(Commands);
 
     const visualize = vi.fn();
-    const dispose = handleVisualizeFile(intents, (intent) => {
+    const dispose = intents.listen(VisualizeFileCommand, (intent) => {
       visualize(intent.payload);
       intent.resolve();
       return true;

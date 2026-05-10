@@ -1,7 +1,7 @@
 import {
-  observeTurnBlocks,
   STANDARD_TURN_BLOCK_KINDS,
   type TurnBlockContribution,
+  turnBlocksSlot,
 } from "@repo/chat-mini.chat";
 import {
   type Message,
@@ -99,7 +99,7 @@ export function TurnView({ turn }: { turn: Turn }): ReactElement {
   // Subscribed adapter — re-renders when a late-registered viewKey
   // arrives (plug-in extensibility path).
   const registry = useViewRegistry();
-  const turnBlocks = useSlot(slots, observeTurnBlocks);
+  const turnBlocks = useSlot(slots, turnBlocksSlot);
   const viewByKind = useMemo(() => indexByKind(turnBlocks), [turnBlocks]);
 
   const items = groupChildren(turn.children);

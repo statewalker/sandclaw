@@ -1,15 +1,12 @@
 import {
-  createAgentNodeFactory,
-  NodeType,
-  type Session,
-  type Turn,
+  NodeType, createAgentNodeFactory, type Session, type Turn
 } from "@statewalker/ai-agent/state";
 import { Slots } from "@statewalker/shared-slots";
 import { Workspace } from "@statewalker/workspace";
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { provideTurnBlock, STANDARD_TURN_BLOCK_KINDS } from "@repo/chat-mini.chat";
+import { STANDARD_TURN_BLOCK_KINDS, turnBlocksSlot } from "@repo/chat-mini.chat";
 import initChatReact from "@repo/chat-mini.chat-react/fragment";
 import initCoreReact from "@statewalker/core-react/fragment";
 import { newViewRegistry } from "@statewalker/core-react";
@@ -95,7 +92,7 @@ describe("TurnView slot dispatch", () => {
       ) as () => void,
     );
     cleanups.push(
-      provideTurnBlock(slots, {
+      slots.provide(turnBlocksSlot, {
         kind: STANDARD_TURN_BLOCK_KINDS.ERROR,
         viewKey: customViewKey,
       }),
