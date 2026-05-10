@@ -1,19 +1,14 @@
-import { runShowDockPanel } from "@statewalker/dock";
+import { ShowDockPanelCommand } from "@statewalker/dock";
 import {
-  DOCK_LAYOUT_STORAGE_KEY,
-  restorePanelSpecsFromLayout,
-  SpecStore,
+  DOCK_LAYOUT_STORAGE_KEY, SpecStore, restorePanelSpecsFromLayout
 } from "@statewalker/spec-store";
-import { Intents } from "@statewalker/shared-intents";
+import { Commands } from "@statewalker/shared-commands";
 import { newRegistry } from "@statewalker/shared-registry";
 import type { Workspace } from "@statewalker/workspace";
 import {
-  CHAT_CATALOG_ID,
-  chatPanelId,
-  chatSpecId,
-  makeChatSpec,
+  CHAT_CATALOG_ID, chatPanelId, chatSpecId, makeChatSpec
 } from "../public/catalog.js";
-import { handleOpenChatSession } from "../public/intents.js";
+import { OpenChatSessionCommand } from "../public/intents.js";
 
 export interface ChatManagerOptions {
   workspace: Workspace;
@@ -35,14 +30,14 @@ export interface ChatManagerOptions {
  * after this one.
  */
 export class ChatManager {
-  private readonly intents: Intents;
+  private readonly intents: Commands;
   private readonly store: SpecStore;
   private readonly _register: (cleanup: () => void) => () => void;
   private readonly _cleanup: () => Promise<void>;
 
   constructor({ workspace }: ChatManagerOptions) {
     [this._register, this._cleanup] = newRegistry();
-    this.intents = workspace.requireAdapter(Intents);
+    this.intents = workspace.requireAdapter(Commands);
     this.store = workspace.requireAdapter(SpecStore);
 
     // Pre-allocate specs for chat panels saved in the dock layout
@@ -60,8 +55,8 @@ export class ChatManager {
     });
 
     this._register(
-      handleOpenChatSession(this.intents, (intent) => {
-        const { sessionId } = intent.payload;
+      this.intents.listen(OpenChatSessionCommand, (cmd) => {
+        const { sessionId } = cmd.payload;
         const specId = chatSpecId(sessionId);
         if (!this.store.get(specId)) {
           this.store.create({
@@ -71,12 +66,12 @@ export class ChatManager {
             meta: { persistent: true },
           });
         }
-        runShowDockPanel(this.intents, {
+        this.intents.call(ShowDockPanelCommand, {
           panelId: chatPanelId(sessionId),
           specId,
         })
-          .promise.then(() => intent.resolve())
-          .catch((error: unknown) => intent.reject(error));
+          .promise.then(() => cmd.resolve())
+          .catch((error: unknown) => cmd.reject(error));
         return true;
       }),
     );

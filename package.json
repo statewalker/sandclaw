@@ -23,7 +23,7 @@
     "@statewalker/inline-content": "workspace:*",
     "@statewalker/shared-baseclass": "catalog:",
     "@statewalker/spec-store": "workspace:*",
-    "@statewalker/shared-intents": "catalog:",
+    "@statewalker/shared-commands": "catalog:",
     "@statewalker/shared-registry": "catalog:",
     "@statewalker/shared-slots": "catalog:",
     "@statewalker/webrun-files": "catalog:",

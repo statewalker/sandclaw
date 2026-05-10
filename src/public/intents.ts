@@ -1,4 +1,4 @@
-import { newIntent } from "@statewalker/shared-intents";
+import { defineCommand } from "@statewalker/shared-commands";
 
 export interface OpenChatSessionPayload {
   sessionId: string;
@@ -12,7 +12,5 @@ export interface OpenChatSessionPayload {
  * Open-or-focus semantics from `dock:show-panel` make repeat calls
  * safe — the existing tab is focused rather than duplicated.
  */
-export const [runOpenChatSession, handleOpenChatSession] = newIntent<
-  OpenChatSessionPayload,
-  void
->("chat:open-session");
+export const OpenChatSessionCommand = defineCommand<OpenChatSessionPayload,
+  void>("chat:open-session", () => {});
