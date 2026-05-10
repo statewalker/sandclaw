@@ -1,0 +1,49 @@
+{
+  "name": "@repo/app-shell",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Workbench-substrate boot helper shared by chat-mini.app and explorer.app.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check --write .",
+    "format": "biome format --write ."
+  },
+  "dependencies": {
+    "@statewalker/core-react": "workspace:*",
+    "@statewalker/dock": "workspace:*",
+    "@statewalker/dock-react": "workspace:*",
+    "@statewalker/files": "workspace:*",
+    "@statewalker/image-viewer-react": "workspace:*",
+    "@statewalker/inline-content": "workspace:*",
+    "@statewalker/inline-content-react": "workspace:*",
+    "@statewalker/json-render": "workspace:*",
+    "@statewalker/markdown-viewer-react": "workspace:*",
+    "@statewalker/pdf-viewer-react": "workspace:*",
+    "@statewalker/platform-browser": "catalog:",
+    "@statewalker/settings": "workspace:*",
+    "@statewalker/settings-react": "workspace:*",
+    "@statewalker/shadcn-react": "workspace:*",
+    "@statewalker/shared-registry": "catalog:",
+    "@statewalker/video-viewer-react": "workspace:*",
+    "@statewalker/workspace-api": "catalog:",
+    "@statewalker/workspace-bridge": "workspace:*",
+    "@statewalker/workspace-bridge-react": "workspace:*",
+    "@tanstack/react-query": "^5.66.10"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "typescript": "catalog:"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  }
+}
