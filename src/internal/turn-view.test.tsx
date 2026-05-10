@@ -9,8 +9,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { STANDARD_TURN_BLOCK_KINDS, turnBlocksSlot } from "@repo/chat-mini.chat";
 import initChatReact from "@repo/chat-mini.chat-react/fragment";
 import initCoreReact from "@statewalker/core-react/fragment";
-import { newViewRegistry } from "@statewalker/core-react";
-import { AppWorkspaceProvider } from "@statewalker/core-react";
+import {
+  AppWorkspaceProvider,
+  coreViewsSlot,
+  type ViewComponent,
+} from "@statewalker/core-react";
 import { TurnView } from "./turn-view.js";
 
 function makeSession(): Session {
@@ -80,15 +83,15 @@ describe("TurnView slot dispatch", () => {
     // Register the plug-in BEFORE chat-views init so first-claim
     // wins for ERROR kind.
     const slots = ws.requireAdapter(Slots);
-    const registry = newViewRegistry(ws);
     const customViewKey = "plugin:citation-view";
     const PluginView = ({ props }: { props: unknown }) => (
       <span data-testid="citation">{(props as { text: string }).text}</span>
     );
     cleanups.push(
-      registry.register(
+      slots.register(
+        coreViewsSlot,
         customViewKey,
-        PluginView as unknown as Parameters<typeof registry.register>[1],
+        PluginView as unknown as ViewComponent,
       ) as () => void,
     );
     cleanups.push(

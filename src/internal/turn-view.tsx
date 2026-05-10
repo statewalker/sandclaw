@@ -10,9 +10,10 @@ import {
   type Turn,
 } from "@statewalker/ai-agent/state";
 import {
+  coreViewsSlot,
   useAdapter,
+  useKeyedSlot,
   useSlot,
-  useViewRegistry,
 } from "@statewalker/core-react";
 import { Slots } from "@statewalker/shared-slots";
 import { type ComponentType, type ReactElement, useMemo } from "react";
@@ -98,7 +99,7 @@ export function TurnView({ turn }: { turn: Turn }): ReactElement {
   const slots = useAdapter(Slots);
   // Subscribed adapter — re-renders when a late-registered viewKey
   // arrives (plug-in extensibility path).
-  const registry = useViewRegistry();
+  const registry = useKeyedSlot(slots, coreViewsSlot);
   const turnBlocks = useSlot(slots, turnBlocksSlot);
   const viewByKind = useMemo(() => indexByKind(turnBlocks), [turnBlocks]);
 

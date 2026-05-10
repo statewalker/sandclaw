@@ -2,9 +2,9 @@ import { defineRegistry, schema } from "@json-render/react";
 import {
   CHAT_CATALOG_ID, STANDARD_TURN_BLOCK_KINDS, chatCatalog, turnBlocksSlot
 } from "@repo/chat-mini.chat";
-import { newViewRegistry } from "@statewalker/core-react";
+import { catalogsSlot } from "@statewalker/catalog-registry";
+import { coreViewsSlot, type ViewComponent } from "@statewalker/core-react";
 import { dockOverlaysSlot, dockSidePanelsSlot } from "@statewalker/dock";
-import { newCatalogRegistry } from "@statewalker/catalog-registry";
 import { newRegistry } from "@statewalker/shared-registry";
 import { Slots } from "@statewalker/shared-slots";
 import { getWorkspace } from "@statewalker/workspace";
@@ -37,8 +37,6 @@ export default function initChatViews(
 ): () => Promise<void> {
   const [register, cleanup] = newRegistry();
   const workspace = getWorkspace(ctx);
-  const catalogs = newCatalogRegistry(workspace);
-  const views = newViewRegistry(workspace);
   const slots = workspace.requireAdapter(Slots);
 
   // ── Chat catalog (json-render binding) ──────────────────────
@@ -48,7 +46,7 @@ export default function initChatViews(
     },
     actions: {},
   });
-  register(catalogs.register(CHAT_CATALOG_ID, chatRegistry));
+  register(slots.register(catalogsSlot, CHAT_CATALOG_ID, chatRegistry));
   void schema;
 
   // ── Turn-block components ───────────────────────────────────
@@ -72,9 +70,10 @@ export default function initChatViews(
   ] as const;
   for (const { kind, component } of turnBlocks) {
     register(
-      views.register(
+      slots.register(
+        coreViewsSlot,
         kind,
-        component as unknown as Parameters<typeof views.register>[1],
+        component as unknown as ViewComponent,
       ),
     );
     register(slots.provide(turnBlocksSlot, { kind, viewKey: kind }));
@@ -82,9 +81,10 @@ export default function initChatViews(
 
   // ── Sessions panel (dock side panel) ────────────────────────
   register(
-    views.register(
+    slots.register(
+      coreViewsSlot,
       SESSIONS_PANEL_VIEW_KEY,
-      SessionsPanel as unknown as Parameters<typeof views.register>[1],
+      SessionsPanel as unknown as ViewComponent,
     ),
   );
   register(
@@ -98,9 +98,10 @@ export default function initChatViews(
 
   // ── Deep-link mount (dock overlay; renders nothing) ─────────
   register(
-    views.register(
+    slots.register(
+      coreViewsSlot,
       DEEP_LINK_VIEW_KEY,
-      DeepLinkMount as unknown as Parameters<typeof views.register>[1],
+      DeepLinkMount as unknown as ViewComponent,
     ),
   );
   register(
