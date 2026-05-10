@@ -1,11 +1,11 @@
 import { Intents } from "@statewalker/shared-intents";
-import { getWorkspace } from "@statewalker/workspace-api";
+import { getWorkspace } from "@statewalker/workspace";
 import type { DockviewApi, IDockviewPanel } from "dockview-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import initDock from "@statewalker/dock/fragment";
 import { DockHost } from "@statewalker/dock";
-import initSpecStore from "@statewalker/json-render/fragment";
-import { SpecStore } from "@statewalker/json-render";
+import initSpecStore from "@statewalker/spec-store/fragment";
+import { SpecStore } from "@statewalker/spec-store";
 import { chatPanelId, chatSpecId } from "../public/catalog.js";
 import initChat from "../public/init.js";
 import { runOpenChatSession } from "../public/intents.js";

@@ -3,10 +3,10 @@ import {
   DOCK_LAYOUT_STORAGE_KEY,
   restorePanelSpecsFromLayout,
   SpecStore,
-} from "@statewalker/json-render";
+} from "@statewalker/spec-store";
 import { Intents } from "@statewalker/shared-intents";
 import { newRegistry } from "@statewalker/shared-registry";
-import type { Workspace } from "@statewalker/workspace-api";
+import type { Workspace } from "@statewalker/workspace";
 import {
   CHAT_CATALOG_ID,
   chatPanelId,

@@ -1,4 +1,4 @@
-import { getWorkspace } from "@statewalker/workspace-api";
+import { getWorkspace } from "@statewalker/workspace";
 import { ChatManager } from "../internal/chat.manager.js";
 
 /**
