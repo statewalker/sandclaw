@@ -1,5 +1,5 @@
 import { Slots } from "@statewalker/shared-slots";
-import { useSlot } from "@statewalker/shared-slots/react";
+import { useSlot } from "@statewalker/core-react";
 import { Send, Square } from "lucide-react";
 import {
   type ComponentType,

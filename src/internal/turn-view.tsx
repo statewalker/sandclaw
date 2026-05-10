@@ -5,7 +5,7 @@ import {
   type Turn,
 } from "@statewalker/ai-agent/state";
 import { Slots } from "@statewalker/shared-slots";
-import { useSlot } from "@statewalker/shared-slots/react";
+import { useSlot } from "@statewalker/core-react";
 import { type ComponentType, type ReactElement, useMemo } from "react";
 import {
   observeTurnBlocks,
