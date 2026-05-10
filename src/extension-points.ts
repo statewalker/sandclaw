@@ -1,4 +1,4 @@
-import { newSlot } from "@statewalker/shared-slots";
+import { defineSlot } from "@statewalker/shared-slots";
 import type { ComponentType } from "react";
 
 /**
@@ -29,5 +29,4 @@ export interface SystemMenuItem {
   onActivate: () => void | Promise<void>;
 }
 
-export const [provideSystemMenuItem, observeSystemMenuItems] =
-  newSlot<SystemMenuItem>("app-shell:system-menu-items");
+export const systemMenuItemsSlot = defineSlot<SystemMenuItem>("app-shell:system-menu-items");

@@ -31,7 +31,7 @@
     "@statewalker/settings": "workspace:*",
     "@statewalker/settings-react": "workspace:*",
     "@statewalker/shadcn-react": "workspace:*",
-    "@statewalker/shared-intents": "catalog:",
+    "@statewalker/shared-commands": "catalog:",
     "@statewalker/shared-registry": "catalog:",
     "@statewalker/shared-slots": "catalog:",
     "@statewalker/video-viewer-react": "workspace:*",

@@ -15,7 +15,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { observeSystemMenuItems } from "./extension-points.js";
+import { systemMenuItemsSlot } from "./extension-points.js";
 
 /**
  * Trailing-header dropdown that groups system-level actions.
@@ -33,7 +33,7 @@ import { observeSystemMenuItems } from "./extension-points.js";
  */
 export function SystemMenu(): ReactElement {
   const slots = useAdapter(Slots);
-  const items = useSlot(slots, observeSystemMenuItems);
+  const items = useSlot(slots, systemMenuItemsSlot);
   const sortedItems = useMemo(
     () => [...items].sort(compareByOrderAndId),
     [items],

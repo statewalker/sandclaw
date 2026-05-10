@@ -1,16 +1,15 @@
 import { newViewRegistry, type ViewComponent } from "@statewalker/core-react";
-import { provideDockHeaderItem } from "@statewalker/dock";
-import { runOpenSettings } from "@statewalker/settings";
-import { Intents } from "@statewalker/shared-intents";
+import { dockHeaderItemsSlot } from "@statewalker/dock";
+import { OpenSettingsCommand } from "@statewalker/settings";
+import { Commands } from "@statewalker/shared-commands";
 import { newRegistry } from "@statewalker/shared-registry";
 import { Slots } from "@statewalker/shared-slots";
 import { getWorkspace } from "@statewalker/workspace";
 import {
-  runChangeWorkspace,
-  runWorkspaceDisconnect,
+  ChangeWorkspaceCommand, WorkspaceDisconnectCommand
 } from "@statewalker/workspace-bridge";
 import { LogOut, Settings as SettingsIcon } from "lucide-react";
-import { provideSystemMenuItem } from "./extension-points.js";
+import { systemMenuItemsSlot } from "./extension-points.js";
 import { SystemMenu } from "./system-menu.js";
 
 const SYSTEM_MENU_VIEW_KEY = "app-shell:system-menu";
@@ -28,13 +27,13 @@ export function initSystemMenu(
   const workspace = getWorkspace(ctx);
   const views = newViewRegistry(workspace);
   const slots = workspace.requireAdapter(Slots);
-  const intents = workspace.requireAdapter(Intents);
+  const intents = workspace.requireAdapter(Commands);
 
   const [register, cleanup] = newRegistry();
 
   register(views.register(SYSTEM_MENU_VIEW_KEY, SystemMenu as ViewComponent));
   register(
-    provideDockHeaderItem(slots, {
+    slots.provide(dockHeaderItemsSlot, {
       id: "app-shell:system-menu",
       slot: "trailing",
       order: 1000,
@@ -43,26 +42,26 @@ export function initSystemMenu(
   );
 
   register(
-    provideSystemMenuItem(slots, {
+    slots.provide(systemMenuItemsSlot, {
       id: "app-shell:settings",
       order: 100,
       label: "Settings",
       Icon: SettingsIcon,
       onActivate: () => {
-        runOpenSettings(intents, {});
+        intents.call(OpenSettingsCommand, {});
       },
     }),
   );
   register(
-    provideSystemMenuItem(slots, {
+    slots.provide(systemMenuItemsSlot, {
       id: "app-shell:switch-workspace",
       order: 900,
       label: "Switch workspace",
       Icon: LogOut,
       onActivate: async () => {
-        await runWorkspaceDisconnect(intents, {}).promise;
+        await intents.call(WorkspaceDisconnectCommand, {}).promise;
         try {
-          await runChangeWorkspace(intents, {}).promise;
+          await intents.call(ChangeWorkspaceCommand, {}).promise;
         } catch (e) {
           // User cancellation throws AbortError; user already in `empty`.
           if (e instanceof DOMException && e.name === "AbortError") return;
