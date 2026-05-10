@@ -5,7 +5,7 @@ import initFiles from "@statewalker/files/fragment";
 import initImageViewerReact from "@statewalker/image-viewer-react/fragment";
 import initInlineContent from "@statewalker/inline-content/fragment";
 import initInlineContentReact from "@statewalker/inline-content-react/fragment";
-import initJsonRender from "@statewalker/json-render/fragment";
+import initSpecStore from "@statewalker/spec-store/fragment";
 import initMarkdownViewerReact from "@statewalker/markdown-viewer-react/fragment";
 import initPdfViewerReact from "@statewalker/pdf-viewer-react/fragment";
 import initPlatformWeb from "@statewalker/platform-browser";
@@ -14,7 +14,7 @@ import initSettingsReact from "@statewalker/settings-react/fragment";
 import initShadcnReact from "@statewalker/shadcn-react/fragment";
 import { newRegistry } from "@statewalker/shared-registry";
 import initVideoViewerReact from "@statewalker/video-viewer-react/fragment";
-import { Workspace } from "@statewalker/workspace-api";
+import { Workspace } from "@statewalker/workspace";
 import initWorkspaceBridge from "@statewalker/workspace-bridge/fragment";
 import initWorkspaceBridgeReact from "@statewalker/workspace-bridge-react/fragment";
 import { QueryClient } from "@tanstack/react-query";
@@ -116,7 +116,7 @@ export function bootShell(options: BootShellOptions = {}): BootShellResult {
 
   // ── 1. Substrate logic fragments ─────────────────────────────
   register(initPlatformWeb(ctx));
-  register(initJsonRender(ctx));
+  register(initSpecStore(ctx));
   register(initDock(ctx));
   register(initWorkspaceBridge(ctx));
   register(initSettings(ctx));

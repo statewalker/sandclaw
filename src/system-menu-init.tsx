@@ -4,7 +4,7 @@ import { runOpenSettings } from "@statewalker/settings";
 import { Intents } from "@statewalker/shared-intents";
 import { newRegistry } from "@statewalker/shared-registry";
 import { Slots } from "@statewalker/shared-slots";
-import { getWorkspace } from "@statewalker/workspace-api";
+import { getWorkspace } from "@statewalker/workspace";
 import {
   runChangeWorkspace,
   runWorkspaceDisconnect,
