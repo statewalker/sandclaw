@@ -7,10 +7,10 @@ import {
 } from "@repo/chat-mini.chat";
 import { newViewRegistry } from "@statewalker/core-react";
 import { provideDockOverlay, provideDockSidePanel } from "@statewalker/dock";
-import { newCatalogRegistry } from "@statewalker/json-render";
+import { newCatalogRegistry } from "@statewalker/catalog-registry";
 import { newRegistry } from "@statewalker/shared-registry";
 import { Slots } from "@statewalker/shared-slots";
-import { getWorkspace } from "@statewalker/workspace-api";
+import { getWorkspace } from "@statewalker/workspace";
 import { ChatRoot } from "../internal/chat-root.js";
 import { DeepLinkMount } from "../internal/deep-link-mount.js";
 import { SessionsPanel } from "../internal/sessions-panel.js";

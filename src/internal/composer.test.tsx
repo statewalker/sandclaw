@@ -1,5 +1,5 @@
 import { Slots } from "@statewalker/shared-slots";
-import { Workspace } from "@statewalker/workspace-api";
+import { Workspace } from "@statewalker/workspace";
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";

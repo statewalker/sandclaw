@@ -5,7 +5,7 @@ import {
   type Session,
 } from "@statewalker/ai-agent/state";
 import { Intents } from "@statewalker/shared-intents";
-import { Workspace } from "@statewalker/workspace-api";
+import { Workspace } from "@statewalker/workspace";
 import { act, fireEvent, render } from "@testing-library/react";
 import { Profiler, type ProfilerOnRenderCallback } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
