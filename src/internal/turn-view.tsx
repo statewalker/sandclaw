@@ -1,19 +1,21 @@
 import {
+  observeTurnBlocks,
+  STANDARD_TURN_BLOCK_KINDS,
+  type TurnBlockContribution,
+} from "@repo/chat-mini.chat";
+import {
   type Message,
   NodeType,
   type ToolCall,
   type Turn,
 } from "@statewalker/ai-agent/state";
-import { Slots } from "@statewalker/shared-slots";
-import { useSlot } from "@statewalker/core-react";
-import { type ComponentType, type ReactElement, useMemo } from "react";
 import {
-  observeTurnBlocks,
-  STANDARD_TURN_BLOCK_KINDS,
-  type TurnBlockContribution,
-} from "@repo/chat-mini.chat";
-import { useRegistry, ViewRegistry } from "@statewalker/core-react";
-import { useAdapter } from "@statewalker/core-react";
+  useAdapter,
+  useSlot,
+  useViewRegistry,
+} from "@statewalker/core-react";
+import { Slots } from "@statewalker/shared-slots";
+import { type ComponentType, type ReactElement, useMemo } from "react";
 import { useNodeChildren } from "./hooks/use-session-node.js";
 
 type TurnChild = Turn["children"][number];
@@ -96,7 +98,7 @@ export function TurnView({ turn }: { turn: Turn }): ReactElement {
   const slots = useAdapter(Slots);
   // Subscribed adapter — re-renders when a late-registered viewKey
   // arrives (plug-in extensibility path).
-  const registry = useRegistry(ViewRegistry);
+  const registry = useViewRegistry();
   const turnBlocks = useSlot(slots, observeTurnBlocks);
   const viewByKind = useMemo(() => indexByKind(turnBlocks), [turnBlocks]);
 

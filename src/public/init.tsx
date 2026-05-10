@@ -1,16 +1,16 @@
 import { defineRegistry, schema } from "@json-render/react";
-import { newRegistry } from "@statewalker/shared-registry";
-import { Slots } from "@statewalker/shared-slots";
-import { getWorkspace } from "@statewalker/workspace-api";
-import { CatalogRegistry } from "@statewalker/json-render";
 import {
   CHAT_CATALOG_ID,
   chatCatalog,
   provideTurnBlock,
   STANDARD_TURN_BLOCK_KINDS,
 } from "@repo/chat-mini.chat";
-import { ViewRegistry } from "@statewalker/core-react";
+import { newViewRegistry } from "@statewalker/core-react";
 import { provideDockOverlay, provideDockSidePanel } from "@statewalker/dock";
+import { newCatalogRegistry } from "@statewalker/json-render";
+import { newRegistry } from "@statewalker/shared-registry";
+import { Slots } from "@statewalker/shared-slots";
+import { getWorkspace } from "@statewalker/workspace-api";
 import { ChatRoot } from "../internal/chat-root.js";
 import { DeepLinkMount } from "../internal/deep-link-mount.js";
 import { SessionsPanel } from "../internal/sessions-panel.js";
@@ -43,8 +43,8 @@ export default function initChatViews(
 ): () => Promise<void> {
   const [register, cleanup] = newRegistry();
   const workspace = getWorkspace(ctx);
-  const catalogs = workspace.requireAdapter(CatalogRegistry);
-  const views = workspace.requireAdapter(ViewRegistry);
+  const catalogs = newCatalogRegistry(workspace);
+  const views = newViewRegistry(workspace);
   const slots = workspace.requireAdapter(Slots);
 
   // ── Chat catalog (json-render binding) ──────────────────────

@@ -11,7 +11,7 @@ import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { provideTurnBlock, STANDARD_TURN_BLOCK_KINDS } from "@repo/chat-mini.chat";
 import initChatViews from "@repo/chat-mini.chat-react";
-import initCoreViews, { ViewRegistry } from "@statewalker/core-react";
+import initCoreReact, { newViewRegistry } from "@statewalker/core-react";
 import { AppWorkspaceProvider } from "@statewalker/core-react";
 import { TurnView } from "./turn-view.js";
 
@@ -41,7 +41,7 @@ describe("TurnView slot dispatch", () => {
   it("renders built-in turn-block kinds (user, agent, error) via slot + ViewRegistry", () => {
     const ws = newWorkspace();
     const ctx: Record<string, unknown> = { "workspace:workspace": ws };
-    cleanups.push(initCoreViews(ctx));
+    cleanups.push(initCoreReact(ctx));
     cleanups.push(initChatViews(ctx));
 
     const session = makeSession();
@@ -59,7 +59,7 @@ describe("TurnView slot dispatch", () => {
   it("groups consecutive tool calls into one Tool calls block", async () => {
     const ws = newWorkspace();
     const ctx: Record<string, unknown> = { "workspace:workspace": ws };
-    cleanups.push(initCoreViews(ctx));
+    cleanups.push(initCoreReact(ctx));
     cleanups.push(initChatViews(ctx));
 
     const session = makeSession();
@@ -77,12 +77,12 @@ describe("TurnView slot dispatch", () => {
   it("plug-in registered BEFORE built-ins overrides the built-in viewKey", () => {
     const ws = newWorkspace();
     const ctx: Record<string, unknown> = { "workspace:workspace": ws };
-    cleanups.push(initCoreViews(ctx));
+    cleanups.push(initCoreReact(ctx));
 
     // Register the plug-in BEFORE chat-views init so first-claim
     // wins for ERROR kind.
     const slots = ws.requireAdapter(Slots);
-    const registry = ws.requireAdapter(ViewRegistry);
+    const registry = newViewRegistry(ws);
     const customViewKey = "plugin:citation-view";
     const PluginView = ({ props }: { props: unknown }) => (
       <span data-testid="citation">{(props as { text: string }).text}</span>

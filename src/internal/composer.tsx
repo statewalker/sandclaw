@@ -1,5 +1,12 @@
+import { type ComposerAction, observeComposerActions } from "@repo/chat-mini.chat";
+import {
+  compareByOrderAndId,
+  useAdapter,
+  useSlot,
+  useViewRegistry,
+} from "@statewalker/core-react";
+import { Button } from "@statewalker/shadcn-react";
 import { Slots } from "@statewalker/shared-slots";
-import { useSlot } from "@statewalker/core-react";
 import { Send, Square } from "lucide-react";
 import {
   type ComponentType,
@@ -7,14 +14,6 @@ import {
   useMemo,
   useState,
 } from "react";
-import { type ComposerAction, observeComposerActions } from "@repo/chat-mini.chat";
-import {
-  compareByOrderAndId,
-  useRegistry,
-  ViewRegistry,
-} from "@statewalker/core-react";
-import { Button } from "@statewalker/shadcn-react";
-import { useAdapter } from "@statewalker/core-react";
 import {
   PromptInput,
   PromptInputActions,
@@ -47,7 +46,7 @@ export function Composer({
   const slots = useAdapter(Slots);
   // Subscribed adapter — re-renders when a contributed action's
   // viewKey is registered late.
-  const registry = useRegistry(ViewRegistry);
+  const registry = useViewRegistry();
   const actions = useSlot(slots, observeComposerActions);
 
   const { leading, trailing } = useMemo(() => splitActions(actions), [actions]);

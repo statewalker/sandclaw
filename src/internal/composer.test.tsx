@@ -4,7 +4,7 @@ import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { provideComposerAction } from "@repo/chat-mini.chat";
-import initCoreViews, { ViewRegistry } from "@statewalker/core-react";
+import initCoreReact, { newViewRegistry } from "@statewalker/core-react";
 import { AppWorkspaceProvider } from "@statewalker/core-react";
 import { Composer } from "./composer.js";
 
@@ -25,9 +25,9 @@ describe("Composer composer-actions slot", () => {
   it("renders a contributed action via ViewRegistry", () => {
     const ws = new Workspace();
     const ctx: Record<string, unknown> = { "workspace:workspace": ws };
-    cleanups.push(initCoreViews(ctx));
+    cleanups.push(initCoreReact(ctx));
 
-    const registry = ws.requireAdapter(ViewRegistry);
+    const registry = newViewRegistry(ws);
     const slots = ws.requireAdapter(Slots);
 
     cleanups.push(
@@ -63,9 +63,9 @@ describe("Composer composer-actions slot", () => {
   it("sorts contributions by order within each position", () => {
     const ws = new Workspace();
     const ctx: Record<string, unknown> = { "workspace:workspace": ws };
-    cleanups.push(initCoreViews(ctx));
+    cleanups.push(initCoreReact(ctx));
 
-    const registry = ws.requireAdapter(ViewRegistry);
+    const registry = newViewRegistry(ws);
     const slots = ws.requireAdapter(Slots);
     cleanups.push(
       registry.register("plugin:a", () => (
