@@ -3,7 +3,23 @@
 
 @plugin "@tailwindcss/typography";
 
-@source "./**/*.{ts,tsx}";
+/*
+ * Tailwind v4 content discovery. node_modules is gitignore-excluded by
+ * default, so each substrate package's own ./styles CSS does not
+ * discover its own classes from the app side. We list workspace-relative
+ * source globs here instead. Package-level ./styles still ship any
+ * package-local CSS plus a redundant directive for in-tree clarity.
+ */
+@source "./**/*.tsx";
+@source "./**/*.ts";
+@source "../../../../statewalker-workbench/packages/*/src/**/*.tsx";
+@source "../../../../statewalker-workbench/packages/*/src/**/*.ts";
+@source "../../../../statewalker-ai/packages/*/src/**/*.tsx";
+@source "../../../../statewalker-ai/packages/*/src/**/*.ts";
+@source "../../chat-mini.chat-react/src/**/*.tsx";
+@source "../../chat-mini.chat-react/src/**/*.ts";
+@source "../../chat-mini.chat/src/**/*.tsx";
+@source "../../chat-mini.chat/src/**/*.ts";
 
 @custom-variant dark (&:is(.dark *));
 
