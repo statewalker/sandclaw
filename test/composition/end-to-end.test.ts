@@ -2,12 +2,12 @@ import { Intents } from "@statewalker/shared-intents";
 import { Slots } from "@statewalker/shared-slots";
 import { writeText } from "@statewalker/webrun-files";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
-import { getWorkspace, runChangeWorkspace } from "@statewalker/workspace-api";
+import { getWorkspace, runChangeWorkspace } from "@statewalker/workspace";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import initAgentRuntime from "@statewalker/ai-agent-runtime/fragment";
 import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
-import initJsonRender from "@statewalker/json-render/fragment";
-import { SpecStore } from "@statewalker/json-render";
+import initSpecStore from "@statewalker/spec-store/fragment";
+import { SpecStore } from "@statewalker/spec-store";
 import initChat from "@repo/chat-mini.chat/fragment";
 import initDock from "@statewalker/dock/fragment";
 import initFiles from "@statewalker/files/fragment";
@@ -58,7 +58,7 @@ describe("chat-mini end-to-end (logic fragments)", () => {
     const ctx: Record<string, unknown> = {};
     const cleanups: Array<() => Promise<void> | void> = [];
 
-    cleanups.push(await initJsonRender(ctx));
+    cleanups.push(await initSpecStore(ctx));
     cleanups.push(initDock(ctx));
     cleanups.push(initWorkspaceBridge(ctx));
     cleanups.push(initAgentRuntime(ctx));

@@ -30,21 +30,23 @@ The `Secrets` and `Settings` workspace adapters build on top of
 - **Fragment** — an `init(context: Record<string, unknown>) => () =>
   Promise<void>` function with `public/` and `internal/`
   sub-folders. The unit of registration. Public surface is the
-  init function plus optional `intents.ts` and
-  `extension-points.ts`. Touches the boot context only inside
+  init function plus optional `commands.ts` (was `intents.ts` —
+  renamed per ADR 0008) and `extension-points.ts`. Touches the
+  boot context only inside
   `init`; everything below works with typed values.
   Per ADR 0002, fragments come in two flavors: **logic** and
   **renderer**.
 - **Logic fragment** — name `<fragment>/`. Imports zero React.
-  Owns intents, slot declarations, json-render catalog
+  Owns commands, slot declarations, json-render catalog
   declarations, JSON specs, state managers, and adapter classes
   where justified per the Adapter rule below. Tests run in Node,
   no DOM.
 - **Renderer fragment** — name `<fragment>-react/`. Imports React.
   Paired with a logic fragment; binds React components to its
   catalog component names; contributes named components to the
-  `core:views` slot (via `KeyedSlot<ViewComponent>`) so logic
-  fragments can reference them by viewKey from slot values.
+  `core:views` slot (a `defineKeyedSlot<ViewComponent>`
+  declaration in `core-react`'s `public/`) so logic fragments
+  can reference them by viewKey from slot values.
   (Suffix is `-react` post-fragmentization; earlier code uses
   `-views`.)
 - **Renderer-only fragment** — a `<name>-react/` fragment with **no
@@ -81,13 +83,15 @@ The `Secrets` and `Settings` workspace adapters build on top of
   contributed to the `core:views` slot. Logic fragments contribute
   viewKeys (data) into their own slots; renderer fragments
   contribute the components those viewKeys resolve to (via
-  `KeyedSlot<ViewComponent>(slots, "core:views")`).
+  `slots.register(coreViewsSlot, viewKey, component)` where
+  `coreViewsSlot = defineKeyedSlot<ViewComponent>("core:views")`
+  is exported from `core-react/public/extension-points.ts`).
 - **Boot context** — the untyped `Record<string, unknown>` passed
   once at boot to extract long-lived hosts (the `Workspace`,
   optionally a boot logger). Touched only in `init-<fragment>.ts`
   via `getWorkspace(ctx)` and similar string-keyed adapters.
 - **Workspace** — adapter host (from
-  `@statewalker/workspace-api`); the long-lived application root.
+  `@statewalker/workspace`); the long-lived application root.
   Provides `requireAdapter(Class)` for runtime services.
 - **Adapter** — workspace-scoped service registered by class
   identity. **Escape hatch — must be justified.** Reserved for:
@@ -99,28 +103,46 @@ The `Secrets` and `Settings` workspace adapters build on top of
   runtime `patch(id)` semantics that slot's "dispose+reprovide"
   cannot preserve). When proposing a new adapter, justify which
   of (a)/(b)/(c) it falls under; otherwise reach for slot +
-  selector or `KeyedSlot<T>`.
-- **Intent** — typed RPC declared via `newIntent<P,R>(key) →
-  [run, handle]`. First-claim-wins. Bidirectional dependency:
-  any fragment may declare, run, or handle.
-- **Slot** — typed extension point declared via `newSlot<T>(key)
-  → [provide, observe]`. Pub/sub. The universal extension
+  selector or `defineKeyedSlot<T>`.
+- **Command** *(was: Intent — renamed per ADR 0008)* — typed RPC
+  declared via `defineCommand<P,R>(key, defaultFn?) →
+  CommandDeclaration<P,R>`. The bus dispatches via
+  `commands.call(decl, payload)`; listeners register via
+  `commands.listen(decl, fn)`. Single role (listener); a listener
+  claims by returning `true`, returning a `Promise<R>`, or calling
+  `cmd.resolve` / `cmd.reject` directly; returning `void` is
+  observe-only. All listeners are notified regardless of who
+  claimed. After the listener pass, if no listener claimed, the
+  per-decl `defaultFn` runs as fallback; without one, the bus
+  rejects with `Unhandled command: <key>` (loud-fail by design;
+  silent-pending is opt-in via `defineCommand(key, () => {})`).
+  Three-state lifecycle preserved on `Command<P,R>`: `pending →
+  handled → settled`. Renamed because (a) the role IS the GoF
+  Command pattern and (b) "intent" collides with the LLM domain
+  used inside the same monorepo (`indexer-search`, `claude-flow`).
+- **Slot** — typed extension point declared via `defineSlot<T>(key)
+  → SlotDeclaration<T>`. Pub/sub. The universal extension
   mechanism — applies to both logic and renderer extension; *any*
   fragment may declare a slot whose contributions are typed for
   its purpose (logic values, React components, etc.). Slot key
-  prefix matches the declaring fragment's id. The only constraint
-  on contributions is ADR 0002: contributions containing React
-  must come from renderer fragments.
-- **KeyedSlot&lt;T&gt;** — id-keyed wrapper around a slot
-  (`shared-slots`). Used when a slot's contributions are
-  `{id, value}` records and consumers want O(1) `get(id)`,
-  collision-throw on duplicate ids, and a `version` counter for
-  `useSyncExternalStore`. The wrapper subscribes once to the
-  underlying slot and maintains a `Map<id, T>` index. Replaces
-  the deleted `IdentifiableRegistry` adapter primitive — former
+  prefix matches the declaring fragment's id. Bus methods take the
+  declaration: `slots.provide(decl, value)`, `slots.observe(decl, cb)`,
+  `slots.getSnapshot(decl)`. The only constraint on contributions
+  is ADR 0002: contributions containing React must come from
+  renderer fragments.
+- **KeyedSlot** — id-keyed slot variant declared via
+  `defineKeyedSlot<T>(key) → KeyedSlotDeclaration<T>`, exercised
+  through the same `Slots` bus: `slots.register(decl, id, value)`,
+  `slots.get(decl, id)`, `slots.observe(decl, cb)`. Used when
+  contributions are addressable by stable id and consumers want
+  O(1) lookup, collision-throw on duplicate ids with different
+  values, and `useSyncExternalStore`-compatible reactivity.
+  Indexing and version state live on the bus per slot key (no
+  per-instance class as in the pre-0008 shape). Replaces the
+  deleted `IdentifiableRegistry` adapter primitive — former
   registries (`ViewRegistry`, `CatalogRegistry`,
-  `InlineContentRegistry`) are now slot keys + `KeyedSlot`
-  wrappers.
+  `InlineContentRegistry`) are now `defineKeyedSlot` declarations
+  living in their owning fragment's `public/extension-points.ts`.
 - **Spec** — flat `{ root, elements }` map describing UI
   declaratively (json-render).
 - **SpecStore** — workspace adapter, addressable specs. Panel
@@ -128,7 +150,8 @@ The `Secrets` and `Settings` workspace adapters build on top of
 - **Catalog slot** — `json:catalogs` slot (declared by
   `json-render`) carries id-keyed json-render catalog singletons
   (`defineCatalog` + `defineRegistry` + components map).
-  Consumers read via a `KeyedSlot<Catalog>` wrapper.
+  Consumers read via `slots.get(catalogsSlot, catalogId)` where
+  `catalogsSlot = defineKeyedSlot<Catalog>("json:catalogs")`.
 - **Catalog** — set of components + actions a json-render spec is
   allowed to use, with Zod-typed props.
 
@@ -140,17 +163,17 @@ identity (imported from the owning fragment's `public/`).
 
 | Adapter | Owning fragment | Purpose |
 |---|---|---|
-| `Intents` | (substrate — `@statewalker/shared-intents`) | RPC bus |
+| `Commands` *(was: `Intents`)* | (substrate — `@statewalker/shared-commands`) | RPC bus. Renamed per ADR 0008. |
 | `Slots` | (substrate — `@statewalker/shared-slots`) | Extension-point bus |
 | `SpecStore` | `json-render` | Addressable json-render specs; runtime `create`/`patch`/`delete` with stable per-id refs. Last surviving id-keyed adapter — slot's append-only model can't preserve the stable refs `useSyncExternalStore` requires |
-| `WorkspaceShellAdapter` | `workspace-bridge` | FS-Access shell state machine: `{ status: 'loading' \| 'unsupported' \| 'empty' \| 'needs-permission' \| 'ready', label?, reason? }` with `BaseClass.notify()`. Owns silent-restore from a stored `FileSystemDirectoryHandle`, drives `runChangeWorkspace` internally on `granted`, exposes `workspace:reconnect` / `workspace:disconnect` intents. Read by `workspace-bridge-react`'s picker and by `core-react`'s `AppRoot` to switch between picker and main shell. See ADR 0004. |
+| `WorkspaceShellAdapter` | `workspace-bridge` | FS-Access shell state machine: `{ status: 'loading' \| 'unsupported' \| 'empty' \| 'needs-permission' \| 'ready', label?, reason? }` with `BaseClass.notify()`. Owns silent-restore from a stored `FileSystemDirectoryHandle`, drives `runChangeWorkspace` internally on `granted`, exposes `workspace:reconnect` / `workspace:disconnect` commands. Read by `workspace-bridge-react`'s picker and by `core-react`'s `AppRoot` to switch between picker and main shell. See ADR 0004. |
 | `ActiveModel` | `agent-runtime` | Singular `{provider, modelId, sourceId}` pointer the agent uses; written by `providers` (and future `local-models`), read by `agent-runtime` to project into `AgentRuntimeAdapter`'s unified `RuntimeState` |
 | `AgentRuntimeAdapter` | `agent-runtime` | Unified `RuntimeState` discriminated union (`loading` / `no-providers` / `no-active-model` / `error` / `ready { runtime, agent, … }`); single source of truth for "can the chat send a message?" |
 
 Former adapters that collapsed to slots (see Slot ownership map):
 `ViewRegistry` → `core:views`; `CatalogRegistry` → `json:catalogs`;
 `InlineContentRegistry` → `inline-content:renderers`. Each is read
-through a `KeyedSlot<T>` wrapper.
+through a `defineKeyedSlot<T>` declaration on the same `Slots` bus.
 
 Distinct from `ModelStateStore.setActiveModel` in
 `@statewalker/ai-agent/models` — that one tracks which **local

@@ -38,10 +38,10 @@ const SUBSTRATE_REACT_PACKAGES = [
   "core-react",
   "shadcn-react",
   "dock-react",
-  "files-react",
   "settings-react",
   "workspace-bridge-react",
   "inline-content-react",
+  "catalog-registry-react",
   "image-viewer-react",
   "markdown-viewer-react",
   "pdf-viewer-react",
@@ -49,12 +49,14 @@ const SUBSTRATE_REACT_PACKAGES = [
 ];
 
 const SUBSTRATE_LOGIC_PACKAGES = [
+  "workspace",
   "dock",
   "files",
   "settings",
   "workspace-bridge",
   "inline-content",
-  "json-render",
+  "catalog-registry",
+  "spec-store",
 ];
 
 const AI_LOGIC_PACKAGES = ["ai-agent-runtime", "ai-providers"];

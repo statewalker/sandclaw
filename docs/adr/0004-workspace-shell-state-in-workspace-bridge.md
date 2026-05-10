@@ -14,8 +14,8 @@ it; `core-views`' `<App/>` switches on it. Three plausible
 locations:
 
 1. **Extra fields directly on `Workspace` itself** (in
-   `@statewalker/workspace-api`).
-2. **Separate adapter inside `@statewalker/workspace-api`**.
+   `@statewalker/workspace`).
+2. **Separate adapter inside `@statewalker/workspace`**.
 3. **Separate adapter inside `@statewalker/platform-browser`**.
 4. **Separate adapter inside chat-mini's `workspace-bridge`
    fragment** (this ADR).
@@ -34,7 +34,7 @@ exhibit them).
    `needs-permission`); other deployments end up with dead
    states; conflates "is a folder bound + open?" with "can the
    user pick a folder, and have we tried silent restore?".
-2. **Adapter shipped from `@statewalker/workspace-api`.**
+2. **Adapter shipped from `@statewalker/workspace`.**
    Same layering smell — workspace-api would need to know what
    FS-Access is.
 3. **Adapter in `@statewalker/platform-browser`.** That package
