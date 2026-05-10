@@ -1,38 +1,44 @@
-import { useAdapter } from "@statewalker/core-react";
-import { runOpenSettings } from "@statewalker/settings";
-import { Button } from "@statewalker/shadcn-react";
-import { Intents } from "@statewalker/shared-intents";
 import {
-  runChangeWorkspace,
-  runWorkspaceDisconnect,
-} from "@statewalker/workspace-bridge";
-import { ChevronDown, LogOut, Settings as SettingsIcon } from "lucide-react";
+  compareByOrderAndId,
+  useAdapter,
+  useSlot,
+} from "@statewalker/core-react";
+import { Button } from "@statewalker/shadcn-react";
+import { Slots } from "@statewalker/shared-slots";
+import { ChevronDown } from "lucide-react";
 import {
   type MouseEvent,
   type ReactElement,
   type ReactNode,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
+import { observeSystemMenuItems } from "./extension-points.js";
 
 /**
- * Trailing-header dropdown that groups system-level actions:
+ * Trailing-header dropdown that groups system-level actions.
  *
- *   - Settings (`runOpenSettings`)
- *   - Switch workspace (`runWorkspaceDisconnect` → `runChangeWorkspace`)
- *
- * The two actions used to render as separate header buttons (one per
- * substrate fragment); the canonical shell collapses them under a
- * single "System" entry to keep the trailing area clean and to give
- * future global actions a stable home.
+ * The list of entries is fully slot-driven: every contribution to
+ * `app-shell:system-menu-items` becomes a row, ordered by `order`
+ * then `id`. The shell itself contributes Settings + Switch-workspace;
+ * downstream fragments (file-explorer's "New file panel", any future
+ * global action) contribute alongside without app-shell depending on
+ * them.
  *
  * Implementation is intentionally low-dep — a controlled `useState`
  * popover with click-outside / Escape-to-close — so `app-shell`
  * doesn't need to pull in a new shadcn / radix primitive.
  */
 export function SystemMenu(): ReactElement {
-  const intents = useAdapter(Intents);
+  const slots = useAdapter(Slots);
+  const items = useSlot(slots, observeSystemMenuItems);
+  const sortedItems = useMemo(
+    () => [...items].sort(compareByOrderAndId),
+    [items],
+  );
+
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -51,23 +57,6 @@ export function SystemMenu(): ReactElement {
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
-
-  function openSettings() {
-    setOpen(false);
-    runOpenSettings(intents, {});
-  }
-
-  async function switchWorkspace() {
-    setOpen(false);
-    await runWorkspaceDisconnect(intents, {}).promise;
-    try {
-      await runChangeWorkspace(intents, {}).promise;
-    } catch (e) {
-      // User cancellation throws AbortError; user already in `empty`.
-      if (e instanceof DOMException && e.name === "AbortError") return;
-      throw e;
-    }
-  }
 
   return (
     <div ref={containerRef} className="relative inline-block">
@@ -88,16 +77,27 @@ export function SystemMenu(): ReactElement {
           // pointerdown handler doesn't immediately close on the same gesture.
           onClick={(e: MouseEvent) => e.stopPropagation()}
           role="menu"
-          className="absolute right-0 top-full mt-1 min-w-[180px] rounded-md border border-border bg-popover p-1 shadow-md z-50"
+          className="absolute right-0 top-full mt-1 min-w-[200px] rounded-md border border-border bg-popover p-1 shadow-md z-50"
         >
-          <MenuItem onClick={() => void openSettings()}>
-            <SettingsIcon className="h-3.5 w-3.5" />
-            <span>Settings</span>
-          </MenuItem>
-          <MenuItem onClick={() => void switchWorkspace()}>
-            <LogOut className="h-3.5 w-3.5" />
-            <span>Switch workspace</span>
-          </MenuItem>
+          {sortedItems.length === 0 && (
+            <div className="px-2 py-1.5 text-sm text-muted-foreground">
+              No actions
+            </div>
+          )}
+          {sortedItems.map((item) => (
+            <MenuItem
+              key={item.id}
+              onClick={() => {
+                setOpen(false);
+                Promise.resolve(item.onActivate()).catch((err) => {
+                  console.error(`[system-menu] item "${item.id}" failed:`, err);
+                });
+              }}
+            >
+              <item.Icon className="h-3.5 w-3.5" />
+              <span>{item.label}</span>
+            </MenuItem>
+          ))}
         </div>
       )}
     </div>

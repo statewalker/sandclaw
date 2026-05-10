@@ -4,3 +4,4 @@ export {
   bootShell,
   type FragmentInit,
 } from "./boot-shell.js";
+export * from "./extension-points.js";
