@@ -6,24 +6,26 @@ import { newRegistry } from "@statewalker/shared-registry";
 import { Slots } from "@statewalker/shared-slots";
 import { getWorkspace } from "@statewalker/workspace";
 import {
-  ChangeWorkspaceCommand, WorkspaceDisconnectCommand
+  ChangeWorkspaceCommand,
+  WorkspaceDisconnectCommand,
 } from "@statewalker/workspace-bridge";
 import { LogOut, Settings as SettingsIcon } from "lucide-react";
-import { systemMenuItemsSlot } from "./extension-points.js";
-import { SystemMenu } from "./system-menu.js";
+import { menubarItemsSlot } from "./extension-points.js";
+import { Menubar } from "./menubar.js";
+import { ThemeToggle } from "./theme-toggle.js";
 
-const SYSTEM_MENU_VIEW_KEY = "app-shell:system-menu";
+const MENUBAR_VIEW_KEY = "app-shell:menubar";
+const THEME_TOGGLE_VIEW_KEY = "app-shell:theme-toggle";
 
 /**
- * Renderer-fragment init that registers the canonical System menu
- * into the trailing header slot AND seeds it with the two substrate
- * actions every shell needs (Settings, Switch workspace). Downstream
- * fragments contribute more items via `provideSystemMenuItem` —
- * file-explorer-react adds "New file panel", for instance.
+ * Renderer-fragment init that wires the leading-header menu bar and
+ * the trailing-header theme toggle, then seeds the two substrate
+ * actions every shell needs (Settings, Switch workspace) under the
+ * System menu. Downstream fragments contribute their own menus / items
+ * via `menubarItemsSlot` — file-explorer's "New file panel" lands
+ * under the Files menu, for instance.
  */
-export function initSystemMenu(
-  ctx: Record<string, unknown>,
-): () => Promise<void> {
+export function initMenubar(ctx: Record<string, unknown>): () => Promise<void> {
   const workspace = getWorkspace(ctx);
   const slots = workspace.requireAdapter(Slots);
   const intents = workspace.requireAdapter(Commands);
@@ -31,24 +33,37 @@ export function initSystemMenu(
   const [register, cleanup] = newRegistry();
 
   register(
+    slots.register(coreViewsSlot, MENUBAR_VIEW_KEY, Menubar as ViewComponent),
+  );
+  register(
     slots.register(
       coreViewsSlot,
-      SYSTEM_MENU_VIEW_KEY,
-      SystemMenu as ViewComponent,
+      THEME_TOGGLE_VIEW_KEY,
+      ThemeToggle as ViewComponent,
     ),
+  );
+
+  register(
+    slots.provide(dockHeaderItemsSlot, {
+      id: "app-shell:menubar",
+      slot: "leading",
+      order: 100,
+      viewKey: MENUBAR_VIEW_KEY,
+    }),
   );
   register(
     slots.provide(dockHeaderItemsSlot, {
-      id: "app-shell:system-menu",
+      id: "app-shell:theme-toggle",
       slot: "trailing",
       order: 1000,
-      viewKey: SYSTEM_MENU_VIEW_KEY,
+      viewKey: THEME_TOGGLE_VIEW_KEY,
     }),
   );
 
   register(
-    slots.provide(systemMenuItemsSlot, {
+    slots.provide(menubarItemsSlot, {
       id: "app-shell:settings",
+      menu: "System",
       order: 100,
       label: "Settings",
       Icon: SettingsIcon,
@@ -58,8 +73,9 @@ export function initSystemMenu(
     }),
   );
   register(
-    slots.provide(systemMenuItemsSlot, {
+    slots.provide(menubarItemsSlot, {
       id: "app-shell:switch-workspace",
+      menu: "System",
       order: 900,
       label: "Switch workspace",
       Icon: LogOut,

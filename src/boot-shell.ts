@@ -5,7 +5,6 @@ import initFiles from "@statewalker/files/fragment";
 import initImageViewerReact from "@statewalker/image-viewer-react/fragment";
 import initInlineContent from "@statewalker/inline-content/fragment";
 import initInlineContentReact from "@statewalker/inline-content-react/fragment";
-import initSpecStore from "@statewalker/spec-store/fragment";
 import initMarkdownViewerReact from "@statewalker/markdown-viewer-react/fragment";
 import initPdfViewerReact from "@statewalker/pdf-viewer-react/fragment";
 import initPlatformWeb from "@statewalker/platform-browser";
@@ -13,12 +12,14 @@ import initSettings from "@statewalker/settings/fragment";
 import initSettingsReact from "@statewalker/settings-react/fragment";
 import initShadcnReact from "@statewalker/shadcn-react/fragment";
 import { newRegistry } from "@statewalker/shared-registry";
+import initSpecStore from "@statewalker/spec-store/fragment";
 import initVideoViewerReact from "@statewalker/video-viewer-react/fragment";
 import { Workspace } from "@statewalker/workspace";
 import initWorkspaceBridge from "@statewalker/workspace-bridge/fragment";
 import initWorkspaceBridgeReact from "@statewalker/workspace-bridge-react/fragment";
 import { QueryClient } from "@tanstack/react-query";
-import { initSystemMenu } from "./system-menu-init.js";
+import { initMenubar } from "./menubar-init.js";
+import { applyInitialTheme } from "./theme-manager.js";
 
 /**
  * Init function shape used by every workbench fragment: takes the
@@ -96,6 +97,10 @@ export interface BootShellResult {
  * `cleanup` from the result and calling it themselves.
  */
 export function bootShell(options: BootShellOptions = {}): BootShellResult {
+  // Apply the persisted theme before React mounts so the first paint
+  // already matches the user's choice (no light-then-dark flash).
+  applyInitialTheme();
+
   const workspace = new Workspace();
   const queryClient = new QueryClient(
     options.queryClientOptions ?? {
@@ -150,10 +155,10 @@ export function bootShell(options: BootShellOptions = {}): BootShellResult {
   register(initVideoViewerReact(ctx));
   register(initInlineContentReact(ctx));
 
-  // System menu — collapses Settings + Switch-workspace into a single
-  // trailing-header dropdown. Registered after the substrate views
-  // so its view key resolution sees the populated registry.
-  register(initSystemMenu(ctx));
+  // Menubar (leading header dropdowns) + theme toggle (trailing).
+  // Registered after the substrate views so view-key resolution sees
+  // the populated registry.
+  register(initMenubar(ctx));
 
   // ── 5. App-specific renderer fragments ───────────────────────
   for (const init of options.renderers ?? []) {
