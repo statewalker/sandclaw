@@ -2,7 +2,7 @@ import {
   createAgentNodeFactory,
   type Message,
   NodeType,
-  type Session,
+  type SessionState,
   type Turn,
 } from "@statewalker/ai-agent/state";
 import { act, render } from "@testing-library/react";
@@ -14,12 +14,12 @@ import {
   useNodeProp,
 } from "./use-session-node.js";
 
-function makeSession(): Session {
+function makeSession(): SessionState {
   const factory = createAgentNodeFactory();
-  return factory({ type: NodeType.session, props: {} }) as Session;
+  return factory({ type: NodeType.session, props: {} }) as SessionState;
 }
 
-function makeTurnWithAssistantMessage(session: Session): {
+function makeTurnWithAssistantMessage(session: SessionState): {
   turn: Turn;
   assistant: Message;
 } {

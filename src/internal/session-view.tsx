@@ -1,11 +1,11 @@
-import type { Session } from "@statewalker/ai-agent/state";
+import type { SessionState } from "@statewalker/ai-agent/state";
 import { useNodeChildren } from "./hooks/use-session-node.js";
 import { TurnView } from "./turn-view";
 
 export function SessionView({
   session,
 }: {
-  session: Session;
+  session: SessionState;
 }): React.ReactElement {
   useNodeChildren(session);
   const turns = session.turns;

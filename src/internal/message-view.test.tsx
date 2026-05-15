@@ -1,27 +1,30 @@
 import {
-  NodeType, createAgentNodeFactory, type Message, type Session
+  createAgentNodeFactory,
+  type Message,
+  NodeType,
+  type SessionState,
 } from "@statewalker/ai-agent/state";
+import { AppWorkspaceProvider } from "@statewalker/core-react";
+import { VisualizeFileCommand } from "@statewalker/files";
 import { Commands } from "@statewalker/shared-commands";
 import { Workspace } from "@statewalker/workspace";
 import { act, fireEvent, render } from "@testing-library/react";
 import { Profiler, type ProfilerOnRenderCallback } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { VisualizeFileCommand } from "@statewalker/files";
-import { AppWorkspaceProvider } from "@statewalker/core-react";
 import { MessageView } from "./message-view.js";
 
-function makeSession(): Session {
+function makeSession(): SessionState {
   const factory = createAgentNodeFactory();
-  return factory({ type: NodeType.session, props: {} }) as Session;
+  return factory({ type: NodeType.session, props: {} }) as SessionState;
 }
 
-function makeAssistantMessage(session: Session): Message {
+function makeAssistantMessage(session: SessionState): Message {
   const turn = session.addTurn();
   turn.addUserMessage("hello");
   return turn.addAgentMessage();
 }
 
-function makeUserMessage(session: Session, text: string): Message {
+function makeUserMessage(session: SessionState, text: string): Message {
   return session.addTurn().addUserMessage(text);
 }
 

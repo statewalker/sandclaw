@@ -1,24 +1,30 @@
 import {
-  NodeType, createAgentNodeFactory, type Session, type Turn
-} from "@statewalker/ai-agent/state";
-import { Slots } from "@statewalker/shared-slots";
-import { Workspace } from "@statewalker/workspace";
-import { render } from "@testing-library/react";
-import type { ReactElement } from "react";
-import { afterEach, describe, expect, it } from "vitest";
-import { STANDARD_TURN_BLOCK_KINDS, turnBlocksSlot } from "@repo/chat-mini.chat";
+  STANDARD_TURN_BLOCK_KINDS,
+  turnBlocksSlot,
+} from "@repo/chat-mini.chat";
 import initChatReact from "@repo/chat-mini.chat-react/fragment";
-import initCoreReact from "@statewalker/core-react/fragment";
+import {
+  createAgentNodeFactory,
+  NodeType,
+  type SessionState,
+  type Turn,
+} from "@statewalker/ai-agent/state";
 import {
   AppWorkspaceProvider,
   coreViewsSlot,
   type ViewComponent,
 } from "@statewalker/core-react";
+import initCoreReact from "@statewalker/core-react/fragment";
+import { Slots } from "@statewalker/shared-slots";
+import { Workspace } from "@statewalker/workspace";
+import { render } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { afterEach, describe, expect, it } from "vitest";
 import { TurnView } from "./turn-view.js";
 
-function makeSession(): Session {
+function makeSession(): SessionState {
   const factory = createAgentNodeFactory();
-  return factory({ type: NodeType.session, props: {} }) as Session;
+  return factory({ type: NodeType.session, props: {} }) as SessionState;
 }
 
 function newWorkspace(): Workspace {
