@@ -1,11 +1,9 @@
+import { chatPanelId } from "@repo/chat-mini.chat";
+import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
+import { useAdapterValue, useAppWorkspace } from "@statewalker/core-react";
+import { SetPanelTitleCommand } from "@statewalker/dock";
 import { Commands } from "@statewalker/shared-commands";
 import { type ReactElement, useEffect } from "react";
-import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
-import { useAdapterValue } from "@statewalker/core-react";
-import { SetPanelTitleCommand } from "@statewalker/dock";
-import { ProviderConfigGate } from "@statewalker/ai-providers-react";
-import { useAppWorkspace } from "@statewalker/core-react";
-import { chatPanelId } from "@repo/chat-mini.chat";
 import { useChatSession } from "../public/hooks/use-chat-session.js";
 import { ChatPanel } from "./chat-panel.js";
 import { useNodeProp } from "./hooks/use-session-node.js";
@@ -30,12 +28,8 @@ function truncateMiddle(s: string, max = TAB_TITLE_MAX): string {
  * vision §3.6). Each tab's `ChatRoot` is locked to ONE session id
  * via spec props — `useChatSession(sessionId)` drives loading, and
  * `<ChatPanel>` consumes the resulting `Session`. The rendered tree
- * (provider-config gate vs. chat panel) is unchanged from the
+ * (no-providers placeholder vs. chat panel) is unchanged from the
  * single-tab era.
- *
- * Tab title binding: subscribes to the loaded session's title and
- * dispatches `dock:set-panel-title` so the DockView tab header
- * shows the chat title (truncated mid-string when long).
  */
 export function ChatRoot({ sessionId }: ChatRootProps): ReactElement {
   const state = useAdapterValue(AgentRuntimeAdapter, (a) => a.getState());
@@ -49,7 +43,7 @@ export function ChatRoot({ sessionId }: ChatRootProps): ReactElement {
         <TabTitleBinder sessionId={sessionId} sessionState={sessionState} />
       ) : null}
       {showGate ? (
-        <ProviderConfigGate />
+        <NoModelPlaceholder status={state.status} />
       ) : (
         <ChatPanel chatSession={chatSession} />
       )}
@@ -57,12 +51,27 @@ export function ChatRoot({ sessionId }: ChatRootProps): ReactElement {
   );
 }
 
-/**
- * Listens for changes to `session.state.title` and pushes the
- * truncated value to the DockView tab via `dock:set-panel-title`.
- * Mounted only when the session has loaded — keeps the title-set
- * effect off the no-session render path.
- */
+function NoModelPlaceholder({
+  status,
+}: {
+  status: "no-providers" | "no-active-model";
+}): ReactElement {
+  const title =
+    status === "no-providers"
+      ? "No model providers configured"
+      : "No active model selected";
+  const body =
+    status === "no-providers"
+      ? "Add a connection in the Models dialog to start chatting."
+      : "Pick a model in the Models dialog to start chatting.";
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center text-sm">
+      <p className="font-medium">{title}</p>
+      <p className="text-muted-foreground">{body}</p>
+    </div>
+  );
+}
+
 function TabTitleBinder({
   sessionId,
   sessionState,

@@ -1,15 +1,18 @@
 import {
-  NodeType, type Message as MessageNode
+  type Message as MessageNode,
+  NodeType,
 } from "@statewalker/ai-agent/state";
+import { useAppWorkspace } from "@statewalker/core-react";
+import { VisualizeFileCommand } from "@statewalker/files";
 import { Commands } from "@statewalker/shared-commands";
 import { type ReactElement, useMemo } from "react";
 import type { Components } from "react-markdown";
-import { VisualizeFileCommand } from "@statewalker/files";
-import { useAppWorkspace } from "@statewalker/core-react";
 import { useNodeChildren, useNodeContent } from "./hooks/use-session-node.js";
 import { remarkFileUriLink } from "./lib/remark-file-uri-link.js";
 import {
-  Message, MessageAvatar, MessageContent
+  Message,
+  MessageAvatar,
+  MessageContent,
 } from "./prompt-kit/message.js";
 import { ThinkingBlock } from "./thinking-block";
 
@@ -59,11 +62,11 @@ export function MessageView({
               {...props}
               onClick={(event) => {
                 event.preventDefault();
-                void intents.call(VisualizeFileCommand, { uri: href }).promise.catch(
-                  (error: unknown) => {
+                void intents
+                  .call(VisualizeFileCommand, { uri: href })
+                  .promise.catch((error: unknown) => {
                     console.warn("[chat] file:// visualize failed:", error);
-                  },
-                );
+                  });
               }}
             >
               {children}

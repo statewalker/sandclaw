@@ -1,9 +1,9 @@
+import { cn } from "@statewalker/shadcn-react";
 import { marked } from "marked";
 import { type ComponentProps, memo, useId, useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
-import { cn } from "@statewalker/shadcn-react";
 import { CodeBlock, CodeBlockCode } from "./code-block";
 
 type PluggableList = NonNullable<

@@ -1,13 +1,13 @@
 "use client";
 
-import { ChevronDown, Circle } from "lucide-react";
-import React from "react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
   cn,
 } from "@statewalker/shadcn-react";
+import { ChevronDown, Circle } from "lucide-react";
+import React from "react";
 
 export type ChainOfThoughtItemProps = React.ComponentProps<"div">;
 

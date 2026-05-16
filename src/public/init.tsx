@@ -1,6 +1,9 @@
 import { defineRegistry, schema } from "@json-render/react";
 import {
-  CHAT_CATALOG_ID, STANDARD_TURN_BLOCK_KINDS, chatCatalog, turnBlocksSlot
+  CHAT_CATALOG_ID,
+  chatCatalog,
+  STANDARD_TURN_BLOCK_KINDS,
+  turnBlocksSlot,
 } from "@repo/chat-mini.chat";
 import { catalogsSlot } from "@statewalker/catalog-registry";
 import { coreViewsSlot, type ViewComponent } from "@statewalker/core-react";
@@ -12,7 +15,10 @@ import { ChatRoot } from "../internal/chat-root.js";
 import { DeepLinkMount } from "../internal/deep-link-mount.js";
 import { SessionsPanel } from "../internal/sessions-panel.js";
 import {
-  AgentMessageBlock, ErrorTurnBlock, ToolCallsRunBlock, UserMessageBlock
+  AgentMessageBlock,
+  ErrorTurnBlock,
+  ToolCallsRunBlock,
+  UserMessageBlock,
 } from "../internal/turn-block-views.js";
 
 const SESSIONS_PANEL_VIEW_KEY = "chat:sessions-panel";

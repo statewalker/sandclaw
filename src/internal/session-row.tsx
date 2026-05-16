@@ -1,5 +1,3 @@
-import { Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,6 +12,8 @@ import {
   cn,
   Input,
 } from "@statewalker/shadcn-react";
+import { Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 export interface SessionRowProps {
   id: string;

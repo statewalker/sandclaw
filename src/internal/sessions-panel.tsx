@@ -1,15 +1,15 @@
+import { chatPanelId, OpenChatSessionCommand } from "@repo/chat-mini.chat";
+import { useFocusedChatTab, useOpenChatTabs } from "@repo/chat-mini.chat-react";
+import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
+import { useAdapterValue, useAppWorkspace } from "@statewalker/core-react";
+import { ClosePanelCommand } from "@statewalker/dock";
+import { Button, ScrollArea } from "@statewalker/shadcn-react";
 import { Commands } from "@statewalker/shared-commands";
 import { Plus } from "lucide-react";
 import { useCallback } from "react";
-import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
-import { OpenChatSessionCommand, chatPanelId } from "@repo/chat-mini.chat";
-import { useFocusedChatTab, useOpenChatTabs } from "@repo/chat-mini.chat-react";
-import { useAdapterValue } from "@statewalker/core-react";
-import { ClosePanelCommand } from "@statewalker/dock";
-import { Button, ScrollArea } from "@statewalker/shadcn-react";
-import { useAppWorkspace } from "@statewalker/core-react";
 import {
-  useInvalidateSessions, useSessionList
+  useInvalidateSessions,
+  useSessionList,
 } from "./hooks/use-session-list.js";
 import { SessionRow } from "./session-row";
 

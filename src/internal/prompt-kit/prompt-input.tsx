@@ -1,12 +1,5 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
 import {
   cn,
   Textarea,
@@ -15,6 +8,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@statewalker/shadcn-react";
+import React, {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 type PromptInputContextType = {
   isLoading: boolean;

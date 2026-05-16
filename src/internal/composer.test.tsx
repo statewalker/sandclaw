@@ -1,15 +1,15 @@
-import { Slots } from "@statewalker/shared-slots";
-import { Workspace } from "@statewalker/workspace";
-import { render } from "@testing-library/react";
-import type { ReactElement } from "react";
-import { afterEach, describe, expect, it } from "vitest";
 import { composerActionsSlot } from "@repo/chat-mini.chat";
-import initCoreReact from "@statewalker/core-react/fragment";
 import {
   AppWorkspaceProvider,
   coreViewsSlot,
   type ViewComponent,
 } from "@statewalker/core-react";
+import initCoreReact from "@statewalker/core-react/fragment";
+import { Slots } from "@statewalker/shared-slots";
+import { Workspace } from "@statewalker/workspace";
+import { render } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { afterEach, describe, expect, it } from "vitest";
 import { Composer } from "./composer.js";
 
 function mount(ws: Workspace, ui: ReactElement) {
@@ -34,15 +34,11 @@ describe("Composer composer-actions slot", () => {
     const slots = ws.requireAdapter(Slots);
 
     cleanups.push(
-      slots.register(
-        coreViewsSlot,
-        "plugin:fake-picker",
-        (() => (
-          <button type="button" data-testid="fake-picker">
-            fake picker
-          </button>
-        )) as unknown as ViewComponent,
-      ) as () => void,
+      slots.register(coreViewsSlot, "plugin:fake-picker", (() => (
+        <button type="button" data-testid="fake-picker">
+          fake picker
+        </button>
+      )) as unknown as ViewComponent) as () => void,
     );
     cleanups.push(
       slots.provide(composerActionsSlot, {
@@ -74,18 +70,14 @@ describe("Composer composer-actions slot", () => {
 
     const slots = ws.requireAdapter(Slots);
     cleanups.push(
-      slots.register(
-        coreViewsSlot,
-        "plugin:a",
-        (() => <span data-testid="lead-a">A</span>) as unknown as ViewComponent,
-      ) as () => void,
+      slots.register(coreViewsSlot, "plugin:a", (() => (
+        <span data-testid="lead-a">A</span>
+      )) as unknown as ViewComponent) as () => void,
     );
     cleanups.push(
-      slots.register(
-        coreViewsSlot,
-        "plugin:b",
-        (() => <span data-testid="lead-b">B</span>) as unknown as ViewComponent,
-      ) as () => void,
+      slots.register(coreViewsSlot, "plugin:b", (() => (
+        <span data-testid="lead-b">B</span>
+      )) as unknown as ViewComponent) as () => void,
     );
     cleanups.push(
       slots.provide(composerActionsSlot, {

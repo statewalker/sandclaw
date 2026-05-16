@@ -1,11 +1,11 @@
 import type { ToolCall } from "@statewalker/ai-agent/state";
-import { ChevronDown, Wrench } from "lucide-react";
-import { type ReactElement, useEffect, useRef, useState } from "react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@statewalker/shadcn-react";
+import { ChevronDown, Wrench } from "lucide-react";
+import { type ReactElement, useEffect, useRef, useState } from "react";
 import { ToolCallView } from "./tool-call-view";
 
 /**

@@ -1,6 +1,13 @@
 "use client";
 
 import {
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  cn,
+} from "@statewalker/shadcn-react";
+import {
   CheckCircle,
   ChevronDown,
   Loader2,
@@ -8,13 +15,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { useState } from "react";
-import {
-  Button,
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-  cn,
-} from "@statewalker/shadcn-react";
 
 export type ToolPart = {
   type: string;

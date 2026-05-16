@@ -1,5 +1,5 @@
-import { StickToBottom } from "use-stick-to-bottom";
 import { cn } from "@statewalker/shadcn-react";
+import { StickToBottom } from "use-stick-to-bottom";
 
 export type ChatContainerRootProps = {
   children: React.ReactNode;

@@ -1,7 +1,7 @@
+import { cn } from "@statewalker/shadcn-react";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { codeToHtml } from "shiki";
-import { cn } from "@statewalker/shadcn-react";
 
 export type CodeBlockProps = {
   children?: React.ReactNode;

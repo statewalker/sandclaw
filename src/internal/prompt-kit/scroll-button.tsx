@@ -1,7 +1,7 @@
+import { Button, type buttonVariants, cn } from "@statewalker/shadcn-react";
 import type { VariantProps } from "class-variance-authority";
 import { ChevronDown } from "lucide-react";
 import { useStickToBottomContext } from "use-stick-to-bottom";
-import { Button, type buttonVariants, cn } from "@statewalker/shadcn-react";
 
 export type ScrollButtonProps = {
   className?: string;

@@ -1,7 +1,7 @@
 import type { Session } from "@statewalker/ai-agent/runtime";
-import { useEffect, useState } from "react";
 import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
 import { useAdapterValue } from "@statewalker/core-react";
+import { useEffect, useState } from "react";
 import { setSessionModel } from "../session-utils.js";
 
 export interface ChatSessionState {

@@ -1,7 +1,7 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
 import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
 import { useAdapterValue } from "@statewalker/core-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 
 export const SESSIONS_QUERY_KEY = ["chat-mini", "sessions"] as const;
 
