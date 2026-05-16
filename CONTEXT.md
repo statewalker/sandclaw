@@ -95,7 +95,7 @@ The `Secrets` and `Settings` workspace adapters build on top of
   Provides `requireAdapter(Class)` for runtime services.
 - **Adapter** — workspace-scoped service registered by class
   identity. **Escape hatch — must be justified.** Reserved for:
-  (a) substrate buses themselves (`Intents`, `Slots`),
+  (a) substrate buses themselves (`Commands`, `Slots`),
   (b) singular reactive state cells (`WorkspaceShellAdapter`,
   `ActiveModel`, `AgentRuntimeAdapter`),
   (c) addressable mutable stores with lifecycle and stable
@@ -205,3 +205,120 @@ Slot keys match the declaring fragment's id.
 | `dock:side-panels` | `dock` | `{ id, side: 'left' \| 'right', order?, viewKey, defaultSize? }` — fixed side panels rendered alongside `DockViewHost` in `MainShell`. SessionsPanel from `chat-views` is the first contributor. |
 | `dock:header-items` | `dock` | `{ id, slot: 'leading' \| 'trailing', order?, viewKey }` — items rendered in `MainShell`'s `ShellHeader`. Contributors today: workspace-bridge-views (workspace label + switch button), settings-views (settings button). |
 | `dock:overlays` | `dock` | `{ id, viewKey }` — modal/dialog/overlay components mounted alongside `MainShell`. Settings dialog from `settings-views` is the first contributor. |
+
+## Models and connections
+
+Domain vocabulary for the model-management surface. The
+`models-config` (+ `-react`) fragment owns the user-facing dialogs;
+`ai-providers` remains sole storage owner (`providers.json`,
+`Providers` adapter, `providers:remote` slot contributions).
+
+- **Connection** — a configured endpoint to a remote model
+  provider. Replaces the prior canonical / custom split. Stored
+  shape: `{ id, type: 'openai'|'anthropic'|'google'|'openai-compatible'|…,
+  name, url?, apiKey, headers?: { name; value }[], discoveredModels?,
+  discoveredAt? }`. Multiple connections of the same canonical
+  `type` are allowed (e.g. a work and a personal OpenAI key).
+  Each Connection produces exactly one `ProviderDescriptor` in
+  `providers:remote` with `descriptor.id === connection.id`.
+  `ActiveModel.providerId` is a Connection id; the v3→v4
+  migration assigns deterministic ids (`openai`, `anthropic`,
+  `google`) for existing canonical entries so `active` survives
+  unchanged.
+- **DiscoveredModel** — `{ id, label, capabilities? }` cached on a
+  Connection. Populated by an HTTP fetch against the provider's
+  models endpoint (the "Test" / "Refresh" affordance on the
+  connection card). Cached in `providers.json`; `discoveredAt`
+  records the last successful fetch.
+- **Capability** — a model's functional role tag (e.g. `text`,
+  `embedding`, `image`). Not derived from the server response;
+  resolved by a curated table in `models-config` keyed by model
+  id pattern. Models with no match default to `['text']`. The
+  Models List dialog's "filter by functionality" reads this.
+- **Starred model** — a `{ connectionId, modelId }` pair the user
+  marked for quick access. Stored as `ProvidersConfig.starred:
+  StarredRef[]`. The chat composer's picker renders the starred
+  list inline; the last entry, "All models…", fires
+  `select-model` to open the Models List dialog.
+- **Local model** — `runtime: 'local'` catalog entry (engine `tjs`
+  in the first cut; `webllm` / `llamacpp` remain disabled).
+  Identified by a catalog key (e.g. `local:smollm2-360m`). Two
+  lifecycle steps:
+  1. **Download** — explicit, in the Local Models dialog. Weights
+     flow through transformers.js + the FilesApi SW write-through
+     to `<systemFolder>/models/tjs/<modelId>/`. The catalog entry
+     is added to `ProvidersConfig.local.downloaded`.
+  2. **Activation** — lazy, on the first chat message after
+     selection. `ActiveModel.createProvider()` returns a
+     `ProviderV3` whose `languageModel(modelId)` triggers
+     `ModelManager.activate(key)` (loads ONNX weights into the
+     worker). Subsequent turns reuse the in-memory model.
+- **Local catalog merge** — `models-config` mounts a
+  `ModelManager` per workspace, calls `registerBrowserProviders`
+  (transformers.js engine), and feeds it
+  `mergeCatalogs(createDefaultCatalog(), tjsExtensions)`. The
+  default-catalog tjs entries that today live commented-out in
+  `@statewalker/ai-agent/models` are re-enabled here.
+
+Slot additions for this surface:
+
+| Slot key | Declaring fragment | Carries |
+|---|---|---|
+| `dock:overlays` (existing) | `dock` | One `models-config-react` contribution — viewKey for the `<ModelsConfigOverlay>` host that mounts the json-render spec for all three dialogs. |
+
+Adapter additions:
+
+| Adapter | Owning fragment | Purpose |
+|---|---|---|
+| `LocalModels` | `models-config` | Wraps `ModelManager` + `LocalModelStorage` + the workspace's transformers.js factory. Exposes `download(key, onProgress)`, `cancelDownload(key)`, `removeWeights(key)`, `listDownloadable()`, and a `ModelStateStore`-derived `ProviderV3` used by `ActiveModel.createProvider()` for `kind: 'local'`. |
+
+Storage shape additions to `ProvidersConfig` (v4):
+`connections: Connection[]` (replaces `remote` + `custom`),
+`starred: StarredRef[]`, `local: { downloaded: LocalModelRef[];
+lastActivatedKey?: string }`. Migration from v3 is one-way:
+canonical `remote.{name}` entries become Connections with id ==
+name; `custom[]` entries become Connections with their original
+ids.
+
+Commands declared by `models-config`:
+
+- `select-model` — opens the Models List dialog.
+- `manage-remote-connections` — opens the Remote Connections
+  dialog.
+- `manage-local-models` — opens the Local Models dialog.
+
+Each command's listener flips a `/ui/dialogs/*/open` flag in the
+renderer-side json-render `StateStore` (see "Two-segment state"
+below).
+
+UI architecture: the three dialogs are published as **one**
+json-render spec (root with three shadcn `Dialog` elements, each
+with its own `openPath`), mounted via the `dock:overlays`
+contribution. The spec is rendered against a `models-config`
+**catalog** that extends the shadcn json-render catalog with one
+custom primitive: `Markdown: { props: { source: string } }`,
+bound on the renderer side to the existing markdown-viewer
+pipeline. Used in the Models List / Local Models right-pane
+description (capabilities chips above, rendered markdown below).
+The state model is two-segment:
+
+- `/persistent/*` — mirrored from `Providers.config` (and
+  `LocalModels`) by a renderer-side subscription. Writes go back
+  through commands that call `Providers._saveProviders` (or
+  `LocalModels.download` etc.); the resulting `Providers` update
+  re-flows into `/persistent/*` and closes the loop.
+- `/ui/*` — purely in-memory: dialog open flags, search query,
+  capability filter, in-progress connection form, current
+  download phase.
+
+Components retired with this change:
+- `ai-providers-react/ProviderConfigPanel` (the `settings:tabs`
+  `providers` entry — the Models List + Remote Connections
+  dialogs replace it).
+- `ai-providers-react/ComposerModelPicker` (the
+  `chat:composer-actions` `providers:model-picker` entry — the
+  starred chip-list + "All models…" entry replaces it).
+- `OpenProviderConfigCommand` (subsumed by
+  `manage-remote-connections`).
+
+`ai-providers-react` is removed entirely.

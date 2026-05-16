@@ -1,7 +1,15 @@
 # ADR 0006 — Late-binding rule: slots + intents + adapter as escape hatch; `IdentifiableRegistry` retires
 
 Date: 2026-05-09
-Status: accepted
+Status: accepted (substrate naming updated by ADR 0008)
+
+> **Naming update (2026-05-10):** The `Intents` bus was renamed to
+> `Commands` and the late-binding API was reshaped per ADR 0008. The
+> decision rule below is unchanged — only the type/package names
+> shifted (`@statewalker/shared-intents` → `@statewalker/shared-commands`,
+> `Intents.run` / `addHandler` → `Commands.call` / `listen`, `newIntent`
+> → `defineCommand`, `newSlot`/`KeyedSlot` → `defineSlot`/`defineKeyedSlot`).
+> Read this ADR with that substitution in mind.
 
 ## Context
 
@@ -109,7 +117,7 @@ escape hatch**:
 
 - **Adapter** *(escape hatch — must be justified)* — workspace-
   scoped service registered by class identity. Reserved for:
-  - **(a)** the substrate buses themselves (`Intents`, `Slots`),
+  - **(a)** the substrate buses themselves (`Commands`, `Slots`),
   - **(b)** singular reactive state cells
     (`WorkspaceShellAdapter`, `ActiveModel`,
     `AgentRuntimeAdapter`),

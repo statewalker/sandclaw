@@ -60,7 +60,7 @@ const SUBSTRATE_LOGIC_PACKAGES = [
 ];
 
 const AI_LOGIC_PACKAGES = ["ai-agent-runtime", "ai-providers"];
-const AI_REACT_PACKAGES = ["ai-providers-react"];
+const AI_REACT_PACKAGES: string[] = [];
 
 const CHAT_LOGIC_PACKAGES = [{ npmName: "@repo/chat-mini.chat", dir: "chat-mini.chat" }];
 const CHAT_REACT_PACKAGES = [

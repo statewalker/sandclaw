@@ -4,8 +4,9 @@ import "@repo/chat-mini.chat-react/styles";
 import { bootShell } from "@repo/app-shell";
 import initAgentRuntime from "@statewalker/ai-agent-runtime/fragment";
 import initProviders from "@statewalker/ai-providers/fragment";
-import initProvidersReact from "@statewalker/ai-providers-react/fragment";
-import "@statewalker/ai-providers-react/styles";
+import initModelsConfig from "@statewalker/models-config/fragment";
+import initModelsConfigReact from "@statewalker/models-config-react/fragment";
+import "@statewalker/models-config-react/styles";
 import "@statewalker/core-react/styles";
 import "@statewalker/dock-react/styles";
 import "@statewalker/image-viewer-react/styles";
@@ -22,8 +23,11 @@ import "@/index.css";
  * chat-mini.app boot. The shared workbench substrate is registered by
  * `@repo/app-shell`'s `bootShell`; this script only contributes the
  * AI / chat fragments on top.
+ *
+ * Logic boot order: agent-runtime, providers, models-config (depends
+ * on the prior two), chat.
  */
 bootShell({
-  logic: [initAgentRuntime, initProviders, initChat],
-  renderers: [initProvidersReact, initChatReact],
+  logic: [initAgentRuntime, initProviders, initModelsConfig, initChat],
+  renderers: [initModelsConfigReact, initChatReact],
 });
