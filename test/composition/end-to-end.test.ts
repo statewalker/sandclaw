@@ -1,25 +1,26 @@
+import initChat from "@repo/chat-mini.chat/fragment";
+import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
+import initAgentRuntime from "@statewalker/ai-agent-runtime/fragment";
+import { emptyProvidersConfig, Providers } from "@statewalker/ai-providers";
+import initProviders from "@statewalker/ai-providers/fragment";
+import initDock from "@statewalker/dock/fragment";
+import { mimeRenderersSlot, VisualizeFileCommand } from "@statewalker/files";
+import initFiles from "@statewalker/files/fragment";
+import {
+  MARKDOWN_VIEWER_CATALOG_ID,
+  markdownViewerSpecId,
+} from "@statewalker/markdown-viewer-react";
+import initMarkdownViewer from "@statewalker/markdown-viewer-react/fragment";
+import initSettings from "@statewalker/settings/fragment";
 import { Commands } from "@statewalker/shared-commands";
 import { Slots } from "@statewalker/shared-slots";
+import { SpecStore } from "@statewalker/spec-store";
+import initSpecStore from "@statewalker/spec-store/fragment";
 import { writeText } from "@statewalker/webrun-files";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import { ChangeWorkspaceCommand, getWorkspace } from "@statewalker/workspace";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import initAgentRuntime from "@statewalker/ai-agent-runtime/fragment";
-import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
-import initSpecStore from "@statewalker/spec-store/fragment";
-import { SpecStore } from "@statewalker/spec-store";
-import initChat from "@repo/chat-mini.chat/fragment";
-import initDock from "@statewalker/dock/fragment";
-import initFiles from "@statewalker/files/fragment";
-import { VisualizeFileCommand, mimeRenderersSlot } from "@statewalker/files";
-import initMarkdownViewer from "@statewalker/markdown-viewer-react/fragment";
-import {
-  MARKDOWN_VIEWER_CATALOG_ID, markdownViewerSpecId
-} from "@statewalker/markdown-viewer-react";
-import initProviders from "@statewalker/ai-providers/fragment";
-import { Providers, emptyProvidersConfig } from "@statewalker/ai-providers";
-import initSettings from "@statewalker/settings/fragment";
 import initWorkspaceBridge from "@statewalker/workspace-bridge/fragment";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * End-to-end integration test for the M3 milestone (Wave 4.4).
@@ -84,7 +85,14 @@ describe("chat-mini end-to-end (logic fragments)", () => {
         "/.settings/providers.json",
         JSON.stringify({
           ...emptyProvidersConfig,
-          remote: { openai: { apiKey: "sk-test-fixture" } },
+          connections: [
+            {
+              id: "openai",
+              type: "openai",
+              name: "OpenAI",
+              apiKey: "sk-test-fixture",
+            },
+          ],
           active: { providerId: "openai", modelId: "gpt-4o" },
         }),
       );
@@ -93,7 +101,8 @@ describe("chat-mini end-to-end (logic fragments)", () => {
       // workspace-bridge handler runs close → setFileSystem →
       // open, which fires onLoad listeners (chat, providers,
       // ...) and triggers the rebuild chain.
-      await intents.call(ChangeWorkspaceCommand, { files, label: "test" }).promise;
+      await intents.call(ChangeWorkspaceCommand, { files, label: "test" })
+        .promise;
 
       // Drain debounced rebuild + buildRuntime promise.
       await vi.runAllTimersAsync();
@@ -129,9 +138,9 @@ describe("chat-mini end-to-end (logic fragments)", () => {
       await writeText(files, "/note.md", "# hello");
       // Suppress the never-settling promise — the dock host's
       // pending queue holds the show-panel call indefinitely.
-      void intents.call(VisualizeFileCommand, { uri: "/note.md" }).promise.catch(
-        () => {},
-      );
+      void intents
+        .call(VisualizeFileCommand, { uri: "/note.md" })
+        .promise.catch(() => {});
       const specRecord = store.get(markdownViewerSpecId("/note.md"));
       expect(specRecord?.catalogId).toBe(MARKDOWN_VIEWER_CATALOG_ID);
     } finally {
