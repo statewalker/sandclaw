@@ -1,4 +1,4 @@
-import { defineCommand } from "@statewalker/shared-commands";
+import { Command, passthrough } from "@statewalker/shared-commands";
 
 export interface OpenChatSessionPayload {
   sessionId: string;
@@ -12,5 +12,7 @@ export interface OpenChatSessionPayload {
  * Open-or-focus semantics from `dock:show-panel` make repeat calls
  * safe — the existing tab is focused rather than duplicated.
  */
-export const OpenChatSessionCommand = defineCommand<OpenChatSessionPayload,
-  void>("chat:open-session", () => {});
+export const OpenChatSessionCommand = Command.silent("chat:open-session")
+  .input(passthrough<OpenChatSessionPayload>())
+  .output(passthrough<void>())
+  .build();
