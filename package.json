@@ -19,6 +19,7 @@
     "@ai-sdk/google": "catalog:",
     "@ai-sdk/openai": "catalog:",
     "@ai-sdk/provider": "catalog:",
+    "@browser-ai/transformers-js": "catalog:",
     "@hookform/resolvers": "^5.0.1",
     "@mlc-ai/web-llm": "catalog:",
     "@radix-ui/react-alert-dialog": "^1.1.15",
