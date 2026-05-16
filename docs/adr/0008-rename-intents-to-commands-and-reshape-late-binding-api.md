@@ -1,7 +1,23 @@
 # ADR 0008 — Rename `Intents` → `Commands`; reshape the late-binding API around declarations + bus methods
 
 Date: 2026-05-10
-Status: accepted
+Status: accepted (dispatch semantics superseded 2026-05-16)
+
+> **Dispatch semantics superseded** by OpenSpec change
+> `shared-commands-v2-builder-and-registry` (archived
+> 2026-05-16 — see
+> `openspec/changes/archive/2026-05-16-shared-commands-v2-builder-and-registry/`).
+> The Intent→Command rename and the move to declaration-carriers + two bus
+> methods (`call` / `listen`) are still load-bearing. What changed: the
+> `defineCommand(key, defaultFn?)` constructor is retired in favour of a
+> builder chain (`Command.required / .async / .silent / .custom`) that
+> attaches Standard-Schema-based input/output validation, an explicit
+> dispatch policy, optional UX metadata, and a discriminated `CommandError`
+> failure surface. The decl-level `defaultFn` is replaced by negative-priority
+> fallback listeners; the `handled` boolean is internal. See
+> `openspec/specs/late-binding-primitives/spec.md` for the current
+> requirements and `architecture/docs/commands.md` for the consumer-facing
+> guide.
 
 ## Context
 

@@ -104,22 +104,42 @@ The `Secrets` and `Settings` workspace adapters build on top of
   cannot preserve). When proposing a new adapter, justify which
   of (a)/(b)/(c) it falls under; otherwise reach for slot +
   selector or `defineKeyedSlot<T>`.
-- **Command** *(was: Intent — renamed per ADR 0008)* — typed RPC
-  declared via `defineCommand<P,R>(key, defaultFn?) →
-  CommandDeclaration<P,R>`. The bus dispatches via
-  `commands.call(decl, payload)`; listeners register via
-  `commands.listen(decl, fn)`. Single role (listener); a listener
-  claims by returning `true`, returning a `Promise<R>`, or calling
-  `cmd.resolve` / `cmd.reject` directly; returning `void` is
-  observe-only. All listeners are notified regardless of who
-  claimed. After the listener pass, if no listener claimed, the
-  per-decl `defaultFn` runs as fallback; without one, the bus
-  rejects with `Unhandled command: <key>` (loud-fail by design;
-  silent-pending is opt-in via `defineCommand(key, () => {})`).
-  Three-state lifecycle preserved on `Command<P,R>`: `pending →
-  handled → settled`. Renamed because (a) the role IS the GoF
-  Command pattern and (b) "intent" collides with the LLM domain
+- **Command** *(was: Intent — renamed per ADR 0008; v2 surface per
+  OpenSpec change `shared-commands-v2-builder-and-registry`)* — typed
+  RPC declared via a builder chain
+  `Command.required(key) | .async(key) | .silent(key) |
+  .custom(key, policy)` then `.input(schema).output(schema)` (any
+  Standard Schema validator) and optional `.label/.description/.icon`,
+  terminated by `.build() → CommandDeclaration<P,R>`. The bus
+  dispatches via `commands.call(decl, payload)`; listeners register
+  via `commands.listen(decl, fn, { priority? })` (default priority 0;
+  higher fires earlier). A listener claims by returning `true`,
+  returning a `Promise<R>`, or calling `cmd.resolve` / `cmd.reject`
+  directly; returning `void` is observe-only. Input is validated
+  against `inputSchema` before any listener runs; every resolved
+  value is validated against `outputSchema`. Failures are reported
+  via a single `CommandError` class with discriminated `kind`:
+  `"input-validation" | "no-handlers" | "not-claimed" |
+  "listener-threw" | "output-validation"`. Listener-throw
+  short-circuits dispatch. Policy enforces "no listener claimed"
+  outcomes: `required` rejects loudly, `async` rejects on
+  no-handlers / waits on observers-only, `silent` waits on both,
+  `custom` per-field. The v1 decl-level `defaultFn` is retired —
+  fallbacks register as regular listeners at negative priority.
+  `Command<P,R>` (the dispatched-command shape) carries `key`,
+  `payload`, `settled`, `resolve`, `reject`, `promise` — the v1
+  `handled` boolean is internal. Renamed because (a) the role IS the
+  GoF Command pattern and (b) "intent" collides with the LLM domain
   used inside the same monorepo (`indexer-search`, `claude-flow`).
+- **CommandsRegistry** — reactive declaration registry that
+  complements the bus. Static factories on the `CommandsRegistry`
+  namespace: `create(...decls?) → MutableCommandsRegistry` (chainable
+  variadic `.set / .remove`, atomic on collision), `compose(...sources)
+  → CommandsRegistry` (read-only union; `get` is first-match-wins),
+  `filter(source, predicate)`, `namespace(source, prefix)`. Every
+  registry exposes `list / get / onUpdate`. Used as the catalog
+  substrate for AI tool projection, UI menus / action bars, and
+  external-protocol adapter mounts (MCP, OpenAPI, gRPC).
 - **Slot** — typed extension point declared via `defineSlot<T>(key)
   → SlotDeclaration<T>`. Pub/sub. The universal extension
   mechanism — applies to both logic and renderer extension; *any*
