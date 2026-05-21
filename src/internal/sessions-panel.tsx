@@ -1,6 +1,9 @@
 import { chatPanelId, OpenChatSessionCommand } from "@repo/chat-mini.chat";
 import { useFocusedChatTab, useOpenChatTabs } from "@repo/chat-mini.chat-react";
-import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
+import {
+  ActiveModel,
+  AgentRuntimeAdapter,
+} from "@statewalker/ai-agent-runtime";
 import { useAdapterValue, useAppWorkspace } from "@statewalker/core-react";
 import { ClosePanelCommand } from "@statewalker/dock";
 import { Button, ScrollArea } from "@statewalker/shadcn-react";
@@ -33,9 +36,20 @@ export function SessionsPanel(): React.ReactElement {
     if (state.status !== "ready") return;
     const session = state.agent.createSession();
     await session.save();
+    // Inherit the workspace last-selected model as the new
+    // session's per-session hint. The composer validates this on
+    // mount and shows the recovery banner if the ref is no longer
+    // valid (Connection disconnected, model un-starred).
+    const hint = workspace.requireAdapter(ActiveModel).get();
+    if (hint?.providerId && hint.modelId) {
+      await state.runtime.setSessionModelRef(session.id, {
+        connectionId: hint.providerId,
+        modelId: hint.modelId,
+      });
+    }
     invalidate();
     intents.call(OpenChatSessionCommand, { sessionId: session.id });
-  }, [state, invalidate, intents]);
+  }, [state, invalidate, intents, workspace]);
 
   const onRename = useCallback(
     async (id: string, title: string): Promise<void> => {

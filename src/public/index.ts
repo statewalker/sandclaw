@@ -1,4 +1,8 @@
 export {
+  type ChatPanelContextValue,
+  useChatPanelContext,
+} from "../internal/chat-panel-context.js";
+export {
   Markdown,
   type MarkdownProps,
 } from "../internal/prompt-kit/markdown.js";
