@@ -198,8 +198,31 @@ through a `defineKeyedSlot<T>` declaration on the same `Slots` bus.
 Distinct from `ModelStateStore.setActiveModel` in
 `@statewalker/ai-agent/models` — that one tracks which **local
 models have been loaded into memory** (multi-valued, keyed by
-local-model id). `ActiveModel` is a singular workspace pointer to
-the **currently-selected** provider/model.
+local-model id).
+
+**`ActiveModel` semantics (revised for session-level model
+selection):** the model the chat agent uses is **per-session**,
+not workspace-singular. Each `Session` carries its own
+`modelRef: { connectionId, modelId }`. `ActiveModel` is retained
+as a workspace-level **default suggestion** — it records the
+*last-selected* model across all sessions, used to pre-fill the
+dropdown for new sessions and as the recovery hint when a
+session's stored model is no longer valid (its `modelId` no
+longer appears in any Connection's `starredModelIds`). The
+chat-composer dropdown for a session resolves like this:
+
+1. If `session.modelRef` is set **and** the model is still
+   starred in its Connection → the dropdown shows it as the
+   current selection.
+2. Otherwise (new session, or stored model invalidated by an
+   un-star / Disconnect / Remove) → the dropdown opens awaiting
+   selection, with `ActiveModel` highlighted as a suggestion
+   (no implicit commitment — user must click to confirm).
+
+`AgentRuntimeAdapter.ready` is gated on the *current session's*
+`modelRef`, not on workspace `ActiveModel`. The adapter projects
+"no model selected" into its `RuntimeState` for sessions in
+state 2.
 
 ## Slot ownership map
 
@@ -245,21 +268,84 @@ Domain vocabulary for the model-management surface. The
   migration assigns deterministic ids (`openai`, `anthropic`,
   `google`) for existing canonical entries so `active` survives
   unchanged.
+
+  **`url` field rule (form validation):** required for
+  `openai-compatible` (the endpoint *is* the configuration) **and**
+  for `anthropic` (Anthropic's API disables CORS, so direct
+  browser-to-API calls are impossible — a proxy URL is the only
+  working configuration in a browser deployment). Optional for
+  `openai` and `google` (used only when the user wants to point at
+  a proxy). This refines ADR 0009 which originally treated all
+  canonical types uniformly.
 - **DiscoveredModel** — `{ id, label, capabilities? }` cached on a
   Connection. Populated by an HTTP fetch against the provider's
-  models endpoint (the "Test" / "Refresh" affordance on the
-  connection card). Cached in `providers.json`; `discoveredAt`
+  models endpoint. Cached in `providers.json`; `discoveredAt`
   records the last successful fetch.
-- **Capability** — a model's functional role tag (e.g. `text`,
-  `embedding`, `image`). Not derived from the server response;
-  resolved by a curated table in `models-config` keyed by model
-  id pattern. Models with no match default to `['text']`. The
-  Models List dialog's "filter by functionality" reads this.
-- **Starred model** — a `{ connectionId, modelId }` pair the user
-  marked for quick access. Stored as `ProvidersConfig.starred:
-  StarredRef[]`. The chat composer's picker renders the starred
-  list inline; the last entry, "All models…", fires
-  `select-model` to open the Models List dialog.
+
+- **Connection lifecycle (UI verbs)**:
+  - **Connect** — first-time fetch. User has entered `apiKey`
+    (and `url` where required); pressing the button fires the
+    provider's models endpoint and writes `discoveredModels` +
+    `discoveredAt`. On success the default-starred set (see
+    below) is applied. On failure the error is rendered in-card
+    (e.g. "API key is not valid").
+  - **Check Connection** *(also labelled "Update" in the spec)* — re-fetch
+    against a Connection that already has `apiKey` and
+    `discoveredModels`. Refreshes the cache, preserves the
+    user's existing `starredModelIds` (no re-application of
+    defaults).
+  - **Disconnect** — clears `apiKey`, `discoveredModels`, and
+    `starredModelIds` on the Connection. The shell record (id,
+    type, name, url, headers) persists so the user can re-enter
+    the key and Connect again without re-typing the rest. A
+    disconnected Connection contributes no
+    `ProviderDescriptor`. There is no separate "Remove" in this
+    iteration — a disconnected shell is the dormant state.
+  - **"Connected" predicate (derived)** — a Connection is
+    "connected" iff `discoveredModels !== undefined` (which
+    coincides with `apiKey !== ""`). The connection card's
+    button set is driven by this predicate: disconnected →
+    `[Connect]`; connected → `[Check Connection, Disconnect]`.
+- **Capability** — a model's functional role tag. Not derived
+  from the server response; resolved by a curated table in
+  `models-config` keyed by model-id glob pattern. A model can
+  carry several capability tags. Canonical tags for chat-mini:
+  `chat` (chat-suitable, brain icon — the only tag the composer
+  dropdown filters in), `embedding`, `image-gen`, `tts`. Models
+  with no match default to `['chat']` so unknown remote models
+  remain usable in chat. The Settings → Models & Connections
+  tab renders each discovered model with its capability icons
+  inline; an info banner at the top of the tab explains "to
+  chat you need a chat-capable model (brain icon)". The
+  composer's session dropdown is filtered by the predicate
+  `starred && capabilities.includes('chat')`.
+  *(The original `text` tag is retired — it was ambiguous
+  between "produces text tokens" and "usable in chat". `chat`
+  names the actual filter dimension.)*
+- **Starred model** — a `DiscoveredModel` the user has checked
+  inside its Connection's model list. Storage: per-Connection
+  `Connection.starredModelIds: string[]`. **One concept, one
+  flag** — the checkbox in Settings IS the star. The chat
+  composer's session-level model dropdown is composed of every
+  starred model across every Connection; selecting one sets it
+  as the session's active model. The dropdown's last entry is
+  always "Configure models…", which opens the Settings dialog
+  on the Models & Connections tab. Top-level
+  `ProvidersConfig.starred: StarredRef[]` from the v4 draft is
+  retired in favour of the per-Connection field; existing
+  entries fan out into each Connection's `starredModelIds` on
+  v4→v5 migration. The "Models List" cross-connection dialog
+  from the original draft is retired — per-tab model lists
+  inside Settings replace it.
+- **Default-starred set** — a curated, hardcoded list, **keyed
+  by Connection `type`**, of model-id glob patterns that are
+  pre-checked the first time a Connection of that type is
+  successfully connected. Example: Google → `gemini-*`; OpenAI
+  → `gpt-4*`. Lives in `models-config` as a static table. Only
+  applied on the **first** successful `Connect` for a
+  Connection (when `discoveredModels` flips from `undefined` to
+  populated); subsequent reconnects ("Check Connection") do
+  **not** re-apply defaults, so user un-checks are durable.
 - **Local model** — `runtime: 'local'` catalog entry (engine `tjs`
   in the first cut; `webllm` / `llamacpp` remain disabled).
   Identified by a catalog key (e.g. `local:smollm2-360m`). Two
@@ -280,11 +366,11 @@ Domain vocabulary for the model-management surface. The
   default-catalog tjs entries that today live commented-out in
   `@statewalker/ai-agent/models` are re-enabled here.
 
-Slot additions for this surface:
+Slot additions for this surface (revised — see ADR 0011):
 
 | Slot key | Declaring fragment | Carries |
 |---|---|---|
-| `dock:overlays` (existing) | `dock` | One `models-config-react` contribution — viewKey for the `<ModelsConfigOverlay>` host that mounts the json-render spec for all three dialogs. |
+| `settings:tabs` (existing) | `settings` | Two new contributions from `models-config`: **Models & Connections** tab (4 type-sub-tabs: Google / OpenAI / Anthropic / OpenAI-compatible) and **Local Models** tab. The earlier `dock:overlays` contribution from the v4 draft is retired — the dialogs become Settings tabs per ADR 0011's reversal of ADR 0010. |
 
 Adapter additions:
 
@@ -292,29 +378,45 @@ Adapter additions:
 |---|---|---|
 | `LocalModels` | `models-config` | Wraps `ModelManager` + `LocalModelStorage` + the workspace's transformers.js factory. Exposes `download(key, onProgress)`, `cancelDownload(key)`, `removeWeights(key)`, `listDownloadable()`, and a `ModelStateStore`-derived `ProviderV3` used by `ActiveModel.createProvider()` for `kind: 'local'`. |
 
-Storage shape additions to `ProvidersConfig` (v4):
-`connections: Connection[]` (replaces `remote` + `custom`),
-`starred: StarredRef[]`, `local: { downloaded: LocalModelRef[];
-lastActivatedKey?: string }`. Migration from v3 is one-way:
-canonical `remote.{name}` entries become Connections with id ==
-name; `custom[]` entries become Connections with their original
-ids.
+Storage shape additions to `ProvidersConfig` (v5 — supersedes
+the unshipped v4 draft):
+
+- `connections: Connection[]` — `{ id, type, name, url?,
+  apiKey, headers?, discoveredModels?, discoveredAt?,
+  starredModelIds: string[] }`. `starredModelIds` is per-Connection
+  (the v4 top-level `starred: StarredRef[]` is retired).
+- `local: { downloaded: LocalModelRef[]; lastActivatedKey?: string }`.
+
+`Session` records gain `modelRef?: { connectionId, modelId }`
+(persisted in the session's own storage, not in `providers.json`).
+
+Migration v3→v5 (v4 was never shipped):
+- Canonical `remote.{name}` entries become Connections with
+  `id == name`.
+- `custom[]` entries become Connections with their original
+  ids.
+- If a v4 fixture is encountered with top-level `starred`, fan
+  it out into each Connection's `starredModelIds`.
 
 Commands declared by `models-config`:
 
-- `select-model` — opens the Models List dialog.
-- `manage-remote-connections` — opens the Remote Connections
-  dialog.
-- `manage-local-models` — opens the Local Models dialog.
+- `select-model { connectionId, modelId }` — sets the current
+  session's `modelRef`. Listener writes to the active session's
+  record and updates workspace `ActiveModel` (last-selected hint).
+- `configure-models { typeHint?: ConnectionType }` — opens the
+  Settings dialog on the Models & Connections tab. If
+  `typeHint` is supplied (e.g. derived from the current
+  session's model), the matching type-sub-tab is focused;
+  otherwise the first sub-tab is shown. Fired by the composer
+  dropdown's last entry. The `manage-remote-connections` and
+  `manage-local-models` commands from the v4 draft are
+  retired — Settings tabs make explicit per-dialog entry
+  points unnecessary.
 
-Each command's listener flips a `/ui/dialogs/*/open` flag in the
-renderer-side json-render `StateStore` (see "Two-segment state"
-below).
-
-UI architecture: the three dialogs are published as **one**
-json-render spec (root with three shadcn `Dialog` elements, each
-with its own `openPath`), mounted via the `dock:overlays`
-contribution. The spec is rendered against a `models-config`
+UI architecture: the Settings dialog (owned by `settings`)
+hosts both new tabs. `models-config` publishes a json-render
+spec per tab (no `dock:overlays` host). Each tab spec uses the
+shared `models-config` catalog (shadcn + `Markdown` primitive). The spec is rendered against a `models-config`
 **catalog** that extends the shadcn json-render catalog with one
 custom primitive: `Markdown: { props: { source: string } }`,
 bound on the renderer side to the existing markdown-viewer
