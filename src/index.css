@@ -20,6 +20,16 @@
 @source "../../chat-mini.chat-react/src/**/*.ts";
 @source "../../chat-mini.chat/src/**/*.tsx";
 @source "../../chat-mini.chat/src/**/*.ts";
+/*
+ * `@json-render/shadcn` ships JS-only (no CSS), with shadcn classes
+ * — including the `data-[orientation=horizontal]:flex-col` selector
+ * on the Tabs wrapper — embedded as string literals in its dist
+ * files. Without scanning it, Tailwind never emits those classes and
+ * the json-render-rendered Tabs collapses to flex-row (vertical
+ * orientation visually). The package is hoisted by pnpm so this
+ * symlinked path resolves cleanly.
+ */
+@source "../node_modules/@json-render/shadcn/dist/**/*.js";
 
 /*
  * Theme tokens (kept in sync with `@statewalker/core-react/src/styles.css`).
