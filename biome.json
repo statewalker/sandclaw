@@ -1,0 +1,11 @@
+{
+  "extends": "//",
+  "files": {
+    "includes": ["**", "!dist", "!**/dist"]
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  }
+}
