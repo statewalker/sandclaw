@@ -1,8 +1,7 @@
-import { QueryProgress, WikiQueryCommand } from "@repo/wiki-runtime/embed";
+import { WikiQuery } from "@statewalker/resources-wiki";
 import { createRoute } from "honox/factory";
-import { commands } from "@/lib/query-runtime";
+import { getProject } from "@/lib/wiki-repo";
 
-/** Unwrap a `CommandError` to its underlying cause for a readable message. */
 function errorMessage(err: unknown): string {
   if (
     err &&
@@ -18,10 +17,11 @@ function errorMessage(err: unknown): string {
 /**
  * Stream a live wiki query as newline-delimited JSON. Each line is one event:
  *   { kind: "stage", stages }   — a snapshot of the QueryProgress stage list
- *   { kind: "answer", answer }  — the final Answer (report-section shape)
+ *   { kind: "answer", answer }  — the final Answer
  *   { kind: "error", message }  — a failed stage / bootstrap error
- * The query runs as the `WikiQueryCommand` use case; we observe its progress
- * observable and forward every transition, then settle with the command result.
+ * The query runs through the project's `WikiQuery` adapter; we subscribe to the
+ * returned `QueryProgress` and forward every stage transition, then settle with
+ * the resolved answer.
  */
 export const POST = createRoute(async (c) => {
   const body = (await c.req.json().catch(() => null)) as {
@@ -34,9 +34,11 @@ export const POST = createRoute(async (c) => {
     return c.json({ error: "missing 'project' or 'question'" }, 400);
   }
 
-  const progress = new QueryProgress(question);
-  const encoder = new TextEncoder();
+  const proj = await getProject(project);
+  if (!proj) return c.json({ error: `unknown project '${project}'` }, 404);
+  const query = proj.requireAdapter(WikiQuery);
 
+  const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       let closed = false;
@@ -44,13 +46,18 @@ export const POST = createRoute(async (c) => {
         if (!closed)
           controller.enqueue(encoder.encode(`${JSON.stringify(obj)}\n`));
       };
-      const off = progress.onStageChange(() =>
+
+      const progress = query.ask(question);
+      const off = progress.onChange(() =>
         enqueue({ kind: "stage", stages: progress.stages }),
       );
+      // The reformulate stage is pushed synchronously inside `ask`, before we
+      // subscribe — emit one initial snapshot so it is never missed.
+      enqueue({ kind: "stage", stages: progress.stages });
 
-      commands()
-        .call(WikiQueryCommand, { project, question, progress })
-        .promise.then((answer) => enqueue({ kind: "answer", answer }))
+      progress
+        .complete()
+        .then((answer) => enqueue({ kind: "answer", answer }))
         .catch((err) => enqueue({ kind: "error", message: errorMessage(err) }))
         .finally(() => {
           off();

@@ -1,7 +1,13 @@
-import type { Answer, QueryStage } from "@repo/wiki-runtime/embed";
+import type { Answer } from "@statewalker/resources-wiki";
 import { useRef, useState } from "react";
 
 export type SearchStatus = "idle" | "running" | "done" | "error";
+
+/** One step of a `WikiQuery` run, as streamed from `/api/query`. */
+export interface QueryStage {
+  name: string;
+  status: "running" | "done" | "failed";
+}
 
 type QueryEvent =
   | { kind: "stage"; stages: QueryStage[] }

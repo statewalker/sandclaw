@@ -1,44 +1,49 @@
-import type { Answer } from "@repo/wiki-runtime/embed";
-import { orderedCitationUris } from "./pages";
+import type { Answer, AnswerTopic } from "@statewalker/resources-wiki";
+import { bareUri, orderedCitationUris, rewriteCitations } from "./pages";
 import type { Citation, Section, Topic } from "./types";
 
-/** Map runtime `AnswerTopic` / `AnswerOutlier` to the viewer's `Topic`. */
-function toTopic(t: {
-  key: string;
-  name: string;
-  description?: string;
-  citations: { uri: string }[];
-}): Topic {
+/** Map a query `AnswerTopic` to the viewer's `Topic`, normalising its citations. */
+function toTopic(t: AnswerTopic): Topic {
   return {
     key: t.key,
     name: t.name,
     description: t.description || undefined,
-    citations: t.citations.map((c) => ({ uri: c.uri })),
+    citations: t.citations.map((c) => ({ uri: bareUri(c.uri) })),
   };
 }
 
 /**
- * Project a live-query `Answer` into the viewer's `Section` shape so the same
- * `SectionContent` renderer draws a streamed answer exactly like a stored
- * report section. The top-level citation list is the canonical citation order
- * derived from the prose markers plus every topic/outlier citation; `claims`
- * is empty (the published `Answer` carries citations inline, not as claims).
+ * Project a query `Answer` into the viewer's `Section` shape so the same
+ * `SectionContent` renderer draws a live answer exactly like a stored report
+ * section. `wiki://` citation markers and topic citations are reduced to the bare
+ * `file#anchor` form the chips/source panel resolve against; the canonical citation
+ * order is derived from the prose markers plus every topic/outlier citation. Any
+ * verification caveats are appended as a trailing blockquote. `opts` lets a report
+ * place several answers as distinct, ordered sections.
  */
-export function answerToSection(answer: Answer, question: string): Section {
+export function answerToSection(
+  answer: Answer,
+  question: string,
+  opts: { id?: string; order?: number; slug?: string } = {},
+): Section {
   const topics = answer.topics.map(toTopic);
   const outliers = answer.outliers.map(toTopic);
   const extra = [...topics, ...outliers].flatMap((t) =>
     t.citations.map((c) => c.uri),
   );
-  const citations: Citation[] = orderedCitationUris(answer.text, extra).map(
-    (uri) => ({ uri }),
-  );
+  const caveat = answer.caveats.length
+    ? `\n\n> ${answer.caveats.join(" ")}`
+    : "";
+  const text = rewriteCitations(answer.text) + caveat;
+  const citations: Citation[] = orderedCitationUris(text, extra).map((uri) => ({
+    uri,
+  }));
   return {
-    id: "answer",
-    order: 0,
-    slug: "answer",
+    id: opts.id ?? "answer",
+    order: opts.order ?? 0,
+    slug: opts.slug ?? "answer",
     title: question,
-    text: answer.text,
+    text,
     claims: [],
     citations,
     topics,

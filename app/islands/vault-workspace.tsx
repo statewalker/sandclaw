@@ -1,11 +1,18 @@
-import { ChevronLeft, FileText, Loader2, Save, Search } from "lucide-react";
-import { useState } from "react";
+import {
+  FileText,
+  Loader2,
+  MessageSquareText,
+  Save,
+  Search,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { ClientOnly } from "@/components/client-only";
 import {
   ContextPanel,
   type ContextSelection,
 } from "@/components/context-panel";
 import { PdfDialog } from "@/components/pdf-dialog";
+import { ProjectNav } from "@/components/project-nav";
 import { SectionContent } from "@/components/section-content";
 import { SectionNav } from "@/components/section-nav";
 import { Button } from "@/components/ui/button";
@@ -20,49 +27,43 @@ import {
   useVaultSearch,
 } from "@/components/use-vault-search";
 import { answerToSection } from "@/lib/answer";
-import type { PdfRequest, ReportSetInfo, Section } from "@/lib/types";
-
-export interface VaultReport {
-  name: string;
-  sections: Section[];
-}
+import type { PdfRequest, Section } from "@/lib/types";
 
 interface WorkspaceProps {
   project: string;
-  report: VaultReport | null;
-  allSets: ReportSetInfo[];
-  initialTab: "report" | "search";
+  /** Present on `/reports/{id}` — adds a Report tab (TOC + content). */
+  report?: { id: string; sections: Section[] };
+  /** Present on `/answers/{id}` — adds an Answer tab (single section). */
+  answer?: { id: string; title: string; section: Section };
+  /** Optional question to pre-fill + run on mount (the `?q=` autorun). */
+  autoQuery?: string;
+  /** Optional global topic key to open in the context panel on load. */
+  initialTopic?: string;
 }
+
+type Tab = "report" | "answer" | "search";
 
 const STATUS_DOT: Record<SearchStatus, string> = {
   idle: "bg-muted-foreground/30",
-  running: "bg-blue-500 animate-pulse",
+  running: "bg-blue-500",
   done: "bg-emerald-500",
   error: "bg-destructive",
 };
 const STAGE_DOT: Record<string, string> = {
-  pending: "bg-muted-foreground/30",
-  running: "bg-blue-500 animate-pulse",
+  running: "bg-blue-500",
   done: "bg-emerald-500",
-  skipped: "bg-muted-foreground/40",
   failed: "bg-destructive",
 };
-
-/** Human-readable label per query stage type. */
 const STAGE_LABELS: Record<string, string> = {
-  intentDetection: "Intent detection",
-  globalTopicSelection: "Global topic selection",
-  docTopicClustering: "Doc topic clustering",
-  summarize: "Topics summarization",
-  responseCompose: "Response composing",
-  sourceVerify: "Source verification",
-  response: "Response",
-  negativeResponse: "Response",
+  reformulate: "Reformulate query",
+  retrieve: "Retrieve evidence",
+  respond: "Compose response",
+  verify: "Verify citations",
 };
 
-function stageLabel(type: string): string {
-  if (STAGE_LABELS[type]) return STAGE_LABELS[type];
-  const spaced = type.replace(/([A-Z])/g, " $1").trim();
+function stageLabel(name: string): string {
+  if (STAGE_LABELS[name]) return STAGE_LABELS[name];
+  const spaced = name.replace(/([A-Z])/g, " $1").trim();
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
@@ -83,31 +84,38 @@ export default function VaultWorkspace(props: WorkspaceProps) {
 function WorkspaceBody({
   project,
   report,
-  allSets,
-  initialTab,
+  answer,
+  autoQuery,
+  initialTopic,
 }: WorkspaceProps) {
-  const hasReport = report !== null;
-  const [tab, setTab] = useState<"report" | "search">(
-    hasReport ? initialTab : "search",
+  const contextual: Tab | null = report ? "report" : answer ? "answer" : null;
+  const [tab, setTab] = useState<Tab>(contextual ?? "search");
+  const [selection, setSelection] = useState<ContextSelection | null>(
+    initialTopic
+      ? { kind: "topic", key: initialTopic, topicKind: "topic" }
+      : null,
   );
-  const [selection, setSelection] = useState<ContextSelection | null>(null);
   const [pdf, setPdf] = useState<PdfRequest | null>(null);
   const [selectedId, setSelectedId] = useState(report?.sections[0]?.id ?? "");
   const search = useVaultSearch(project);
 
-  const currentIndex = allSets.findIndex(
-    (s) => s.project === project && s.name === report?.name,
-  );
+  // `?q=` autorun (project home → search). Mount-only.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
+  useEffect(() => {
+    if (autoQuery) {
+      setTab("search");
+      search.run(autoQuery);
+    }
+  }, []);
 
   const openCitation = (uri: string) => setSelection({ kind: "citation", uri });
   const openTopic = (key: string, topicKind: "topic" | "outlier") =>
     setSelection({ kind: "topic", key, topicKind });
   const selectSection = (id: string) => {
     setSelectedId(id);
-    setSelection(null); // context is per-section; reset on navigation
+    setSelection(null);
   };
-  // A clicked retrieval suggestion pre-fills the query, flips to the Search
-  // tab, and runs the search in the current vault.
+  // A clicked retrieval suggestion pre-fills the query, flips to Search, runs.
   const runSuggestion = (text: string) => {
     setTab("search");
     search.run(text);
@@ -121,53 +129,39 @@ function WorkspaceBody({
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b px-4">
-        <a
-          href="/"
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="size-4" /> Home
-        </a>
-        <span className="text-muted-foreground">/</span>
-        <span className="text-sm font-medium">{project}</span>
-        <span className="text-muted-foreground">/</span>
-        <select
-          value={currentIndex}
-          onChange={(e) => {
-            const s = allSets[Number(e.target.value)];
-            if (s) {
-              window.location.assign(
-                `/r/${encodeURIComponent(s.project)}/${encodeURIComponent(s.name)}`,
-              );
-            }
-          }}
-          className="rounded-md border bg-background px-2 py-1 text-sm font-medium"
-          aria-label="Report"
-        >
-          <option value={-1} disabled>
-            Select a report…
-          </option>
-          {allSets.map((s, i) => (
-            <option key={`${s.project}/${s.name}`} value={i}>
-              {s.project} / {s.name}
-            </option>
-          ))}
-        </select>
-      </header>
+      <ProjectNav
+        project={project}
+        section={
+          contextual === "report"
+            ? "reports"
+            : contextual === "answer"
+              ? "answers"
+              : "search"
+        }
+      />
 
       <div className="flex min-h-0 flex-1">
         <ResizablePanelGroup className="min-h-0 flex-1">
-          {/* LEFT: tabbed panel — Report (TOC + content) or Search */}
+          {/* LEFT: tabbed panel */}
           <ResizablePanel defaultSize={62} minSize={35}>
             <div className="flex h-full flex-col">
               <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
-                <TabButton
-                  active={tab === "report"}
-                  disabled={!hasReport}
-                  onClick={() => setTab("report")}
-                  icon={<FileText className="size-3.5" />}
-                  label="Report"
-                />
+                {report && (
+                  <TabButton
+                    active={tab === "report"}
+                    onClick={() => setTab("report")}
+                    icon={<FileText className="size-3.5" />}
+                    label="Report"
+                  />
+                )}
+                {answer && (
+                  <TabButton
+                    active={tab === "answer"}
+                    onClick={() => setTab("answer")}
+                    icon={<MessageSquareText className="size-3.5" />}
+                    label="Answer"
+                  />
+                )}
                 <TabButton
                   active={tab === "search"}
                   onClick={() => setTab("search")}
@@ -202,6 +196,16 @@ function WorkspaceBody({
                       )}
                     </main>
                   </div>
+                ) : tab === "answer" && answer ? (
+                  <main className="h-full overflow-y-auto">
+                    <SectionContent
+                      project={project}
+                      section={answer.section}
+                      onCiteClick={openCitation}
+                      onTopicClick={openTopic}
+                      onSuggestionClick={runSuggestion}
+                    />
+                  </main>
                 ) : (
                   <SearchTab
                     project={project}
@@ -244,13 +248,11 @@ function WorkspaceBody({
 
 function TabButton({
   active,
-  disabled,
   onClick,
   icon,
   label,
 }: {
   active: boolean;
-  disabled?: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
@@ -259,14 +261,13 @@ function TabButton({
     <button
       type="button"
       role="tab"
-      disabled={disabled}
       onClick={onClick}
       aria-selected={active}
       className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
         active
           ? "bg-accent text-accent-foreground"
           : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-      } disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent`}
+      }`}
     >
       {icon}
       {label}
@@ -322,10 +323,7 @@ function SearchTab({
       {search.stages.length > 0 && (
         <ol className="space-y-1 border-b px-4 py-3 text-sm">
           {search.stages.map((s) => (
-            <li
-              key={`${s.type}:${s.startedAt ?? "pending"}`}
-              className="flex items-center gap-2"
-            >
+            <li key={s.name} className="flex items-center gap-2">
               {s.status === "running" ? (
                 <Spinner className="size-3.5 shrink-0 text-blue-500" />
               ) : (
@@ -333,7 +331,7 @@ function SearchTab({
                   className={`size-2 shrink-0 rounded-full ${STAGE_DOT[s.status]}`}
                 />
               )}
-              <span className="text-foreground">{stageLabel(s.type)}</span>
+              <span className="text-foreground">{stageLabel(s.name)}</span>
               <span className="text-xs text-muted-foreground">{s.status}</span>
             </li>
           ))}
@@ -371,7 +369,15 @@ function SearchTab({
           </div>
           {search.saved && (
             <p className="px-8 pt-1 text-xs text-muted-foreground">
-              Filed as <code className="font-mono">answers/{search.saved}</code>
+              Filed under{" "}
+              <a
+                href={`/projects/${encodeURIComponent(project)}/answers/${encodeURIComponent(
+                  search.saved.replace(/\.ya?ml$/, ""),
+                )}`}
+                className="font-mono underline hover:text-foreground"
+              >
+                answers/{search.saved}
+              </a>
             </p>
           )}
           <SectionContent

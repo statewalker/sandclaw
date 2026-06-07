@@ -3,12 +3,35 @@
  * everything is unit-tested in `__tests__/pages.test.ts`.
  */
 
-/** Split a citation URI `file.pdf#anchor` into its parts. */
+/**
+ * Reduce any citation URI to the bare `file#anchor` form the viewer uses. A
+ * canonical `wiki://<key>/<path>#<section>` reference (as emitted by the query
+ * adapter) has its scheme + key authority stripped; a bare URI is returned as-is.
+ */
+export function bareUri(uri: string): string {
+  let s = uri.trim();
+  if (s.startsWith("wiki://")) {
+    const rest = s.slice("wiki://".length);
+    const slash = rest.indexOf("/");
+    s = slash === -1 ? rest : rest.slice(slash + 1);
+  }
+  return s;
+}
+
+/** Rewrite every `[[…]]` citation marker in prose to the bare `file#anchor` form. */
+export function rewriteCitations(text: string): string {
+  return text.replace(
+    /\[\[([^\]]+)\]\]/g,
+    (_m, inner) => `[[${bareUri(inner)}]]`,
+  );
+}
+
+/** Split a citation URI `file.pdf#anchor` (or a `wiki://…` reference) into its parts. */
 export function parseCitationUri(uri: string): {
   file: string;
   anchor: string;
 } {
-  const cleaned = uri.trim();
+  const cleaned = bareUri(uri);
   const hash = cleaned.indexOf("#");
   if (hash === -1) return { file: cleaned, anchor: "" };
   return { file: cleaned.slice(0, hash), anchor: cleaned.slice(hash + 1) };

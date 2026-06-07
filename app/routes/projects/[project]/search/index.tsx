@@ -1,20 +1,19 @@
 import { createRoute } from "honox/factory";
 import VaultWorkspace from "@/islands/vault-workspace";
-import { listProjects, listReportSets } from "@/lib/reports";
+import { listProjects } from "@/lib/reports";
 
 export default createRoute(async (c) => {
   const project = decodeURIComponent(c.req.param("project") ?? "");
-  const projects = await listProjects();
-  if (!projects.includes(project)) return c.notFound();
+  if (!(await listProjects()).includes(project)) return c.notFound();
 
-  const allSets = await listReportSets();
+  const autoQuery = c.req.query("q")?.trim() || undefined;
+  const initialTopic = c.req.query("topic")?.trim() || undefined;
 
   return c.render(
     <VaultWorkspace
       project={project}
-      report={null}
-      allSets={allSets}
-      initialTab="search"
+      autoQuery={autoQuery}
+      initialTopic={initialTopic}
     />,
     { title: `Search · ${project}` },
   );

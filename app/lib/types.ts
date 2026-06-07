@@ -15,7 +15,7 @@ export interface Topic {
   citations: Citation[];
 }
 
-/** One generated report section (one `[tag].NN-slug.yaml` file). */
+/** One renderable section — a report answer or a saved/live answer. */
 export interface Section {
   /** Stable id, e.g. `01-project-name`. */
   id: string;
@@ -30,14 +30,6 @@ export interface Section {
   topics: Topic[];
   outliers: Topic[];
   suggestions: string[];
-}
-
-export interface ReportSetInfo {
-  /** Project / wiki the report lives under (e.g. `acme`). */
-  project: string;
-  /** Report set name = subfolder of `<project>/reports/` (e.g. `quarterly-review`). */
-  name: string;
-  sectionCount: number;
 }
 
 /** A request to open a source PDF in the full-screen viewer. */
