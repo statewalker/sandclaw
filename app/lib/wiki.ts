@@ -129,13 +129,15 @@ export async function resolveTopic(
   // actual citations with summaries and page numbers.
   const references: TopicReference[] = [];
   for (const ref of cls.references) {
-    const file = ref.uri;
+    // References are `<uri>#<perDocKey>`; the per-doc key locates the document's
+    // own declaration (which, for outliers, may differ from the global class key).
+    const { file, anchor } = parseCitationUri(ref.uri);
     const resource = await proj.getProjectResource(file);
-    const summary = await resource?.getAdapter(WikiPageSummary)?.get();
+    const summary = await resource?.requireAdapter(WikiPageSummary).get();
     const docTitle = summary?.title ?? file;
-    const meta = await resource?.getAdapter(WikiPageMeta)?.get();
+    const meta = await resource?.requireAdapter(WikiPageMeta).get();
     const entry = (kind === "outlier" ? meta?.outliers : meta?.topics)?.find(
-      (c) => c.key === key,
+      (c) => c.key === anchor || c.key === key,
     );
     const sectionKeys = entry?.sectionKeys ?? [];
 
