@@ -24,18 +24,21 @@ let repoSingleton: ResourceRepository | undefined;
  * LLM + embedding providers from the environment. Browsing (citations, topics,
  * reports) needs no provider — only a live query or search does — so a missing key
  * is deferred to the moment a provider is actually used rather than failing boot.
+ * The fallback hands back a provider whose model resolution throws, so the error
+ * surfaces at the first generate/embed call (query/search), not at boot.
  */
-function providers() {
+function providers(): ReturnType<typeof resolveProvidersFromEnv> {
   try {
     return resolveProvidersFromEnv(process.env);
   } catch {
+    const unconfigured = (): never => {
+      throw new Error(
+        "wiki provider not configured — set OPENAI_API_KEY (or WIKI_PROVIDER=google + GOOGLE_GENERATIVE_AI_API_KEY)",
+      );
+    };
     return {
-      models: { default: {} as never },
-      embed: async () => {
-        throw new Error(
-          "wiki provider not configured — set OPENAI_API_KEY (or WIKI_PROVIDER=google + GOOGLE_GENERATIVE_AI_API_KEY)",
-        );
-      },
+      provider: { languageModel: unconfigured, textEmbeddingModel: unconfigured },
+      models: { default: "unconfigured" },
       embedModel: "unconfigured",
       dimensionality: 1536,
     };
@@ -49,8 +52,8 @@ export function repository(): ResourceRepository {
     });
     const p = providers();
     registerWiki(repo, {
+      provider: p.provider,
       models: p.models,
-      embed: p.embed,
       embedModel: p.embedModel,
       dimensionality: p.dimensionality,
     });
