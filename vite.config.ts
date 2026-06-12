@@ -30,7 +30,7 @@ function ssrExternalPolicy(): Plugin {
       // `import.meta.glob`) and the workspace packages that ship raw `.ts`.
       // Everything else in node_modules stays external → loaded natively, so
       // CJS deps (yaml, use-sync-external-store, …) keep their require/module.
-      const noExternal = [/^honox/, "@repo/wiki-runtime", /^@statewalker\//];
+      const noExternal = [/^honox/, /^@statewalker\//];
       const external = ["react", "react-dom"];
       // biome-ignore lint/suspicious/noExplicitAny: ssr config is readonly in types only
       const ssr = resolved.ssr as any;
