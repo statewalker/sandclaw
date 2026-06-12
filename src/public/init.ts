@@ -3,7 +3,7 @@ import { ChatManager } from "../internal/chat.manager.js";
 
 /**
  * Logic-fragment init for chat. Constructs a `ChatManager` which
- * registers the `chat:open-session` intent handler and runs the
+ * registers the `chat:open-session` command handler and runs the
  * layout-restore pass.
  *
  * Boot order: register AFTER `initSpecStore` and AFTER `initDock`.

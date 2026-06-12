@@ -1,14 +1,19 @@
 import { ShowDockPanelCommand } from "@statewalker/dock";
-import {
-  DOCK_LAYOUT_STORAGE_KEY, SpecStore, restorePanelSpecsFromLayout
-} from "@statewalker/spec-store";
 import { Commands } from "@statewalker/shared-commands";
 import { newRegistry } from "@statewalker/shared-registry";
+import {
+  DOCK_LAYOUT_STORAGE_KEY,
+  restorePanelSpecsFromLayout,
+  SpecStore,
+} from "@statewalker/spec-store";
 import type { Workspace } from "@statewalker/workspace";
 import {
-  CHAT_CATALOG_ID, chatPanelId, chatSpecId, makeChatSpec
+  CHAT_CATALOG_ID,
+  chatPanelId,
+  chatSpecId,
+  makeChatSpec,
 } from "../public/catalog.js";
-import { OpenChatSessionCommand } from "../public/intents.js";
+import { OpenChatSessionCommand } from "../public/commands.js";
 
 export interface ChatManagerOptions {
   workspace: Workspace;
@@ -16,7 +21,7 @@ export interface ChatManagerOptions {
 
 /**
  * Orchestrator for the chat fragment. Registers the
- * `chat:open-session` intent handler and runs layout-restore on
+ * `chat:open-session` command handler and runs layout-restore on
  * construction. Per ADR 0002 (logic-only fragment): no React
  * imports.
  *
@@ -30,14 +35,14 @@ export interface ChatManagerOptions {
  * after this one.
  */
 export class ChatManager {
-  private readonly intents: Commands;
+  private readonly commands: Commands;
   private readonly store: SpecStore;
   private readonly _register: (cleanup: () => void) => () => void;
   private readonly _cleanup: () => Promise<void>;
 
   constructor({ workspace }: ChatManagerOptions) {
     [this._register, this._cleanup] = newRegistry();
-    this.intents = workspace.requireAdapter(Commands);
+    this.commands = workspace.requireAdapter(Commands);
     this.store = workspace.requireAdapter(SpecStore);
 
     // Pre-allocate specs for chat panels saved in the dock layout
@@ -55,7 +60,7 @@ export class ChatManager {
     });
 
     this._register(
-      this.intents.listen(OpenChatSessionCommand, (cmd) => {
+      this.commands.listen(OpenChatSessionCommand, (cmd) => {
         const { sessionId } = cmd.payload;
         const specId = chatSpecId(sessionId);
         if (!this.store.get(specId)) {
@@ -66,10 +71,11 @@ export class ChatManager {
             meta: { persistent: true },
           });
         }
-        this.intents.call(ShowDockPanelCommand, {
-          panelId: chatPanelId(sessionId),
-          specId,
-        })
+        this.commands
+          .call(ShowDockPanelCommand, {
+            panelId: chatPanelId(sessionId),
+            specId,
+          })
           .promise.then(() => cmd.resolve())
           .catch((error: unknown) => cmd.reject(error));
         return true;

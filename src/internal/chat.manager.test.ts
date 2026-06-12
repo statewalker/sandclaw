@@ -1,14 +1,14 @@
+import { DockHost } from "@statewalker/dock";
+import initDock from "@statewalker/dock/fragment";
 import { Commands } from "@statewalker/shared-commands";
+import { SpecStore } from "@statewalker/spec-store";
+import initSpecStore from "@statewalker/spec-store/fragment";
 import { getWorkspace } from "@statewalker/workspace";
 import type { DockviewApi, IDockviewPanel } from "dockview-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import initDock from "@statewalker/dock/fragment";
-import { DockHost } from "@statewalker/dock";
-import initSpecStore from "@statewalker/spec-store/fragment";
-import { SpecStore } from "@statewalker/spec-store";
 import { chatPanelId, chatSpecId } from "../public/catalog.js";
+import { OpenChatSessionCommand } from "../public/commands.js";
 import initChat from "../public/init.js";
-import { OpenChatSessionCommand } from "../public/intents.js";
 
 interface FakePanel {
   id: string;
@@ -75,7 +75,7 @@ describe("chat:open-session handler", () => {
     const cleanupChat = await initChat(ctx);
     try {
       const ws = getWorkspace(ctx);
-      const intents = ws.requireAdapter(Commands);
+      const commands = ws.requireAdapter(Commands);
       const store = ws.requireAdapter(SpecStore);
       const dockHost = ws.requireAdapter(DockHost);
       const { api, panels } = makeFakeApi();
@@ -84,7 +84,7 @@ describe("chat:open-session handler", () => {
       const sessionId = "S-1";
       expect(store.get(chatSpecId(sessionId))).toBeNull();
 
-      await intents.call(OpenChatSessionCommand, { sessionId }).promise;
+      await commands.call(OpenChatSessionCommand, { sessionId }).promise;
 
       const record = store.get(chatSpecId(sessionId));
       expect(record).not.toBeNull();
@@ -108,13 +108,13 @@ describe("chat:open-session handler", () => {
     const cleanupChat = await initChat(ctx);
     try {
       const ws = getWorkspace(ctx);
-      const intents = ws.requireAdapter(Commands);
+      const commands = ws.requireAdapter(Commands);
       const dockHost = ws.requireAdapter(DockHost);
       const { api, panels } = makeFakeApi();
       dockHost.setApi(api);
 
-      await intents.call(OpenChatSessionCommand, { sessionId: "S-1" }).promise;
-      await intents.call(OpenChatSessionCommand, { sessionId: "S-1" }).promise;
+      await commands.call(OpenChatSessionCommand, { sessionId: "S-1" }).promise;
+      await commands.call(OpenChatSessionCommand, { sessionId: "S-1" }).promise;
 
       // Only one panel created; addPanel called once.
       expect(panels.size).toBe(1);
@@ -134,7 +134,7 @@ describe("chat:open-session handler", () => {
     const cleanupChat = await initChat(ctx);
     try {
       const ws = getWorkspace(ctx);
-      const intents = ws.requireAdapter(Commands);
+      const commands = ws.requireAdapter(Commands);
       const store = ws.requireAdapter(SpecStore);
       const dockHost = ws.requireAdapter(DockHost);
       const { api, panels } = makeFakeApi();
@@ -150,7 +150,7 @@ describe("chat:open-session handler", () => {
       });
       const recordBefore = store.get(chatSpecId(sessionId));
 
-      await intents.call(OpenChatSessionCommand, { sessionId }).promise;
+      await commands.call(OpenChatSessionCommand, { sessionId }).promise;
 
       const recordAfter = store.get(chatSpecId(sessionId));
       // Same record reference — handler did NOT call create again.
