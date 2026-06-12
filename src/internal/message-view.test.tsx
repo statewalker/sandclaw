@@ -147,12 +147,12 @@ describe("MessageView file:// linkifier", () => {
       "Open file:///abs/path/to/foo.md please.",
     );
     const ws = new Workspace();
-    const intents = ws.requireAdapter(Commands);
+    const commands = ws.requireAdapter(Commands);
 
     const visualize = vi.fn();
-    const dispose = intents.listen(VisualizeFileCommand, (intent) => {
-      visualize(intent.payload);
-      intent.resolve();
+    const dispose = commands.listen(VisualizeFileCommand, (command) => {
+      visualize(command.payload);
+      command.resolve();
       return true;
     });
 

@@ -82,14 +82,14 @@ function TabTitleBinder({
   >["state"];
 }): null {
   const workspace = useAppWorkspace();
-  const intents = workspace.requireAdapter(Commands);
+  const commands = workspace.requireAdapter(Commands);
   const title = useNodeProp(sessionState, (s) => s.title);
   useEffect(() => {
     const display = truncateMiddle(title?.trim() || FALLBACK_TITLE);
-    intents.call(SetPanelTitleCommand, {
+    commands.call(SetPanelTitleCommand, {
       panelId: chatPanelId(sessionId),
       title: display,
     });
-  }, [title, sessionId, intents]);
+  }, [title, sessionId, commands]);
   return null;
 }

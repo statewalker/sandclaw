@@ -22,7 +22,7 @@ const REMARK_PLUGINS = [remarkFileUriLink];
  * Identity-style URL transform that lets `file://` through. ReactMarkdown's
  * default sanitizer strips `file:` URLs (treats them as unsafe); the chat
  * surface trusts file:// URIs because they're routed through
- * `runVisualizeFile` (workspace-scoped intent), not navigated to.
+ * `runVisualizeFile` (workspace-scoped command), not navigated to.
  */
 function urlTransform(url: string): string {
   if (url.startsWith("file://")) return url;
@@ -51,7 +51,7 @@ export function MessageView({
   useNodeChildren(message);
 
   const workspace = useAppWorkspace();
-  const intents = workspace.requireAdapter(Commands);
+  const commands = workspace.requireAdapter(Commands);
   const components = useMemo<Partial<Components>>(
     () => ({
       a: ({ href, children, ...props }) => {
@@ -62,7 +62,7 @@ export function MessageView({
               {...props}
               onClick={(event) => {
                 event.preventDefault();
-                void intents
+                void commands
                   .call(VisualizeFileCommand, { uri: href })
                   .promise.catch((error: unknown) => {
                     console.warn("[chat] file:// visualize failed:", error);
@@ -80,7 +80,7 @@ export function MessageView({
         );
       },
     }),
-    [intents],
+    [commands],
   );
 
   const isUser = message.type === NodeType.userMessage;

@@ -19,7 +19,7 @@ import { SessionRow } from "./session-row";
 export function SessionsPanel(): React.ReactElement {
   const state = useAdapterValue(AgentRuntimeAdapter, (a) => a.getState());
   const workspace = useAppWorkspace();
-  const intents = workspace.requireAdapter(Commands);
+  const commands = workspace.requireAdapter(Commands);
   const { data, isLoading } = useSessionList();
   const invalidate = useInvalidateSessions();
   const focusedSessionId = useFocusedChatTab();
@@ -27,9 +27,9 @@ export function SessionsPanel(): React.ReactElement {
 
   const open = useCallback(
     (id: string): void => {
-      intents.call(OpenChatSessionCommand, { sessionId: id });
+      commands.call(OpenChatSessionCommand, { sessionId: id });
     },
-    [intents],
+    [commands],
   );
 
   const createNew = useCallback(async (): Promise<void> => {
@@ -48,8 +48,8 @@ export function SessionsPanel(): React.ReactElement {
       });
     }
     invalidate();
-    intents.call(OpenChatSessionCommand, { sessionId: session.id });
-  }, [state, invalidate, intents, workspace]);
+    commands.call(OpenChatSessionCommand, { sessionId: session.id });
+  }, [state, invalidate, commands, workspace]);
 
   const onRename = useCallback(
     async (id: string, title: string): Promise<void> => {
@@ -70,11 +70,11 @@ export function SessionsPanel(): React.ReactElement {
       // dock fragment evicts the chat spec when the last referencing
       // panel closes (chat specs are persistent so eviction is
       // skipped — that's fine, the spec lingers harmlessly).
-      intents.call(ClosePanelCommand, { panelId: chatPanelId(id) });
+      commands.call(ClosePanelCommand, { panelId: chatPanelId(id) });
       await state.runtime.deleteSession(id);
       invalidate();
     },
-    [state, invalidate, intents],
+    [state, invalidate, commands],
   );
 
   const isReady = state.status === "ready";

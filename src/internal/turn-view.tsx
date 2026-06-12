@@ -121,7 +121,7 @@ function indexByKind(
   contributions: readonly TurnBlockContribution[],
 ): Map<string, string> {
   const out = new Map<string, string>();
-  // First-claim-wins to mirror the Intents convention; plug-in
+  // First-claim-wins to mirror the Commands convention; plug-in
   // fragments register before built-ins to override.
   for (const c of contributions) {
     if (!out.has(c.kind)) out.set(c.kind, c.viewKey);

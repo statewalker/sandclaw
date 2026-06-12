@@ -16,7 +16,7 @@ export interface ChatSessionState {
  * from `@statewalker/ai-agent` (no chat-mini-side cache); two
  * instances with different ids do not share state. The `createNew`
  * flow saves the session to disk before dispatching the open
- * intent, so every tab loads through this same path.
+ * command, so every tab loads through this same path.
  */
 export function useChatSession(sessionId: string): ChatSessionState {
   const state = useAdapterValue(AgentRuntimeAdapter, (a) => a.getState());

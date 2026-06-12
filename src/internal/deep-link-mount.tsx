@@ -10,7 +10,7 @@ const SESSION_PARAM = "s";
  * Non-rendering component contributed to `dock:overlays` by chat-views.
  * Reads `window.location.search` once on mount; if `?s=<id>` is present,
  * subscribes to `WorkspaceShellAdapter` and fires
- * `intents.call(OpenChatSessionCommand, { sessionId })` exactly once
+ * `commands.call(OpenChatSessionCommand, { sessionId })` exactly once
  * when the adapter reaches `ready`. After that single firing, the URL
  * is no longer consulted — tab focus changes do not write the URL back.
  *
@@ -19,7 +19,7 @@ const SESSION_PARAM = "s";
  */
 export function DeepLinkMount(): null {
   const workspace = useAppWorkspace();
-  const intents = useAdapter(Commands);
+  const commands = useAdapter(Commands);
   const ranRef = useRef(false);
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export function DeepLinkMount(): null {
       if (ranRef.current) return;
       if (shell.getState().status === "ready") {
         ranRef.current = true;
-        intents.call(OpenChatSessionCommand, { sessionId });
+        commands.call(OpenChatSessionCommand, { sessionId });
       }
     };
     fire();
@@ -47,7 +47,7 @@ export function DeepLinkMount(): null {
     return () => {
       unsubscribe();
     };
-  }, [workspace, intents]);
+  }, [workspace, commands]);
 
   return null;
 }
