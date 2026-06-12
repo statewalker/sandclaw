@@ -70,7 +70,7 @@ describe("chat-mini end-to-end (logic fragments)", () => {
 
     try {
       const workspace = getWorkspace(ctx);
-      const intents = workspace.requireAdapter(Commands);
+      const commands = workspace.requireAdapter(Commands);
       const providers = workspace.requireAdapter(Providers);
       const adapter = workspace.requireAdapter(AgentRuntimeAdapter);
       const slots = workspace.requireAdapter(Slots);
@@ -91,17 +91,22 @@ describe("chat-mini end-to-end (logic fragments)", () => {
               type: "openai",
               name: "OpenAI",
               apiKey: "sk-test-fixture",
+              // A connected provider carries `discoveredModels` (populated
+              // by the Connect / Check Connection action); without it the
+              // connection is a dormant shell and `isConnected` filters it
+              // out, leaving the runtime in `no-providers`.
+              discoveredModels: [{ id: "gpt-4o", label: "GPT-4o" }],
             },
           ],
           active: { providerId: "openai", modelId: "gpt-4o" },
         }),
       );
 
-      // Fire the canonical workspace-change intent — the
+      // Fire the canonical workspace-change command — the
       // workspace-bridge handler runs close → setFileSystem →
       // open, which fires onLoad listeners (chat, providers,
       // ...) and triggers the rebuild chain.
-      await intents.call(ChangeWorkspaceCommand, { files, label: "test" })
+      await commands.call(ChangeWorkspaceCommand, { files, label: "test" })
         .promise;
 
       // Drain debounced rebuild + buildRuntime promise.
@@ -138,7 +143,7 @@ describe("chat-mini end-to-end (logic fragments)", () => {
       await writeText(files, "/note.md", "# hello");
       // Suppress the never-settling promise — the dock host's
       // pending queue holds the show-panel call indefinitely.
-      void intents
+      void commands
         .call(VisualizeFileCommand, { uri: "/note.md" })
         .promise.catch(() => {});
       const specRecord = store.get(markdownViewerSpecId("/note.md"));
