@@ -29,7 +29,7 @@ export interface MenubarItem {
   Icon: ComponentType<{ className?: string }>;
   /**
    * Fired when the user activates the item. The dropdown auto-closes
-   * before the callback runs; cleanup (e.g. dispatching an intent) is
+   * before the callback runs; cleanup (e.g. dispatching an command) is
    * the contributor's responsibility.
    */
   onActivate: () => void | Promise<void>;

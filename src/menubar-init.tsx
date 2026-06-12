@@ -28,7 +28,7 @@ const THEME_TOGGLE_VIEW_KEY = "app-shell:theme-toggle";
 export function initMenubar(ctx: Record<string, unknown>): () => Promise<void> {
   const workspace = getWorkspace(ctx);
   const slots = workspace.requireAdapter(Slots);
-  const intents = workspace.requireAdapter(Commands);
+  const commands = workspace.requireAdapter(Commands);
 
   const [register, cleanup] = newRegistry();
 
@@ -68,7 +68,7 @@ export function initMenubar(ctx: Record<string, unknown>): () => Promise<void> {
       label: "Settings",
       Icon: SettingsIcon,
       onActivate: () => {
-        intents.call(OpenSettingsCommand, {});
+        commands.call(OpenSettingsCommand, {});
       },
     }),
   );
@@ -80,9 +80,9 @@ export function initMenubar(ctx: Record<string, unknown>): () => Promise<void> {
       label: "Switch workspace",
       Icon: LogOut,
       onActivate: async () => {
-        await intents.call(WorkspaceDisconnectCommand, {}).promise;
+        await commands.call(WorkspaceDisconnectCommand, {}).promise;
         try {
-          await intents.call(ChangeWorkspaceCommand, {}).promise;
+          await commands.call(ChangeWorkspaceCommand, {}).promise;
         } catch (e) {
           // User cancellation throws AbortError; user already in `empty`.
           if (e instanceof DOMException && e.name === "AbortError") return;
