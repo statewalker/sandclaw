@@ -1,4 +1,4 @@
-import { WikiQuery } from "@statewalker/resources-wiki";
+import { WikiQuery } from "@statewalker/wiki";
 import { createRoute } from "honox/factory";
 import { getProject } from "@/lib/wiki-repo";
 

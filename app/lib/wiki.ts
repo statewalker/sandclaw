@@ -4,7 +4,7 @@ import {
   WikiPageMeta,
   WikiPageSummary,
   WikiTopicIndex,
-} from "@statewalker/resources-wiki";
+} from "@statewalker/wiki";
 import { parseCitationUri, sectionToPdfPage } from "./pages";
 import type {
   CitationBrief,
@@ -15,7 +15,7 @@ import type {
 import { filesApi, getProject } from "./wiki-repo";
 
 // Each project IS its own wiki — every resolver below takes the `project` directly
-// and reads exclusively through the `@statewalker/resources-wiki` adapters.
+// and reads exclusively through the `@statewalker/wiki` adapters.
 
 /** Resolve one `file#anchor` citation against the project's wiki. */
 export async function resolveCitation(

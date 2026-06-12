@@ -1,4 +1,4 @@
-import type { Answer, AnswerTopic } from "@statewalker/resources-wiki";
+import type { Answer, AnswerTopic } from "@statewalker/wiki";
 import { bareUri, orderedCitationUris, rewriteCitations } from "./pages";
 import type { Citation, Section, Topic } from "./types";
 

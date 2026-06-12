@@ -1,4 +1,5 @@
-import { type Answer, WikiSnapshotsAdapter } from "@statewalker/resources-wiki";
+import { type Answer, WikiSnapshotsAdapter } from "@statewalker/wiki";
+import { DEFAULT_SYSTEM_FOLDER } from "@statewalker/workspace";
 import { answerToSection } from "./answer";
 import type { Section } from "./types";
 import { filesApi, getProject, workspace } from "./wiki-repo";
@@ -16,7 +17,7 @@ export async function listProjects(): Promise<string[]> {
   for (const project of await ws.getProjects()) {
     // A scanned wiki always has its per-project system folder; bare directories
     // without one are not wikis and must not appear.
-    if (await filesApi().exists(`${project.projectName}/${ws.systemFolder}`)) {
+    if (await filesApi().exists(`${project.projectName}/${DEFAULT_SYSTEM_FOLDER}`)) {
       names.push(project.projectName);
     }
   }

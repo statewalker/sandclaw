@@ -1,24 +1,17 @@
-import {
-  registerWiki,
-  resolveProvidersFromEnv,
-} from "@statewalker/resources-wiki";
-import {
-  type Project,
-  ResourceRepository,
-  Workspace,
-} from "@statewalker/resources-workspace";
 import type { FilesApi } from "@statewalker/webrun-files";
 import { NodeFilesApi } from "@statewalker/webrun-files-node";
+import { registerWiki, resolveProvidersFromEnv } from "@statewalker/wiki";
+import { type Project, Workspace } from "@statewalker/workspace";
 import { dataRoot } from "./paths";
 
 /**
- * Server-side bridge to the `@statewalker/resources-wiki` adapter stack. A single
- * `ResourceRepository` over a `NodeFilesApi` rooted at the data directory backs the
- * whole process; every project is reached through its `Workspace`/`Project` adapters,
- * so the viewer reads only through adapters (no bespoke on-disk parsing). Node-only —
+ * Server-side bridge to the `@statewalker/wiki` adapter stack. A single
+ * `Workspace` over a `NodeFilesApi` rooted at the data directory backs the whole
+ * process; every project is reached through its `Project`/`Resource` adapters, so
+ * the viewer reads only through adapters (no bespoke on-disk parsing). Node-only —
  * must never reach a client island.
  */
-let repoSingleton: ResourceRepository | undefined;
+let workspaceSingleton: Workspace | undefined;
 
 /**
  * LLM + embedding providers from the environment. Browsing (citations, topics,
@@ -45,29 +38,24 @@ function providers(): ReturnType<typeof resolveProvidersFromEnv> {
   }
 }
 
-export function repository(): ResourceRepository {
-  if (!repoSingleton) {
-    const repo = new ResourceRepository({
-      filesApi: new NodeFilesApi({ rootDir: dataRoot() }),
-    });
+/** The process-wide wiki `Workspace`, lazily constructed and wired. */
+export function workspace(): Workspace {
+  if (!workspaceSingleton) {
+    const ws = new Workspace().setFileSystem(new NodeFilesApi({ rootDir: dataRoot() }));
     const p = providers();
-    registerWiki(repo, {
+    registerWiki(ws, {
       provider: p.provider,
       models: p.models,
       embedModel: p.embedModel,
       dimensionality: p.dimensionality,
     });
-    repoSingleton = repo;
+    workspaceSingleton = ws;
   }
-  return repoSingleton;
+  return workspaceSingleton;
 }
 
 export function filesApi(): FilesApi {
-  return repository().filesApi;
-}
-
-export function workspace(): Workspace {
-  return repository().requireAdapter<Workspace>(Workspace);
+  return workspace().files;
 }
 
 /** Open a project read-only (never creates). `null` when it doesn't exist. */
