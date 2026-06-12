@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "HonoX viewer for wiki reports + live wiki search over the @statewalker/resources-wiki adapter stack.",
+  "description": "HonoX viewer for wiki reports + live wiki search over the @statewalker/wiki adapter stack.",
   "scripts": {
     "dev": "vite",
     "build": "vite build --mode client && vite build",
