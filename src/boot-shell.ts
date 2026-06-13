@@ -8,11 +8,11 @@ import initMarkdownViewerReact from "@statewalker/markdown-viewer-react/fragment
 import initFiles from "@statewalker/mime.core/fragment";
 import initPdfViewerReact from "@statewalker/pdf-viewer-react/fragment";
 import initPlatformWeb from "@statewalker/platform-browser";
+import initSpecStore from "@statewalker/render.core/fragment";
 import initSettings from "@statewalker/settings/fragment";
 import initSettingsReact from "@statewalker/settings-react/fragment";
 import initShadcnReact from "@statewalker/shadcn-react/fragment";
 import { newRegistry } from "@statewalker/shared-registry";
-import initSpecStore from "@statewalker/spec-store/fragment";
 import initVideoViewerReact from "@statewalker/video-viewer-react/fragment";
 import { Workspace } from "@statewalker/workspace";
 import initWorkspaceFiles from "@statewalker/workspace/files-fragment";
