@@ -38,23 +38,23 @@ const SUBSTRATE_REACT_PACKAGES = [
   "core-react",
   "shadcn-react",
   "dock-react",
-  "settings-react",
+  "settings.view.react",
   "workspace-bridge-react",
-  "inline-content-react",
+  "inline.view.react",
   "catalog-registry-react",
-  "image-viewer-react",
-  "markdown-viewer-react",
-  "pdf-viewer-react",
-  "video-viewer-react",
+  "mime.view.image",
+  "mime.view.markdown",
+  "mime.view.pdf",
+  "mime.view.video",
 ];
 
 const SUBSTRATE_LOGIC_PACKAGES = [
   "workspace",
   "dock",
   "mime.core",
-  "settings",
+  "settings.core",
   "workspace-bridge",
-  "inline-content",
+  "inline.core",
   "render.core",
 ];
 

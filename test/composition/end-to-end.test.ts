@@ -7,8 +7,8 @@ import initDock from "@statewalker/dock/fragment";
 import {
   MARKDOWN_VIEWER_CATALOG_ID,
   markdownViewerSpecId,
-} from "@statewalker/markdown-viewer-react";
-import initMarkdownViewer from "@statewalker/markdown-viewer-react/fragment";
+} from "@statewalker/mime.view.markdown";
+import initMarkdownViewer from "@statewalker/mime.view.markdown/fragment";
 import {
   mimeRenderersSlot,
   VisualizeFileCommand,
@@ -16,7 +16,7 @@ import {
 import initFiles from "@statewalker/mime.core/fragment";
 import { SpecStore } from "@statewalker/render.core";
 import initSpecStore from "@statewalker/render.core/fragment";
-import initSettings from "@statewalker/settings/fragment";
+import initSettings from "@statewalker/settings.core/fragment";
 import { Commands } from "@statewalker/shared-commands";
 import { Slots } from "@statewalker/shared-slots";
 import { writeText } from "@statewalker/webrun-files";
