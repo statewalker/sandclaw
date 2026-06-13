@@ -35,13 +35,12 @@ interface PackageEntry {
 }
 
 const SUBSTRATE_REACT_PACKAGES = [
-  "core-react",
-  "shadcn-react",
+  "ui.view.react",
+  "ui.view.shadcn",
   "shell.view.react",
   "settings.view.react",
   "workspace-bridge-react",
   "inline.view.react",
-  "catalog-registry-react",
   "mime.view.image",
   "mime.view.markdown",
   "mime.view.pdf",
