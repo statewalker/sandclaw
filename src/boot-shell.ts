@@ -7,7 +7,7 @@ import initInlineContentReact from "@statewalker/inline-content-react/fragment";
 import initMarkdownViewerReact from "@statewalker/markdown-viewer-react/fragment";
 import initFiles from "@statewalker/mime.core/fragment";
 import initPdfViewerReact from "@statewalker/pdf-viewer-react/fragment";
-import initPlatformWeb from "@statewalker/platform-browser";
+import initPlatformWeb from "@statewalker/platform.browser";
 import initSpecStore from "@statewalker/render.core/fragment";
 import initSettings from "@statewalker/settings/fragment";
 import initSettingsReact from "@statewalker/settings-react/fragment";

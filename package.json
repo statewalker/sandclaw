@@ -27,7 +27,7 @@
     "@statewalker/markdown-viewer-react": "workspace:*",
     "@statewalker/pdf-viewer-react": "workspace:*",
     "@statewalker/render.core": "workspace:*",
-    "@statewalker/platform-browser": "catalog:",
+    "@statewalker/platform.browser": "catalog:",
     "@statewalker/settings": "workspace:*",
     "@statewalker/settings-react": "workspace:*",
     "@statewalker/shadcn-react": "workspace:*",
