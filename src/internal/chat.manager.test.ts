@@ -1,5 +1,5 @@
-import { DockHost } from "@statewalker/dock";
-import initDock from "@statewalker/dock/fragment";
+import { DockHost } from "@statewalker/shell.core";
+import initDock from "@statewalker/shell.core/fragment";
 import { SpecStore } from "@statewalker/render.core";
 import initSpecStore from "@statewalker/render.core/fragment";
 import { Commands } from "@statewalker/shared-commands";

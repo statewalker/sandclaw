@@ -1,4 +1,4 @@
-import { ShowDockPanelCommand } from "@statewalker/dock";
+import { ShowDockPanelCommand } from "@statewalker/shell.core";
 import {
   DOCK_LAYOUT_STORAGE_KEY,
   restorePanelSpecsFromLayout,
