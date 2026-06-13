@@ -1,5 +1,5 @@
 import { useAppWorkspace } from "@statewalker/core-react";
-import { DockHost } from "@statewalker/dock";
+import { DockHost } from "@statewalker/shell.core";
 import { useCallback, useRef, useSyncExternalStore } from "react";
 
 const PANEL_ID_PREFIX = "chat:";
