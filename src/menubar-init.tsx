@@ -1,5 +1,5 @@
 import { coreViewsSlot, type ViewComponent } from "@statewalker/core-react";
-import { dockHeaderItemsSlot } from "@statewalker/dock";
+import { dockHeaderItemsSlot } from "@statewalker/shell.core";
 import { OpenSettingsCommand } from "@statewalker/settings.core";
 import { Commands } from "@statewalker/shared-commands";
 import { newRegistry } from "@statewalker/shared-registry";

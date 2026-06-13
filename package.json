@@ -18,8 +18,8 @@
   },
   "dependencies": {
     "@statewalker/core-react": "workspace:*",
-    "@statewalker/dock": "workspace:*",
-    "@statewalker/dock-react": "workspace:*",
+    "@statewalker/shell.core": "workspace:*",
+    "@statewalker/shell.view.react": "workspace:*",
     "@statewalker/mime.core": "workspace:*",
     "@statewalker/mime.view.image": "workspace:*",
     "@statewalker/inline.core": "workspace:*",

@@ -1,6 +1,6 @@
 import initCoreReact from "@statewalker/core-react/fragment";
-import initDock from "@statewalker/dock/fragment";
-import initDockReact from "@statewalker/dock-react/fragment";
+import initDock from "@statewalker/shell.core/fragment";
+import initDockReact from "@statewalker/shell.view.react/fragment";
 import initImageViewerReact from "@statewalker/mime.view.image/fragment";
 import initInlineContent from "@statewalker/inline.core/fragment";
 import initInlineContentReact from "@statewalker/inline.view.react/fragment";
@@ -89,7 +89,7 @@ export interface BootShellResult {
  *   5. App-specific renderer fragments (`options.renderers`).
  *
  * The caller is responsible for the import-side-effect of CSS bundles
- * (e.g. `import "@statewalker/dock-react/styles"`) since CSS load order
+ * (e.g. `import "@statewalker/shell.view.react/styles"`) since CSS load order
  * matters for Tailwind/shadcn cascade and is best controlled per app.
  *
  * Returns `{ workspace, ctx, cleanup }`. The default boot also wires a
