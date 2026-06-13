@@ -4,11 +4,11 @@ import { OpenSettingsCommand } from "@statewalker/settings.core";
 import { Commands } from "@statewalker/shared-commands";
 import { newRegistry } from "@statewalker/shared-registry";
 import { Slots } from "@statewalker/shared-slots";
-import { getWorkspace } from "@statewalker/workspace";
+import { getWorkspace } from "@statewalker/workspace.core";
 import {
   ChangeWorkspaceCommand,
   WorkspaceDisconnectCommand,
-} from "@statewalker/workspace-bridge";
+} from "@statewalker/workspace.browser";
 import { LogOut, Settings as SettingsIcon } from "lucide-react";
 import { menubarItemsSlot } from "./extension-points.js";
 import { Menubar } from "./menubar.js";

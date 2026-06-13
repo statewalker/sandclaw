@@ -35,9 +35,9 @@
     "@statewalker/shared-registry": "catalog:",
     "@statewalker/shared-slots": "catalog:",
     "@statewalker/mime.view.video": "workspace:*",
-    "@statewalker/workspace": "catalog:",
-    "@statewalker/workspace-bridge": "workspace:*",
-    "@statewalker/workspace-bridge-react": "workspace:*",
+    "@statewalker/workspace.core": "catalog:",
+    "@statewalker/workspace.browser": "workspace:*",
+    "@statewalker/workspace.view.react": "workspace:*",
     "@tanstack/react-query": "^5.66.10",
     "lucide-react": "catalog:"
   },
