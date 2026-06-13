@@ -6,7 +6,7 @@ import {
 } from "@statewalker/render.core";
 import { Commands } from "@statewalker/shared-commands";
 import { newRegistry } from "@statewalker/shared-registry";
-import type { Workspace } from "@statewalker/workspace";
+import type { Workspace } from "@statewalker/workspace.core";
 import {
   CHAT_CATALOG_ID,
   chatPanelId,

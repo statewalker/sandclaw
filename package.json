@@ -29,7 +29,7 @@
     "@statewalker/shared-registry": "catalog:",
     "@statewalker/shared-slots": "catalog:",
     "@statewalker/webrun-files": "catalog:",
-    "@statewalker/workspace": "catalog:",
+    "@statewalker/workspace.core": "catalog:",
     "ai": "catalog:",
     "zod": "catalog:"
   },

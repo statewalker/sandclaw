@@ -3,7 +3,7 @@ import initDock from "@statewalker/shell.core/fragment";
 import { SpecStore } from "@statewalker/render.core";
 import initSpecStore from "@statewalker/render.core/fragment";
 import { Commands } from "@statewalker/shared-commands";
-import { getWorkspace } from "@statewalker/workspace";
+import { getWorkspace } from "@statewalker/workspace.core";
 import type { DockviewApi, IDockviewPanel } from "dockview-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { chatPanelId, chatSpecId } from "../public/catalog.js";
