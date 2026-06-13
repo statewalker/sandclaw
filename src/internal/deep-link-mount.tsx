@@ -1,7 +1,7 @@
 import { OpenChatSessionCommand } from "@repo/chat-mini.chat";
 import { useAdapter, useAppWorkspace } from "@statewalker/ui.view.react";
 import { Commands } from "@statewalker/shared-commands";
-import { WorkspaceShellAdapter } from "@statewalker/workspace-bridge";
+import { WorkspaceShellAdapter } from "@statewalker/workspace.browser";
 import { useEffect, useRef } from "react";
 
 const SESSION_PARAM = "s";

@@ -16,7 +16,7 @@ import {
 } from "@statewalker/ui.view.react";
 import initCoreReact from "@statewalker/ui.view.react/fragment";
 import { Slots } from "@statewalker/shared-slots";
-import { Workspace } from "@statewalker/workspace";
+import { Workspace } from "@statewalker/workspace.core";
 import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";

@@ -7,7 +7,7 @@ import {
 import { AppWorkspaceProvider } from "@statewalker/ui.view.react";
 import { VisualizeFileCommand } from "@statewalker/mime.core";
 import { Commands } from "@statewalker/shared-commands";
-import { Workspace } from "@statewalker/workspace";
+import { Workspace } from "@statewalker/workspace.core";
 import { act, fireEvent, render } from "@testing-library/react";
 import { Profiler, type ProfilerOnRenderCallback } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";

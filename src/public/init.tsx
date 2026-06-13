@@ -10,7 +10,7 @@ import { dockOverlaysSlot, dockSidePanelsSlot } from "@statewalker/shell.core";
 import { catalogsSlot } from "@statewalker/render.core";
 import { newRegistry } from "@statewalker/shared-registry";
 import { Slots } from "@statewalker/shared-slots";
-import { getWorkspace } from "@statewalker/workspace";
+import { getWorkspace } from "@statewalker/workspace.core";
 import { ChatRoot } from "../internal/chat-root.js";
 import { DeepLinkMount } from "../internal/deep-link-mount.js";
 import { SessionsPanel } from "../internal/sessions-panel.js";
