@@ -4,13 +4,16 @@ import initAgentRuntime from "@statewalker/ai-agent-runtime/fragment";
 import { emptyProvidersConfig, Providers } from "@statewalker/ai-providers";
 import initProviders from "@statewalker/ai-providers/fragment";
 import initDock from "@statewalker/dock/fragment";
-import { mimeRenderersSlot, VisualizeFileCommand } from "@statewalker/files";
-import initFiles from "@statewalker/files/fragment";
 import {
   MARKDOWN_VIEWER_CATALOG_ID,
   markdownViewerSpecId,
 } from "@statewalker/markdown-viewer-react";
 import initMarkdownViewer from "@statewalker/markdown-viewer-react/fragment";
+import {
+  mimeRenderersSlot,
+  VisualizeFileCommand,
+} from "@statewalker/mime.core";
+import initFiles from "@statewalker/mime.core/fragment";
 import initSettings from "@statewalker/settings/fragment";
 import { Commands } from "@statewalker/shared-commands";
 import { Slots } from "@statewalker/shared-slots";

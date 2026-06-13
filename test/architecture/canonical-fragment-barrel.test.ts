@@ -51,7 +51,7 @@ const SUBSTRATE_REACT_PACKAGES = [
 const SUBSTRATE_LOGIC_PACKAGES = [
   "workspace",
   "dock",
-  "files",
+  "mime.core",
   "settings",
   "workspace-bridge",
   "inline-content",
@@ -62,7 +62,9 @@ const SUBSTRATE_LOGIC_PACKAGES = [
 const AI_LOGIC_PACKAGES = ["ai-agent-runtime", "ai-providers"];
 const AI_REACT_PACKAGES: string[] = [];
 
-const CHAT_LOGIC_PACKAGES = [{ npmName: "@repo/chat-mini.chat", dir: "chat-mini.chat" }];
+const CHAT_LOGIC_PACKAGES = [
+  { npmName: "@repo/chat-mini.chat", dir: "chat-mini.chat" },
+];
 const CHAT_REACT_PACKAGES = [
   { npmName: "@repo/chat-mini.chat-react", dir: "chat-mini.chat-react" },
 ];
@@ -124,7 +126,11 @@ function chatEntries(): PackageEntry[] {
   return out;
 }
 
-const PACKAGES: PackageEntry[] = [...workbenchEntries(), ...aiEntries(), ...chatEntries()];
+const PACKAGES: PackageEntry[] = [
+  ...workbenchEntries(),
+  ...aiEntries(),
+  ...chatEntries(),
+];
 
 // chat-mini.app/test/architecture/<this>.test.ts → umbrella root. `process.cwd()`
 // is the chat-mini.app package root when vitest runs from there.
@@ -139,23 +145,38 @@ describe("architecture: canonical fragment package shape", () => {
     const pj = readJSON(join(UMBRELLA_ROOT, pkg.rootRelPath, "package.json"));
     expect(pj.name).toBe(pkg.npmName);
     const exports = pj.exports as Record<string, string> | undefined;
-    expect(exports, `${pkg.npmName}: package.json has no exports`).toBeDefined();
+    expect(
+      exports,
+      `${pkg.npmName}: package.json has no exports`,
+    ).toBeDefined();
     expect(exports?.["."], `${pkg.npmName}: missing "." export`).toBeDefined();
-    expect(exports?.["./fragment"], `${pkg.npmName}: missing "./fragment" export`).toBeDefined();
+    expect(
+      exports?.["./fragment"],
+      `${pkg.npmName}: missing "./fragment" export`,
+    ).toBeDefined();
   });
 
-  it.each(PACKAGES.filter((p) => p.isRenderer))(
-    "$npmName declares ./styles export with @source directive",
-    (pkg) => {
-      const pjPath = join(UMBRELLA_ROOT, pkg.rootRelPath, "package.json");
-      const pj = readJSON(pjPath);
-      const exports = (pj.exports ?? {}) as Record<string, string>;
-      expect(exports["./styles"], `${pkg.npmName}: missing "./styles" export`).toBeDefined();
-      const cssPath = join(UMBRELLA_ROOT, pkg.rootRelPath, exports["./styles"] as string);
-      const css = readFileSync(cssPath, "utf8");
-      expect(css, `${pkg.npmName}: ./styles CSS does not declare @source`).toMatch(/@source\s+"/);
-    },
-  );
+  it.each(
+    PACKAGES.filter((p) => p.isRenderer),
+  )("$npmName declares ./styles export with @source directive", (pkg) => {
+    const pjPath = join(UMBRELLA_ROOT, pkg.rootRelPath, "package.json");
+    const pj = readJSON(pjPath);
+    const exports = (pj.exports ?? {}) as Record<string, string>;
+    expect(
+      exports["./styles"],
+      `${pkg.npmName}: missing "./styles" export`,
+    ).toBeDefined();
+    const cssPath = join(
+      UMBRELLA_ROOT,
+      pkg.rootRelPath,
+      exports["./styles"] as string,
+    );
+    const css = readFileSync(cssPath, "utf8");
+    expect(
+      css,
+      `${pkg.npmName}: ./styles CSS does not declare @source`,
+    ).toMatch(/@source\s+"/);
+  });
 
   it.each(PACKAGES)("$npmName fragment.ts exports a default", (pkg) => {
     const pjPath = join(UMBRELLA_ROOT, pkg.rootRelPath, "package.json");
@@ -163,7 +184,10 @@ describe("architecture: canonical fragment package shape", () => {
     const exports = (pj.exports ?? {}) as Record<string, string>;
     const fragmentRel = exports["./fragment"];
     if (!fragmentRel) return; // covered by the export-shape test
-    const src = readFileSync(join(UMBRELLA_ROOT, pkg.rootRelPath, fragmentRel), "utf8");
+    const src = readFileSync(
+      join(UMBRELLA_ROOT, pkg.rootRelPath, fragmentRel),
+      "utf8",
+    );
     expect(
       /\bexport\s+default\b/.test(src) || /\bexport\s*\{\s*default\b/.test(src),
       `${pkg.npmName}: ${fragmentRel} has no default export`,
