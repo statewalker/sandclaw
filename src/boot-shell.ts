@@ -1,4 +1,4 @@
-import initCoreReact from "@statewalker/core-react/fragment";
+import initCoreReact from "@statewalker/ui.view.react/fragment";
 import initDock from "@statewalker/shell.core/fragment";
 import initDockReact from "@statewalker/shell.view.react/fragment";
 import initImageViewerReact from "@statewalker/mime.view.image/fragment";
@@ -11,7 +11,7 @@ import initPlatformWeb from "@statewalker/platform.browser";
 import initSpecStore from "@statewalker/render.core/fragment";
 import initSettings from "@statewalker/settings.core/fragment";
 import initSettingsReact from "@statewalker/settings.view.react/fragment";
-import initShadcnReact from "@statewalker/shadcn-react/fragment";
+import initShadcnReact from "@statewalker/ui.view.shadcn/fragment";
 import { newRegistry } from "@statewalker/shared-registry";
 import initVideoViewerReact from "@statewalker/mime.view.video/fragment";
 import { Workspace } from "@statewalker/workspace";

@@ -1,4 +1,4 @@
-import { Button } from "@statewalker/shadcn-react";
+import { Button } from "@statewalker/ui.view.shadcn";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { type ReactElement, useSyncExternalStore } from "react";
 import {

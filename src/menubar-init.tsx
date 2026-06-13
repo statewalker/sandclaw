@@ -1,4 +1,4 @@
-import { coreViewsSlot, type ViewComponent } from "@statewalker/core-react";
+import { coreViewsSlot, type ViewComponent } from "@statewalker/ui.view.react";
 import { dockHeaderItemsSlot } from "@statewalker/shell.core";
 import { OpenSettingsCommand } from "@statewalker/settings.core";
 import { Commands } from "@statewalker/shared-commands";

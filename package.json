@@ -17,7 +17,7 @@
     "format": "biome format --write ."
   },
   "dependencies": {
-    "@statewalker/core-react": "workspace:*",
+    "@statewalker/ui.view.react": "workspace:*",
     "@statewalker/shell.core": "workspace:*",
     "@statewalker/shell.view.react": "workspace:*",
     "@statewalker/mime.core": "workspace:*",
@@ -30,7 +30,7 @@
     "@statewalker/platform.browser": "catalog:",
     "@statewalker/settings.core": "workspace:*",
     "@statewalker/settings.view.react": "workspace:*",
-    "@statewalker/shadcn-react": "workspace:*",
+    "@statewalker/ui.view.shadcn": "workspace:*",
     "@statewalker/shared-commands": "catalog:",
     "@statewalker/shared-registry": "catalog:",
     "@statewalker/shared-slots": "catalog:",
