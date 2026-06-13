@@ -1,11 +1,11 @@
 import { ShowDockPanelCommand } from "@statewalker/dock";
-import { Commands } from "@statewalker/shared-commands";
-import { newRegistry } from "@statewalker/shared-registry";
 import {
   DOCK_LAYOUT_STORAGE_KEY,
   restorePanelSpecsFromLayout,
   SpecStore,
-} from "@statewalker/spec-store";
+} from "@statewalker/render.core";
+import { Commands } from "@statewalker/shared-commands";
+import { newRegistry } from "@statewalker/shared-registry";
 import type { Workspace } from "@statewalker/workspace";
 import {
   CHAT_CATALOG_ID,
