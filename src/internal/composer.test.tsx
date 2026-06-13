@@ -3,8 +3,8 @@ import {
   AppWorkspaceProvider,
   coreViewsSlot,
   type ViewComponent,
-} from "@statewalker/core-react";
-import initCoreReact from "@statewalker/core-react/fragment";
+} from "@statewalker/ui.view.react";
+import initCoreReact from "@statewalker/ui.view.react/fragment";
 import { Slots } from "@statewalker/shared-slots";
 import { Workspace } from "@statewalker/workspace";
 import { render } from "@testing-library/react";

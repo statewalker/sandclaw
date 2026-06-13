@@ -1,4 +1,4 @@
-import { useAppWorkspace } from "@statewalker/core-react";
+import { useAppWorkspace } from "@statewalker/ui.view.react";
 import { DockHost } from "@statewalker/shell.core";
 import { useCallback, useRef, useSyncExternalStore } from "react";
 

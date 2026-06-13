@@ -1,4 +1,4 @@
-import { cn } from "@statewalker/shadcn-react";
+import { cn } from "@statewalker/ui.view.shadcn";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { codeToHtml } from "shiki";

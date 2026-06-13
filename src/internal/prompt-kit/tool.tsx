@@ -6,7 +6,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   cn,
-} from "@statewalker/shadcn-react";
+} from "@statewalker/ui.view.shadcn";
 import {
   CheckCircle,
   ChevronDown,

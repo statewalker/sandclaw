@@ -1,5 +1,5 @@
 import { OpenChatSessionCommand } from "@repo/chat-mini.chat";
-import { useAdapter, useAppWorkspace } from "@statewalker/core-react";
+import { useAdapter, useAppWorkspace } from "@statewalker/ui.view.react";
 import { Commands } from "@statewalker/shared-commands";
 import { WorkspaceShellAdapter } from "@statewalker/workspace-bridge";
 import { useEffect, useRef } from "react";

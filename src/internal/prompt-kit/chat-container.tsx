@@ -1,4 +1,4 @@
-import { cn } from "@statewalker/shadcn-react";
+import { cn } from "@statewalker/ui.view.shadcn";
 import { StickToBottom } from "use-stick-to-bottom";
 
 export type ChatContainerRootProps = {

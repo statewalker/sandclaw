@@ -3,7 +3,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@statewalker/shadcn-react";
+} from "@statewalker/ui.view.shadcn";
 import { ChevronDown, Wrench } from "lucide-react";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 import { ToolCallView } from "./tool-call-view";

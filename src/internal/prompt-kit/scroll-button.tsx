@@ -1,4 +1,4 @@
-import { Button, type buttonVariants, cn } from "@statewalker/shadcn-react";
+import { Button, type buttonVariants, cn } from "@statewalker/ui.view.shadcn";
 import type { VariantProps } from "class-variance-authority";
 import { ChevronDown } from "lucide-react";
 import { useStickToBottomContext } from "use-stick-to-bottom";

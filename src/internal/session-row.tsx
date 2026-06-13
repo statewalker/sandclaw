@@ -11,7 +11,7 @@ import {
   Button,
   cn,
   Input,
-} from "@statewalker/shadcn-react";
+} from "@statewalker/ui.view.shadcn";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 

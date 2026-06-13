@@ -1,4 +1,4 @@
-import { cn } from "@statewalker/shadcn-react";
+import { cn } from "@statewalker/ui.view.shadcn";
 
 export interface LoaderProps {
   variant?:

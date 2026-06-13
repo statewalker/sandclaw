@@ -1,5 +1,5 @@
 import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
-import { useAdapterValue } from "@statewalker/core-react";
+import { useAdapterValue } from "@statewalker/ui.view.react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 

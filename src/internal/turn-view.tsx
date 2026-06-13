@@ -14,7 +14,7 @@ import {
   useAdapter,
   useKeyedSlot,
   useSlot,
-} from "@statewalker/core-react";
+} from "@statewalker/ui.view.react";
 import { Slots } from "@statewalker/shared-slots";
 import { type ComponentType, type ReactElement, useMemo } from "react";
 import { useNodeChildren } from "./hooks/use-session-node.js";

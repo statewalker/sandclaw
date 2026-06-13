@@ -1,6 +1,6 @@
 import type { ChatSessionState } from "@repo/chat-mini.chat-react";
 import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
-import { useAdapterValue } from "@statewalker/core-react";
+import { useAdapterValue } from "@statewalker/ui.view.react";
 import { useEffect, useMemo, useRef } from "react";
 import { ChatHeader } from "./chat-header";
 import {

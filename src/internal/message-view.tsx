@@ -2,7 +2,7 @@ import {
   type Message as MessageNode,
   NodeType,
 } from "@statewalker/ai-agent/state";
-import { useAppWorkspace } from "@statewalker/core-react";
+import { useAppWorkspace } from "@statewalker/ui.view.react";
 import { VisualizeFileCommand } from "@statewalker/mime.core";
 import { Commands } from "@statewalker/shared-commands";
 import { type ReactElement, useMemo } from "react";

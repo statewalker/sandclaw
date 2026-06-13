@@ -7,7 +7,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@statewalker/shadcn-react";
+} from "@statewalker/ui.view.shadcn";
 import React, {
   createContext,
   useContext,

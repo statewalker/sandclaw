@@ -5,7 +5,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   cn,
-} from "@statewalker/shadcn-react";
+} from "@statewalker/ui.view.shadcn";
 import { ChevronDown, Circle } from "lucide-react";
 import React from "react";
 

@@ -4,7 +4,7 @@ import {
   NodeType,
   type SessionState,
 } from "@statewalker/ai-agent/state";
-import { AppWorkspaceProvider } from "@statewalker/core-react";
+import { AppWorkspaceProvider } from "@statewalker/ui.view.react";
 import { VisualizeFileCommand } from "@statewalker/mime.core";
 import { Commands } from "@statewalker/shared-commands";
 import { Workspace } from "@statewalker/workspace";

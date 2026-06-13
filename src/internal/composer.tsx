@@ -7,8 +7,8 @@ import {
   useKeyedSlot,
   useSlot,
   type ViewComponent,
-} from "@statewalker/core-react";
-import { Button } from "@statewalker/shadcn-react";
+} from "@statewalker/ui.view.react";
+import { Button } from "@statewalker/ui.view.shadcn";
 import { Slots } from "@statewalker/shared-slots";
 import { Send, Square } from "lucide-react";
 import {

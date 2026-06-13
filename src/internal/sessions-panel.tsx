@@ -4,9 +4,9 @@ import {
   ActiveModel,
   AgentRuntimeAdapter,
 } from "@statewalker/ai-agent-runtime";
-import { useAdapterValue, useAppWorkspace } from "@statewalker/core-react";
+import { useAdapterValue, useAppWorkspace } from "@statewalker/ui.view.react";
 import { ClosePanelCommand } from "@statewalker/shell.core";
-import { Button, ScrollArea } from "@statewalker/shadcn-react";
+import { Button, ScrollArea } from "@statewalker/ui.view.shadcn";
 import { Commands } from "@statewalker/shared-commands";
 import { Plus } from "lucide-react";
 import { useCallback } from "react";

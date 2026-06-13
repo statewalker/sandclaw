@@ -1,4 +1,4 @@
-import { cn } from "@statewalker/shadcn-react";
+import { cn } from "@statewalker/ui.view.shadcn";
 import { marked } from "marked";
 import { type ComponentProps, memo, useId, useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
