@@ -8,7 +8,7 @@ import initModelsConfig from "@statewalker/models-config/fragment";
 import initModelsConfigReact from "@statewalker/models-config-react/fragment";
 import "@statewalker/models-config-react/styles";
 import "@statewalker/core-react/styles";
-import "@statewalker/dock-react/styles";
+import "@statewalker/shell.view.react/styles";
 import "@statewalker/mime.view.image/styles";
 import "@statewalker/inline.view.react/styles";
 import "@statewalker/mime.view.markdown/styles";

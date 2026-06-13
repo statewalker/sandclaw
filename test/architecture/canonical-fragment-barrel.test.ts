@@ -37,7 +37,7 @@ interface PackageEntry {
 const SUBSTRATE_REACT_PACKAGES = [
   "core-react",
   "shadcn-react",
-  "dock-react",
+  "shell.view.react",
   "settings.view.react",
   "workspace-bridge-react",
   "inline.view.react",
@@ -50,7 +50,7 @@ const SUBSTRATE_REACT_PACKAGES = [
 
 const SUBSTRATE_LOGIC_PACKAGES = [
   "workspace",
-  "dock",
+  "shell.core",
   "mime.core",
   "settings.core",
   "workspace-bridge",

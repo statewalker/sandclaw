@@ -3,7 +3,7 @@ import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
 import initAgentRuntime from "@statewalker/ai-agent-runtime/fragment";
 import { emptyProvidersConfig, Providers } from "@statewalker/ai-providers";
 import initProviders from "@statewalker/ai-providers/fragment";
-import initDock from "@statewalker/dock/fragment";
+import initDock from "@statewalker/shell.core/fragment";
 import {
   MARKDOWN_VIEWER_CATALOG_ID,
   markdownViewerSpecId,
