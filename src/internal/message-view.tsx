@@ -3,7 +3,7 @@ import {
   NodeType,
 } from "@statewalker/ai-agent/state";
 import { useAppWorkspace } from "@statewalker/core-react";
-import { VisualizeFileCommand } from "@statewalker/files";
+import { VisualizeFileCommand } from "@statewalker/mime.core";
 import { Commands } from "@statewalker/shared-commands";
 import { type ReactElement, useMemo } from "react";
 import type { Components } from "react-markdown";
