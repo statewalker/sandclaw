@@ -8,7 +8,9 @@
     ".": "./src/index.ts",
     "./fragment": "./src/fragment.ts"
   },
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "scripts": {
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
@@ -19,7 +21,7 @@
     "@statewalker/ai-agent": "catalog:",
     "@statewalker/ai-agent-runtime": "workspace:*",
     "@statewalker/dock": "workspace:*",
-    "@statewalker/files": "workspace:*",
+    "@statewalker/mime.core": "workspace:*",
     "@statewalker/inline-content": "workspace:*",
     "@statewalker/shared-baseclass": "catalog:",
     "@statewalker/spec-store": "workspace:*",
@@ -31,5 +33,8 @@
     "ai": "catalog:",
     "zod": "catalog:"
   },
-  "devDependencies": {"typescript": "catalog:", "vitest": "catalog:"}
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
 }
