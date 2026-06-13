@@ -19,6 +19,7 @@ import initSpecStore from "@statewalker/spec-store/fragment";
 import { writeText } from "@statewalker/webrun-files";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import { ChangeWorkspaceCommand, getWorkspace } from "@statewalker/workspace";
+import initWorkspaceFiles from "@statewalker/workspace/files-fragment";
 import initWorkspaceBridge from "@statewalker/workspace-bridge/fragment";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -64,6 +65,7 @@ describe("chat-mini end-to-end (logic fragments)", () => {
     cleanups.push(initAgentRuntime(ctx));
     cleanups.push(initSettings(ctx));
     cleanups.push(initProviders(ctx));
+    cleanups.push(initWorkspaceFiles(ctx));
     cleanups.push(initFiles(ctx));
     cleanups.push(initMarkdownViewer(ctx));
     cleanups.push(initChat(ctx));
