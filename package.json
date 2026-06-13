@@ -36,7 +36,7 @@
     "@statewalker/dock": "workspace:*",
     "@statewalker/dock-react": "workspace:*",
     "@statewalker/mime.core": "workspace:*",
-    "@statewalker/catalog-registry": "workspace:*",
+    "@statewalker/render.core": "workspace:*",
     "@statewalker/inline-content": "workspace:*",
     "@statewalker/inline-content-react": "workspace:*",
     "@statewalker/shadcn-react": "workspace:*",

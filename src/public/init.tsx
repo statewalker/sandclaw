@@ -5,9 +5,9 @@ import {
   STANDARD_TURN_BLOCK_KINDS,
   turnBlocksSlot,
 } from "@repo/chat-mini.chat";
-import { catalogsSlot } from "@statewalker/catalog-registry";
 import { coreViewsSlot, type ViewComponent } from "@statewalker/core-react";
 import { dockOverlaysSlot, dockSidePanelsSlot } from "@statewalker/dock";
+import { catalogsSlot } from "@statewalker/render.core";
 import { newRegistry } from "@statewalker/shared-registry";
 import { Slots } from "@statewalker/shared-slots";
 import { getWorkspace } from "@statewalker/workspace";
