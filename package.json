@@ -22,7 +22,7 @@
     "@statewalker/ai-agent-runtime": "workspace:*",
     "@statewalker/dock": "workspace:*",
     "@statewalker/mime.core": "workspace:*",
-    "@statewalker/inline-content": "workspace:*",
+    "@statewalker/inline.core": "workspace:*",
     "@statewalker/shared-baseclass": "catalog:",
     "@statewalker/render.core": "workspace:*",
     "@statewalker/shared-commands": "catalog:",
