@@ -15,6 +15,7 @@ import { newRegistry } from "@statewalker/shared-registry";
 import initSpecStore from "@statewalker/spec-store/fragment";
 import initVideoViewerReact from "@statewalker/video-viewer-react/fragment";
 import { Workspace } from "@statewalker/workspace";
+import initWorkspaceFiles from "@statewalker/workspace/files-fragment";
 import initWorkspaceBridge from "@statewalker/workspace-bridge/fragment";
 import initWorkspaceBridgeReact from "@statewalker/workspace-bridge-react/fragment";
 import { QueryClient } from "@tanstack/react-query";
@@ -125,6 +126,7 @@ export function bootShell(options: BootShellOptions = {}): BootShellResult {
   register(initDock(ctx));
   register(initWorkspaceBridge(ctx));
   register(initSettings(ctx));
+  register(initWorkspaceFiles(ctx));
   register(initFiles(ctx));
   register(initInlineContent(ctx));
 
