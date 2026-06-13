@@ -1,5 +1,5 @@
 import { type Answer, WikiSnapshotsAdapter } from "@statewalker/wiki";
-import { DEFAULT_SYSTEM_FOLDER } from "@statewalker/workspace";
+import { DEFAULT_SYSTEM_FOLDER } from "@statewalker/workspace.core";
 import { answerToSection } from "./answer";
 import type { Section } from "./types";
 import { filesApi, getProject, workspace } from "./wiki-repo";

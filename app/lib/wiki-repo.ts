@@ -1,7 +1,7 @@
 import type { FilesApi } from "@statewalker/webrun-files";
 import { NodeFilesApi } from "@statewalker/webrun-files-node";
 import { registerWiki, resolveProvidersFromEnv } from "@statewalker/wiki";
-import { type Project, Workspace } from "@statewalker/workspace";
+import { type Project, Workspace } from "@statewalker/workspace.core";
 import { dataRoot } from "./paths";
 
 /**
