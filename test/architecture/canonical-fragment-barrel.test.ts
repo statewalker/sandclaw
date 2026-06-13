@@ -55,8 +55,7 @@ const SUBSTRATE_LOGIC_PACKAGES = [
   "settings",
   "workspace-bridge",
   "inline-content",
-  "catalog-registry",
-  "spec-store",
+  "render.core",
 ];
 
 const AI_LOGIC_PACKAGES = ["ai-agent-runtime", "ai-providers"];

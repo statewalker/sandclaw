@@ -53,7 +53,7 @@
     "@statewalker/inline-content": "workspace:*",
     "@statewalker/inline-content-react": "workspace:*",
     "@statewalker/markdown-viewer-react": "workspace:*",
-    "@statewalker/spec-store": "workspace:*",
+    "@statewalker/render.core": "workspace:*",
     "@statewalker/pdf-viewer-react": "workspace:*",
     "@statewalker/platform-api": "catalog:",
     "@statewalker/platform-browser": "catalog:",

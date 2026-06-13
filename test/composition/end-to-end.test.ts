@@ -14,11 +14,11 @@ import {
   VisualizeFileCommand,
 } from "@statewalker/mime.core";
 import initFiles from "@statewalker/mime.core/fragment";
+import { SpecStore } from "@statewalker/render.core";
+import initSpecStore from "@statewalker/render.core/fragment";
 import initSettings from "@statewalker/settings/fragment";
 import { Commands } from "@statewalker/shared-commands";
 import { Slots } from "@statewalker/shared-slots";
-import { SpecStore } from "@statewalker/spec-store";
-import initSpecStore from "@statewalker/spec-store/fragment";
 import { writeText } from "@statewalker/webrun-files";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import { ChangeWorkspaceCommand, getWorkspace } from "@statewalker/workspace";
