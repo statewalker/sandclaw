@@ -21,9 +21,9 @@ import { Commands } from "@statewalker/shared-commands";
 import { Slots } from "@statewalker/shared-slots";
 import { writeText } from "@statewalker/webrun-files";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
-import { ChangeWorkspaceCommand, getWorkspace } from "@statewalker/workspace";
-import initWorkspaceFiles from "@statewalker/workspace/files-fragment";
-import initWorkspaceBridge from "@statewalker/workspace-bridge/fragment";
+import { ChangeWorkspaceCommand, getWorkspace } from "@statewalker/workspace.core";
+import initWorkspaceFiles from "@statewalker/workspace.core/files-fragment";
+import initWorkspaceBridge from "@statewalker/workspace.browser/fragment";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**

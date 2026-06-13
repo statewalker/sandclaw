@@ -16,7 +16,7 @@ import "@statewalker/mime.view.pdf/styles";
 import "@statewalker/settings.view.react/styles";
 import "@statewalker/ui.view.shadcn/styles";
 import "@statewalker/mime.view.video/styles";
-import "@statewalker/workspace-bridge-react/styles";
+import "@statewalker/workspace.view.react/styles";
 import "@/index.css";
 
 /**

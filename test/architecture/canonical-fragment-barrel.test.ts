@@ -39,7 +39,7 @@ const SUBSTRATE_REACT_PACKAGES = [
   "ui.view.shadcn",
   "shell.view.react",
   "settings.view.react",
-  "workspace-bridge-react",
+  "workspace.view.react",
   "inline.view.react",
   "mime.view.image",
   "mime.view.markdown",
@@ -48,11 +48,11 @@ const SUBSTRATE_REACT_PACKAGES = [
 ];
 
 const SUBSTRATE_LOGIC_PACKAGES = [
-  "workspace",
+  "workspace.core",
   "shell.core",
   "mime.core",
   "settings.core",
-  "workspace-bridge",
+  "workspace.browser",
   "inline.core",
   "render.core",
 ];
