@@ -1,10 +1,10 @@
+import { Slots } from "@statewalker/shared-slots";
 import {
   compareByOrderAndId,
   useAdapter,
   useSlot,
 } from "@statewalker/ui.view.react";
 import { Button } from "@statewalker/ui.view.shadcn";
-import { Slots } from "@statewalker/shared-slots";
 import { ChevronDown } from "lucide-react";
 import {
   type MouseEvent,
@@ -94,7 +94,7 @@ export function Menubar(): ReactElement {
                     });
                   }}
                 >
-                  <item.Icon className="h-3.5 w-3.5" />
+                  <item.Icon className="h-3.5 w-3.5 shrink-0" />
                   <span>{item.label}</span>
                 </MenuItem>
               ))}
@@ -118,7 +118,7 @@ function MenuItem({
       type="button"
       role="menuitem"
       onClick={onClick}
-      className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer text-left"
+      className="flex w-full items-center gap-2 whitespace-nowrap rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer text-left"
     >
       {children}
     </button>
