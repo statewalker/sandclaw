@@ -38,8 +38,16 @@ export function useChatSession(sessionId: string): ChatSessionState {
       try {
         const loaded = await state.runtime.loadSession(sessionId);
         if (cancelled) return;
-        if (state.activeModelId) {
-          setSessionModel(loaded, state.activeModelId);
+        // Prefer the session's own `modelRef` (per-session selection written by
+        // the composer) over the workspace active model. Re-read on every
+        // runtime state change, so picking a model — which also bumps the
+        // active selection and rebuilds the runtime — reloads this session
+        // with its current per-session model.
+        const meta = await state.runtime.getSessionMetadata(sessionId);
+        if (cancelled) return;
+        const modelId = meta?.modelRef?.modelId || state.activeModelId;
+        if (modelId) {
+          setSessionModel(loaded, modelId);
         }
         setSession(loaded);
       } catch (e) {
