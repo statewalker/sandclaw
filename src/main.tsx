@@ -10,6 +10,11 @@ import initProviders from "@statewalker/ai-providers/fragment";
 import initModelsConfig from "@statewalker/models-config/fragment";
 import initModelsConfigReact from "@statewalker/models-config.view.react/fragment";
 import "@statewalker/models-config.view.react/styles";
+import initFileExplorer from "@statewalker/explorer.core/fragment";
+import initFileExplorerReact from "@statewalker/explorer.view.react/fragment";
+import "@statewalker/explorer.view.react/styles";
+import initChatMenu from "./init-chat-menu.js";
+import initFilesMenu from "./init-files-menu.js";
 import "@statewalker/ui.view.react/styles";
 import "@statewalker/shell.view.react/styles";
 import "@statewalker/mime.view.image/styles";
@@ -37,7 +42,23 @@ import { maybeMountConnectionsPrototype } from "./prototype-connections/index.js
 // throwaway connections-redesign prototype instead of booting the real app.
 if (!maybeMountConnectionsPrototype()) {
   bootShell({
-    logic: [initAgentRuntime, initProviders, initAiConfig, initModelsConfig, initChat],
-    renderers: [initAiConfigView, initModelsConfigReact, initChatReact],
+    logic: [
+      initAgentRuntime,
+      initProviders,
+      initAiConfig,
+      initModelsConfig,
+      initChat,
+      initFileExplorer,
+    ],
+    onLogicReady: (ctx, register) => {
+      register(initChatMenu(ctx));
+      register(initFilesMenu(ctx));
+    },
+    renderers: [
+      initAiConfigView,
+      initModelsConfigReact,
+      initChatReact,
+      initFileExplorerReact,
+    ],
   });
 }

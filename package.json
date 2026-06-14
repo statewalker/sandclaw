@@ -92,7 +92,9 @@
     "tailwind-merge": "catalog:",
     "tw-animate-css": "catalog:",
     "use-stick-to-bottom": "^1.1.4",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@statewalker/explorer.core": "workspace:*",
+    "@statewalker/explorer.view.react": "workspace:*"
   },
   "devDependencies": {
     "@statewalker/webrun-files-mem": "catalog:",
