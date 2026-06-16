@@ -91,14 +91,14 @@ function aiEntries(): PackageEntry[] {
   for (const name of AI_LOGIC_PACKAGES) {
     out.push({
       npmName: `@statewalker/${name}`,
-      rootRelPath: `workspaces/statewalker-ai/packages/${name}`,
+      rootRelPath: `workspaces/statewalker-workbench/packages/${name}`,
       isRenderer: false,
     });
   }
   for (const name of AI_REACT_PACKAGES) {
     out.push({
       npmName: `@statewalker/${name}`,
-      rootRelPath: `workspaces/statewalker-ai/packages/${name}`,
+      rootRelPath: `workspaces/statewalker-workbench/packages/${name}`,
       isRenderer: true,
     });
   }

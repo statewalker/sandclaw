@@ -1,8 +1,10 @@
 import initChat from "@repo/chat-mini.chat/fragment";
 import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
 import initAgentRuntime from "@statewalker/ai-agent-runtime/fragment";
-import { emptyProvidersConfig, Providers } from "@statewalker/ai-providers";
+import { AiConfig } from "@statewalker/ai-config";
+import initAiConfig from "@statewalker/ai-config/fragment";
 import initProviders from "@statewalker/ai-providers/fragment";
+import initModelsConfig from "@statewalker/models-config/fragment";
 import initDock from "@statewalker/shell.core/fragment";
 import {
   MARKDOWN_VIEWER_CATALOG_ID,
@@ -27,25 +29,22 @@ import initWorkspaceBridge from "@statewalker/workspace.browser/fragment";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * End-to-end integration test for the M3 milestone (Wave 4.4).
- * Exercises the cross-fragment contract chain at the logic-only
- * layer (no React):
+ * End-to-end integration test for the cross-fragment contract chain at the
+ * logic-only layer (no React), post AI-migration:
  *
- *   1. All built-in logic fragments register against the same
- *      Workspace.
- *   2. `runChangeWorkspace` opens the workspace against a
- *      MemFilesApi.
- *   3. `Providers.saveProviders` writes credentials + an active
- *      OpenAI model selection.
- *   4. The providers manager contributes a descriptor to
- *      `providers:remote` and resolves `ActiveModel`.
- *   5. The agent-runtime manager observes ActiveModel, builds the
- *      AgentRuntime, and `AgentRuntimeAdapter.getState().status`
- *      becomes `"ready"`.
+ *   1. All built-in logic fragments register against the same Workspace,
+ *      including `ai-config` (unified config) + `models-config` (which owns the
+ *      AiConfig → `ActiveModel` projection and the runtime empty-state).
+ *   2. `ChangeWorkspaceCommand` opens the workspace against a MemFilesApi
+ *      (registering `Secrets` via `initWorkspace`).
+ *   3. With no AiConfig connections, the runtime is `no-providers`.
+ *   4. Seeding an AiConfig connection (key → Secrets) + an active selection
+ *      projects a remote `ActiveModel` whose `createProvider()` is buildable.
+ *   5. The agent-runtime manager observes `ActiveModel`, builds the AgentRuntime,
+ *      and `AgentRuntimeAdapter.getState().status` becomes `"ready"`.
  *
- * All of this happens without any chat-mini-app code editing the
- * intermediate steps directly — the slot bus + adapters carry the
- * cross-fragment data.
+ * `ai-providers` is still booted as the local-model store, but no longer writes
+ * the remote `ActiveModel` — that single owner is the AiConfig projection.
  */
 
 beforeEach(() => {
@@ -58,7 +57,7 @@ afterEach(() => {
 });
 
 describe("chat-mini end-to-end (logic fragments)", () => {
-  it("connect folder → save providers → ActiveModel resolves → AgentRuntime ready", async () => {
+  it("connect folder → seed AiConfig → ActiveModel resolves → AgentRuntime ready", async () => {
     const ctx: Record<string, unknown> = {};
     const cleanups: Array<() => Promise<void> | void> = [];
 
@@ -68,6 +67,8 @@ describe("chat-mini end-to-end (logic fragments)", () => {
     cleanups.push(initAgentRuntime(ctx));
     cleanups.push(initSettings(ctx));
     cleanups.push(initProviders(ctx));
+    cleanups.push(await initAiConfig(ctx));
+    cleanups.push(await initModelsConfig(ctx));
     cleanups.push(initWorkspaceFiles(ctx));
     cleanups.push(initFiles(ctx));
     cleanups.push(initMarkdownViewer(ctx));
@@ -76,43 +77,33 @@ describe("chat-mini end-to-end (logic fragments)", () => {
     try {
       const workspace = getWorkspace(ctx);
       const commands = workspace.requireAdapter(Commands);
-      const providers = workspace.requireAdapter(Providers);
       const adapter = workspace.requireAdapter(AgentRuntimeAdapter);
       const slots = workspace.requireAdapter(Slots);
       const store = workspace.requireAdapter(SpecStore);
 
-      // Pre-seed providers.json so the providers manager picks it
-      // up on workspace.open(). Mirrors the real flow where the
-      // file lives in the user's directory before they connect.
       const files = new MemFilesApi();
-      await writeText(
-        files,
-        "/.settings/providers.json",
-        JSON.stringify({
-          ...emptyProvidersConfig,
-          connections: [
-            {
-              id: "openai",
-              type: "openai",
-              name: "OpenAI",
-              apiKey: "sk-test-fixture",
-              // A connected provider carries `discoveredModels` (populated
-              // by the Connect / Check Connection action); without it the
-              // connection is a dormant shell and `isConnected` filters it
-              // out, leaving the runtime in `no-providers`.
-              discoveredModels: [{ id: "gpt-4o", label: "GPT-4o" }],
-            },
-          ],
-          active: { providerId: "openai", modelId: "gpt-4o" },
-        }),
-      );
 
-      // Fire the canonical workspace-change command — the
-      // workspace-bridge handler runs close → setFileSystem →
-      // open, which fires onLoad listeners (chat, providers,
-      // ...) and triggers the rebuild chain.
+      // Fire the canonical workspace-change command — the workspace-bridge
+      // handler runs close → initWorkspace (registers Secrets/Settings) →
+      // open, firing onLoad listeners (ai-config.load, models-config
+      // projection, ...) and triggering the rebuild chain.
       await commands.call(ChangeWorkspaceCommand, { files, label: "test" })
         .promise;
+      await vi.runAllTimersAsync();
+
+      // No AiConfig connections yet → the runtime empty-state owner
+      // (models-config) reports `no-providers`.
+      expect(adapter.getState().status).toBe("no-providers");
+
+      // Seed an AiConfig connection (key → Secrets) and an active selection.
+      // This fires AiConfig.onUpdate → applyRemoteActive projects a remote
+      // ActiveModel whose pre-resolved provider is buildable.
+      const aiConfig = workspace.requireAdapter(AiConfig);
+      await aiConfig.upsertConnection(
+        { id: "openai", type: "openai", name: "OpenAI", starredModelIds: [] },
+        "sk-test-fixture",
+      );
+      await aiConfig.setActive("openai", "gpt-4o");
 
       // Drain debounced rebuild + buildRuntime promise.
       await vi.runAllTimersAsync();
@@ -124,15 +115,6 @@ describe("chat-mini end-to-end (logic fragments)", () => {
         expect(state.activeProviderId).toBe("openai");
         expect(state.activeModelId).toBe("gpt-4o");
       }
-      expect(providers.config.active.providerId).toBe("openai");
-
-      // Switching to no active model collapses back to no-active-model.
-      await providers.saveProviders({
-        ...providers.config,
-        active: {},
-      });
-      await vi.runAllTimersAsync();
-      expect(adapter.getState().status).toBe("no-active-model");
 
       // Wave 5.2: markdown-viewer registers into the
       // `files:mime-renderers` slot, and `files:visualize` for an
