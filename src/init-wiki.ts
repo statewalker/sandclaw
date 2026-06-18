@@ -8,6 +8,7 @@ import {
 import { createDefaultRegistry } from "@statewalker/content-extractors";
 import { Slots } from "@statewalker/shared-slots";
 import {
+  createWikiSiteTools,
   createWikiTools,
   registerWiki,
   type WikiConfigData,
@@ -111,6 +112,7 @@ export default function initWiki(ctx: Record<string, unknown>): () => void {
     if (disposed) return;
     registerWiki(workspace, { provider: registry, extractors: createDefaultRegistry() });
     disposers.push(slots.provide(agentToolsSlot, createWikiTools(workspace)));
+    disposers.push(slots.provide(agentToolsSlot, createWikiSiteTools(workspace)));
     ready = true;
     await bindNewWikis();
   })();
