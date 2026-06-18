@@ -1,4 +1,4 @@
-import { agentToolsSlot } from "@statewalker/ai-agent-runtime";
+import { agentSystemPromptSlot, agentToolsSlot } from "@statewalker/ai-agent-runtime";
 import {
   AiConfig,
   createLiveProviderRegistry,
@@ -11,11 +11,17 @@ import {
   createWikiSiteTools,
   createWikiTools,
   registerWiki,
+  registerWikiCommands,
   type WikiConfigData,
   type WikiNature,
   wikiNatureOf,
 } from "@statewalker/wiki";
 import { getWorkspace } from "@statewalker/workspace.core";
+
+/** Steering block contributed to the agent system prompt so the chat agent reaches
+ * for the wiki tools first on project questions. */
+const WIKI_STEERING = `## Project & wiki content
+For questions about the user's projects, codebase, notes, or wiki content, call the \`wiki_search\` / \`wiki_ask\` tools BEFORE reading files, and cite the URIs they return.`;
 
 /** Default embedding dimensionality when deriving a new wiki's config (the create-wiki
  * UI lets the user override it; OpenAI `text-embedding-3-*` and most defaults are 1536). */
@@ -113,6 +119,9 @@ export default function initWiki(ctx: Record<string, unknown>): () => void {
     registerWiki(workspace, { provider: registry, extractors: createDefaultRegistry() });
     disposers.push(slots.provide(agentToolsSlot, createWikiTools(workspace)));
     disposers.push(slots.provide(agentToolsSlot, createWikiSiteTools(workspace)));
+    // Expose search/ask as system commands and steer the agent toward the wiki tools.
+    disposers.push(registerWikiCommands(workspace));
+    disposers.push(slots.provide(agentSystemPromptSlot, WIKI_STEERING));
     ready = true;
     await bindNewWikis();
   })();
