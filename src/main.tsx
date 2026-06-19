@@ -13,8 +13,12 @@ import "@statewalker/models-config.view.react/styles";
 import initFileExplorer from "@statewalker/explorer.core/fragment";
 import initFileExplorerReact from "@statewalker/explorer.view.react/fragment";
 import "@statewalker/explorer.view.react/styles";
+import initWikiReact from "@statewalker/wiki.view.react/fragment";
+import "@statewalker/wiki.view.react/styles";
 import initChatMenu from "./init-chat-menu.js";
 import initFilesMenu from "./init-files-menu.js";
+import initWiki from "./init-wiki.js";
+import initWikiMenu from "./init-wiki-menu.js";
 import "@statewalker/ui.view.react/styles";
 import "@statewalker/shell.view.react/styles";
 import "@statewalker/mime.view.image/styles";
@@ -49,16 +53,19 @@ if (!maybeMountConnectionsPrototype()) {
       initModelsConfig,
       initChat,
       initFileExplorer,
+      initWiki,
     ],
     onLogicReady: (ctx, register) => {
       register(initChatMenu(ctx));
       register(initFilesMenu(ctx));
+      register(initWikiMenu(ctx));
     },
     renderers: [
       initAiConfigView,
       initModelsConfigReact,
       initChatReact,
       initFileExplorerReact,
+      initWikiReact,
     ],
   });
 }
