@@ -1,4 +1,7 @@
-import { agentSystemPromptSlot, agentToolsSlot } from "@statewalker/ai-agent-runtime";
+import {
+  agentSystemPromptSlot,
+  agentToolsSlot,
+} from "@statewalker/ai-agent-runtime";
 import {
   AiConfig,
   createLiveProviderRegistry,
@@ -33,26 +36,27 @@ const SCAN_INTERVAL_MS = 30_000;
 
 /**
  * Derive a default per-project wiki config from AiConfig's active selection: the
- * active chat model drives every text stage, and the first embedding-capable model on
- * the same connection is the embedder. References are `connectionId:modelId` URIs.
- * The create-wiki flow passes the result to `WikiNature.initialize(config)`.
+ * active chat model drives every text stage. If the active connection has an
+ * embedding-capable model, the first one becomes the embedder (hybrid vector search);
+ * otherwise the wiki is **text-only** (full-text search, no vectors) — embeddings are
+ * optional. References are `connectionId:modelId` URIs. Throws only when no active
+ * chat model is selected. The create-wiki flow passes the result to
+ * `WikiNature.initialize(config)`.
  */
 export function deriveWikiConfig(aiConfig: AiConfig): WikiConfigData {
   const { connectionId, modelId } = aiConfig.getActive();
   if (!connectionId || !modelId) {
     throw new Error("deriveWikiConfig: no active AiConfig model is selected");
   }
-  const embedding = aiConfig.getModels(connectionId, "embedding")[0];
-  if (!embedding) {
-    throw new Error(
-      `deriveWikiConfig: connection "${connectionId}" has no embedding-capable model`,
-    );
-  }
-  return {
+  const config: WikiConfigData = {
     models: { default: formatModelReference(connectionId, modelId) },
-    embedModel: formatModelReference(connectionId, embedding.id),
-    dimensionality: DEFAULT_EMBED_DIM,
   };
+  const embedding = aiConfig.getModels(connectionId, "embedding")[0];
+  if (embedding) {
+    config.embedModel = formatModelReference(connectionId, embedding.id);
+    config.dimensionality = DEFAULT_EMBED_DIM;
+  }
+  return config;
 }
 
 /**
@@ -60,7 +64,11 @@ export function deriveWikiConfig(aiConfig: AiConfig): WikiConfigData {
  * interval and repeat. Chaining the next tick only after the previous run completes
  * inherently prevents overlapping runs. Returns a stop function.
  */
-function startScanLoop(nature: WikiNature, name: string, isStopped: () => boolean): () => void {
+function startScanLoop(
+  nature: WikiNature,
+  name: string,
+  isStopped: () => boolean,
+): () => void {
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const tick = async (): Promise<void> => {
@@ -72,7 +80,8 @@ function startScanLoop(nature: WikiNature, name: string, isStopped: () => boolea
     } catch (err) {
       console.error(`[wiki] scan failed for "${name}":`, err);
     }
-    if (!stopped && !isStopped()) timer = setTimeout(() => void tick(), SCAN_INTERVAL_MS);
+    if (!stopped && !isStopped())
+      timer = setTimeout(() => void tick(), SCAN_INTERVAL_MS);
   };
   void tick();
   return () => {
@@ -83,8 +92,8 @@ function startScanLoop(nature: WikiNature, name: string, isStopped: () => boolea
 
 /**
  * Logic fragment: register the wiki on the app's `Workspace` (models from AiConfig,
- * no `process.env`), bind every wiki-nature project on the opened workspace with a
- * polling re-scan, and expose the `wiki_search`/`wiki_ask` tools to the chat agent.
+ * no `process.env`), activate every top-level folder as a wiki on the opened workspace
+ * with a polling re-scan, and expose the `wiki_search`/`wiki_ask` tools to the chat agent.
  * The AiConfig-backed provider registry rebuilds on config changes, so key/connection
  * edits take effect without re-registration.
  */
@@ -100,29 +109,73 @@ export default function initWiki(ctx: Record<string, unknown>): () => void {
   const disposers: Array<() => void> = [];
   const isStopped = () => disposed;
 
-  /** Enumerate the opened workspace and start a scan loop for each not-yet-bound wiki. */
+  /**
+   * Activate every top-level folder as a wiki: enumerate the opened workspace and, for
+   * each not-yet-bound project, materialize the wiki nature (a default config derived
+   * from AiConfig) when it is absent, then start a polling scan loop. Dot-prefixed folders
+   * (`.project`, `.settings`, …) are workspace/system state and are skipped. A folder that
+   * cannot be activated yet — e.g. no active/embedding model is selected — is logged and
+   * retried on the next pass; folders that are already wikis bind regardless.
+   */
   const bindNewWikis = async (): Promise<void> => {
-    if (disposed || !ready || !workspace.isOpened) return;
-    for (const project of await workspace.getProjects()) {
+    if (disposed || !ready || !workspace.isOpened) {
+      console.debug(
+        `[wiki] bindNewWikis skipped (ready=${ready}, opened=${workspace.isOpened}, disposed=${disposed})`,
+      );
+      return;
+    }
+    const projects = await workspace.getProjects();
+    console.debug(
+      `[wiki] scanning ${projects.length} top-level folders for activation:`,
+      projects.map((p) => p.projectName),
+    );
+    for (const project of projects) {
       const name = project.projectName;
-      if (bound.has(name)) continue;
+      if (bound.has(name) || name.startsWith(".")) continue;
       const nature = wikiNatureOf(project);
-      if (!(await nature.exists())) continue;
+      try {
+        if (await nature.exists()) {
+          console.info(`[wiki] binding existing wiki "${name}"`);
+        } else {
+          await nature.initialize(deriveWikiConfig(aiConfig));
+          console.info(`[wiki] activated new wiki "${name}"`);
+        }
+      } catch (err) {
+        console.warn(
+          `[wiki] not activating "${name}":`,
+          err instanceof Error ? err.message : err,
+        );
+        continue;
+      }
       bound.add(name);
       disposers.push(startScanLoop(nature, name, isStopped));
     }
   };
 
   void (async () => {
-    registry = await createLiveProviderRegistry(aiConfig);
+    try {
+      registry = await createLiveProviderRegistry(aiConfig);
+    } catch (err) {
+      console.error(
+        "[wiki] provider registry failed — wikis will not activate:",
+        err,
+      );
+      return;
+    }
     if (disposed) return;
-    registerWiki(workspace, { provider: registry, extractors: createDefaultRegistry() });
+    registerWiki(workspace, {
+      provider: registry,
+      extractors: createDefaultRegistry(),
+    });
     disposers.push(slots.provide(agentToolsSlot, createWikiTools(workspace)));
-    disposers.push(slots.provide(agentToolsSlot, createWikiSiteTools(workspace)));
+    disposers.push(
+      slots.provide(agentToolsSlot, createWikiSiteTools(workspace)),
+    );
     // Expose search/ask as system commands and steer the agent toward the wiki tools.
     disposers.push(registerWikiCommands(workspace));
     disposers.push(slots.provide(agentSystemPromptSlot, WIKI_STEERING));
     ready = true;
+    console.info("[wiki] provider registry ready — activating wikis");
     await bindNewWikis();
   })();
 
