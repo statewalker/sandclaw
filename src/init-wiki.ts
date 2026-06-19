@@ -19,7 +19,11 @@ import {
   type WikiNature,
   wikiNatureOf,
 } from "@statewalker/wiki";
-import { getWorkspace } from "@statewalker/workspace.core";
+import {
+  getWorkspace,
+  type Logger,
+  loggerOf,
+} from "@statewalker/workspace.core";
 
 /** Steering block contributed to the agent system prompt so the chat agent reaches
  * for the wiki tools first on project questions. */
@@ -68,6 +72,7 @@ function startScanLoop(
   nature: WikiNature,
   name: string,
   isStopped: () => boolean,
+  log: Logger,
 ): () => void {
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -78,7 +83,10 @@ function startScanLoop(
         if (stopped || isStopped()) return;
       }
     } catch (err) {
-      console.error(`[wiki] scan failed for "${name}":`, err);
+      log.error("scan failed", {
+        project: name,
+        error: err instanceof Error ? err.message : err,
+      });
     }
     if (!stopped && !isStopped())
       timer = setTimeout(() => void tick(), SCAN_INTERVAL_MS);
@@ -101,6 +109,7 @@ export default function initWiki(ctx: Record<string, unknown>): () => void {
   const workspace = getWorkspace(ctx);
   const aiConfig = workspace.requireAdapter(AiConfig);
   const slots = workspace.requireAdapter(Slots);
+  const log = loggerOf(workspace, "wiki");
 
   let registry: LiveProviderRegistry | undefined;
   let ready = false;
@@ -119,36 +128,38 @@ export default function initWiki(ctx: Record<string, unknown>): () => void {
    */
   const bindNewWikis = async (): Promise<void> => {
     if (disposed || !ready || !workspace.isOpened) {
-      console.debug(
-        `[wiki] bindNewWikis skipped (ready=${ready}, opened=${workspace.isOpened}, disposed=${disposed})`,
-      );
+      log.debug("activation skipped", {
+        ready,
+        opened: workspace.isOpened,
+        disposed,
+      });
       return;
     }
     const projects = await workspace.getProjects();
-    console.debug(
-      `[wiki] scanning ${projects.length} top-level folders for activation:`,
-      projects.map((p) => p.projectName),
-    );
+    log.debug("scanning top-level folders for activation", {
+      count: projects.length,
+      names: projects.map((p) => p.projectName),
+    });
     for (const project of projects) {
       const name = project.projectName;
       if (bound.has(name) || name.startsWith(".")) continue;
       const nature = wikiNatureOf(project);
       try {
         if (await nature.exists()) {
-          console.info(`[wiki] binding existing wiki "${name}"`);
+          log.info("binding existing wiki", { project: name });
         } else {
           await nature.initialize(deriveWikiConfig(aiConfig));
-          console.info(`[wiki] activated new wiki "${name}"`);
+          log.info("activated new wiki", { project: name });
         }
       } catch (err) {
-        console.warn(
-          `[wiki] not activating "${name}":`,
-          err instanceof Error ? err.message : err,
-        );
+        log.warn("not activating", {
+          project: name,
+          error: err instanceof Error ? err.message : err,
+        });
         continue;
       }
       bound.add(name);
-      disposers.push(startScanLoop(nature, name, isStopped));
+      disposers.push(startScanLoop(nature, name, isStopped, log));
     }
   };
 
@@ -156,10 +167,9 @@ export default function initWiki(ctx: Record<string, unknown>): () => void {
     try {
       registry = await createLiveProviderRegistry(aiConfig);
     } catch (err) {
-      console.error(
-        "[wiki] provider registry failed — wikis will not activate:",
-        err,
-      );
+      log.error("provider registry failed — wikis will not activate", {
+        error: err instanceof Error ? err.message : err,
+      });
       return;
     }
     if (disposed) return;
@@ -175,7 +185,7 @@ export default function initWiki(ctx: Record<string, unknown>): () => void {
     disposers.push(registerWikiCommands(workspace));
     disposers.push(slots.provide(agentSystemPromptSlot, WIKI_STEERING));
     ready = true;
-    console.info("[wiki] provider registry ready — activating wikis");
+    log.info("provider registry ready — activating wikis");
     await bindNewWikis();
   })();
 
@@ -190,7 +200,9 @@ export default function initWiki(ctx: Record<string, unknown>): () => void {
       try {
         dispose();
       } catch (err) {
-        console.error("[wiki] dispose threw:", err);
+        log.error("dispose threw", {
+          error: err instanceof Error ? err.message : err,
+        });
       }
     }
     registry?.dispose();
