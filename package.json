@@ -94,7 +94,10 @@
     "use-stick-to-bottom": "^1.1.4",
     "zod": "catalog:",
     "@statewalker/explorer.core": "workspace:*",
-    "@statewalker/explorer.view.react": "workspace:*"
+    "@statewalker/explorer.view.react": "workspace:*",
+    "@statewalker/wiki": "workspace:*",
+    "@statewalker/wiki.view.react": "workspace:*",
+    "@statewalker/content-extractors": "catalog:"
   },
   "devDependencies": {
     "@statewalker/webrun-files-mem": "catalog:",
