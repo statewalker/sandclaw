@@ -1,5 +1,5 @@
 import { agentSystemPromptSlot } from "@statewalker/ai-agent-runtime.core";
-import { AiConfig } from "@statewalker/ai-config";
+import { AiConfig } from "@statewalker/ai-config.core";
 import { Commands } from "@statewalker/shared-commands";
 import { Slots } from "@statewalker/shared-slots";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";

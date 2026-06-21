@@ -7,7 +7,7 @@ import {
   createLiveProviderRegistry,
   formatModelReference,
   type LiveProviderRegistry,
-} from "@statewalker/ai-config";
+} from "@statewalker/ai-config.core";
 import { createDefaultRegistry } from "@statewalker/content-extractors";
 import { Slots } from "@statewalker/shared-slots";
 import {

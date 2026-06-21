@@ -41,7 +41,7 @@
     "@repo/chat-mini.chat-react": "workspace:*",
     "@statewalker/ai-agent.core": "catalog:",
     "@statewalker/ai-agent-runtime.core": "workspace:*",
-    "@statewalker/ai-config": "workspace:*",
+    "@statewalker/ai-config.core": "workspace:*",
     "@statewalker/ai-config.view.react": "workspace:*",
     "@statewalker/ai-providers.browser": "workspace:*",
     "@statewalker/ai-providers": "workspace:*",
