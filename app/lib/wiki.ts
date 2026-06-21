@@ -4,7 +4,7 @@ import {
   WikiPageMeta,
   WikiPageSummary,
   WikiTopicIndex,
-} from "@statewalker/wiki";
+} from "@statewalker/wiki.core";
 import { parseCitationUri, sectionToPdfPage } from "./pages";
 import type {
   CitationBrief,

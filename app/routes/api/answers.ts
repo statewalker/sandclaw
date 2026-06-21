@@ -1,4 +1,4 @@
-import { type Answer, WikiSnapshotsAdapter } from "@statewalker/wiki";
+import { type Answer, WikiSnapshotsAdapter } from "@statewalker/wiki.core";
 import { createRoute } from "honox/factory";
 import { getProject } from "@/lib/wiki-repo";
 

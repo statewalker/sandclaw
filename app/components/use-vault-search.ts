@@ -1,4 +1,4 @@
-import type { Answer } from "@statewalker/wiki";
+import type { Answer } from "@statewalker/wiki.core";
 import { useRef, useState } from "react";
 
 export type SearchStatus = "idle" | "running" | "done" | "error";

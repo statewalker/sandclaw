@@ -1,4 +1,4 @@
-import { type Answer, WikiSnapshotsAdapter } from "@statewalker/wiki";
+import { type Answer, WikiSnapshotsAdapter } from "@statewalker/wiki.core";
 import { DEFAULT_SYSTEM_FOLDER } from "@statewalker/workspace.core";
 import { answerToSection } from "./answer";
 import type { Section } from "./types";
