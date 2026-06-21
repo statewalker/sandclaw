@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildRuntime as _buildRuntime,
   type BuildRuntimeInput,
-} from "@statewalker/ai-agent-runtime/internal/build-runtime";
+} from "@statewalker/ai-agent-runtime.core/internal/build-runtime";
 
 /**
  * Adapter so existing test bodies (written against the old

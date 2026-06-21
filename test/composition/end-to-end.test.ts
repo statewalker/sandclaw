@@ -1,6 +1,6 @@
 import initChat from "@repo/chat-mini.chat/fragment";
-import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
-import initAgentRuntime from "@statewalker/ai-agent-runtime/fragment";
+import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime.core";
+import initAgentRuntime from "@statewalker/ai-agent-runtime.core/fragment";
 import { AiConfig } from "@statewalker/ai-config";
 import initAiConfig from "@statewalker/ai-config/fragment";
 import initProviders from "@statewalker/ai-providers/fragment";

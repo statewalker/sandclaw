@@ -1,4 +1,4 @@
-import { agentToolsSlot } from "@statewalker/ai-agent-runtime";
+import { agentToolsSlot } from "@statewalker/ai-agent-runtime.core";
 import { AiConfig } from "@statewalker/ai-config";
 import { Slots } from "@statewalker/shared-slots";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";

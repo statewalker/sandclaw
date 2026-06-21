@@ -2,7 +2,7 @@ import initChat from "@repo/chat-mini.chat/fragment";
 import initChatReact from "@repo/chat-mini.chat-react/fragment";
 import "@repo/chat-mini.chat-react/styles";
 import { bootShell } from "@repo/app-shell";
-import initAgentRuntime from "@statewalker/ai-agent-runtime/fragment";
+import initAgentRuntime from "@statewalker/ai-agent-runtime.core/fragment";
 import initAiConfig from "@statewalker/ai-config/fragment";
 import initAiConfigView from "@statewalker/ai-config.view.react/fragment";
 import "@statewalker/ai-config.view.react/styles";

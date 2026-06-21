@@ -57,7 +57,7 @@ const SUBSTRATE_LOGIC_PACKAGES = [
   "render.core",
 ];
 
-const AI_LOGIC_PACKAGES = ["ai-agent-runtime", "ai-providers"];
+const AI_LOGIC_PACKAGES = ["ai-agent-runtime.core", "ai-providers"];
 const AI_REACT_PACKAGES: string[] = [];
 
 const CHAT_LOGIC_PACKAGES = [

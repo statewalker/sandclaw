@@ -1,6 +1,6 @@
 import { menubarItemsSlot } from "@repo/app-shell";
 import { OpenChatSessionCommand } from "@repo/chat-mini.chat";
-import { ActiveModel, AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
+import { ActiveModel, AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime.core";
 import { Commands } from "@statewalker/shared-commands";
 import { newRegistry } from "@statewalker/shared-registry";
 import { Slots } from "@statewalker/shared-slots";

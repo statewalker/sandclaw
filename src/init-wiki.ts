@@ -1,7 +1,7 @@
 import {
   agentSystemPromptSlot,
   agentToolsSlot,
-} from "@statewalker/ai-agent-runtime";
+} from "@statewalker/ai-agent-runtime.core";
 import {
   AiConfig,
   createLiveProviderRegistry,
