@@ -1,4 +1,4 @@
-import type { Session } from "@statewalker/ai-agent/runtime";
+import type { Session } from "@statewalker/ai-agent.core/runtime";
 
 /**
  * Override the model used by a session's underlying controller.

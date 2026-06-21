@@ -1,4 +1,4 @@
-import type { TreeEntry, TreeNode } from "@statewalker/ai-agent/state";
+import type { TreeEntry, TreeNode } from "@statewalker/ai-agent.core/state";
 import { useCallback, useRef, useSyncExternalStore } from "react";
 
 /**

@@ -4,7 +4,7 @@ import {
   NodeType,
   type SessionState,
   type Turn,
-} from "@statewalker/ai-agent/state";
+} from "@statewalker/ai-agent.core/state";
 import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {

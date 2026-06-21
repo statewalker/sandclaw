@@ -1,4 +1,4 @@
-import type { Message, ToolCall } from "@statewalker/ai-agent/state";
+import type { Message, ToolCall } from "@statewalker/ai-agent.core/state";
 import type { ReactElement } from "react";
 import { ErrorBlock } from "./error-block.js";
 import { MessageView } from "./message-view.js";

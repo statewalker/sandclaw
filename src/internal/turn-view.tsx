@@ -8,7 +8,7 @@ import {
   NodeType,
   type ToolCall,
   type Turn,
-} from "@statewalker/ai-agent/state";
+} from "@statewalker/ai-agent.core/state";
 import {
   coreViewsSlot,
   useAdapter,

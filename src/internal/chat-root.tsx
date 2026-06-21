@@ -1,5 +1,5 @@
 import { chatPanelId } from "@repo/chat-mini.chat";
-import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
+import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime.core";
 import { useAdapterValue, useAppWorkspace } from "@statewalker/ui.view.react";
 import { SetPanelTitleCommand } from "@statewalker/shell.core";
 import { Commands } from "@statewalker/shared-commands";

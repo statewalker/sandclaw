@@ -3,7 +3,7 @@ import { useFocusedChatTab, useOpenChatTabs } from "@repo/chat-mini.chat-react";
 import {
   ActiveModel,
   AgentRuntimeAdapter,
-} from "@statewalker/ai-agent-runtime";
+} from "@statewalker/ai-agent-runtime.core";
 import { useAdapterValue, useAppWorkspace } from "@statewalker/ui.view.react";
 import { ClosePanelCommand } from "@statewalker/shell.core";
 import { Button, ScrollArea } from "@statewalker/ui.view.shadcn";

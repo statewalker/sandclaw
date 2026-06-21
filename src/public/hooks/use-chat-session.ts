@@ -1,5 +1,5 @@
-import type { Session } from "@statewalker/ai-agent/runtime";
-import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime";
+import type { Session } from "@statewalker/ai-agent.core/runtime";
+import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime.core";
 import { useAdapterValue } from "@statewalker/ui.view.react";
 import { useEffect, useState } from "react";
 import { setSessionModel } from "../session-utils.js";

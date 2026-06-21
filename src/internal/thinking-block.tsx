@@ -1,4 +1,4 @@
-import type { Message } from "@statewalker/ai-agent/state";
+import type { Message } from "@statewalker/ai-agent.core/state";
 import { useState } from "react";
 import { useNodeContent } from "./hooks/use-session-node.js";
 import {

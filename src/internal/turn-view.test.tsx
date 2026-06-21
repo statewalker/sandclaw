@@ -8,7 +8,7 @@ import {
   NodeType,
   type SessionState,
   type Turn,
-} from "@statewalker/ai-agent/state";
+} from "@statewalker/ai-agent.core/state";
 import {
   AppWorkspaceProvider,
   coreViewsSlot,

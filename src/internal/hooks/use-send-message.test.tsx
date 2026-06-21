@@ -2,7 +2,7 @@ import {
   createAgentNodeFactory,
   type LogMessage,
   NodeType,
-} from "@statewalker/ai-agent/state";
+} from "@statewalker/ai-agent.core/state";
 import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useSendMessage } from "./use-send-message.js";

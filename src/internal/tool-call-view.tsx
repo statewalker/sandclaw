@@ -1,4 +1,4 @@
-import type { ToolCall } from "@statewalker/ai-agent/state";
+import type { ToolCall } from "@statewalker/ai-agent.core/state";
 import type { ReactElement } from "react";
 import { useNodeChildren, useNodeContent } from "./hooks/use-session-node.js";
 import { Tool, type ToolPart } from "./prompt-kit/tool.js";

@@ -1,4 +1,4 @@
-import type { SessionState } from "@statewalker/ai-agent/state";
+import type { SessionState } from "@statewalker/ai-agent.core/state";
 import type { ReactElement } from "react";
 import { useNodeProp } from "./hooks/use-session-node.js";
 

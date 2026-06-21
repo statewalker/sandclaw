@@ -1,4 +1,4 @@
-import type { ToolCall } from "@statewalker/ai-agent/state";
+import type { ToolCall } from "@statewalker/ai-agent.core/state";
 import {
   Collapsible,
   CollapsibleContent,

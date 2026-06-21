@@ -1,4 +1,4 @@
-import type { SessionState } from "@statewalker/ai-agent/state";
+import type { SessionState } from "@statewalker/ai-agent.core/state";
 import { useNodeChildren } from "./hooks/use-session-node.js";
 import { TurnView } from "./turn-view";
 

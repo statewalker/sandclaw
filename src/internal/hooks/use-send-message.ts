@@ -1,4 +1,4 @@
-import type { Session } from "@statewalker/ai-agent/runtime";
+import type { Session } from "@statewalker/ai-agent.core/runtime";
 import { useCallback, useRef, useState } from "react";
 
 export interface SendProgress {

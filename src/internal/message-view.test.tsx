@@ -3,7 +3,7 @@ import {
   type Message,
   NodeType,
   type SessionState,
-} from "@statewalker/ai-agent/state";
+} from "@statewalker/ai-agent.core/state";
 import { AppWorkspaceProvider } from "@statewalker/ui.view.react";
 import { VisualizeFileCommand } from "@statewalker/mime.core";
 import { Commands } from "@statewalker/shared-commands";
