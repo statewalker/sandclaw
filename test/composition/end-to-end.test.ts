@@ -5,6 +5,7 @@ import { AiConfig } from "@statewalker/ai-config.core";
 import initAiConfig from "@statewalker/ai-config.core/fragment";
 import initProviders from "@statewalker/ai-providers/fragment";
 import initModelsConfig from "@statewalker/models-config/fragment";
+import initActiveModelProjection from "../../src/init-active-model-projection.js";
 import initDock from "@statewalker/shell.core/fragment";
 import {
   MARKDOWN_VIEWER_CATALOG_ID,
@@ -68,6 +69,7 @@ describe("chat-mini end-to-end (logic fragments)", () => {
     cleanups.push(initSettings(ctx));
     cleanups.push(initProviders(ctx));
     cleanups.push(await initAiConfig(ctx));
+    cleanups.push(initActiveModelProjection(ctx));
     cleanups.push(await initModelsConfig(ctx));
     cleanups.push(initWorkspaceFiles(ctx));
     cleanups.push(initFiles(ctx));

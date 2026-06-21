@@ -15,6 +15,7 @@ import initFileExplorerReact from "@statewalker/explorer.view.react/fragment";
 import "@statewalker/explorer.view.react/styles";
 import initWikiReact from "@statewalker/wiki.view.react/fragment";
 import "@statewalker/wiki.view.react/styles";
+import initActiveModelProjection from "./init-active-model-projection.js";
 import initChatMenu from "./init-chat-menu.js";
 import initFilesMenu from "./init-files-menu.js";
 import initWiki from "./init-wiki.js";
@@ -50,6 +51,7 @@ if (!maybeMountConnectionsPrototype()) {
       initAgentRuntime,
       initProviders,
       initAiConfig,
+      initActiveModelProjection,
       initModelsConfig,
       initChat,
       initFileExplorer,
