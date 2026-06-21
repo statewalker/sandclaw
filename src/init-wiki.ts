@@ -18,7 +18,7 @@ import {
   type WikiConfigData,
   type WikiNature,
   wikiNatureOf,
-} from "@statewalker/wiki";
+} from "@statewalker/wiki.core";
 import {
   getWorkspace,
   type Logger,

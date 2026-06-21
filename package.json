@@ -95,7 +95,7 @@
     "zod": "catalog:",
     "@statewalker/explorer.core": "workspace:*",
     "@statewalker/explorer.view.react": "workspace:*",
-    "@statewalker/wiki": "workspace:*",
+    "@statewalker/wiki.core": "workspace:*",
     "@statewalker/wiki.view.react": "workspace:*",
     "@statewalker/content-extractors": "catalog:"
   },

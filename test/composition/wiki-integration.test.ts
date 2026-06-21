@@ -2,7 +2,7 @@ import { agentToolsSlot } from "@statewalker/ai-agent-runtime.core";
 import { AiConfig } from "@statewalker/ai-config";
 import { Slots } from "@statewalker/shared-slots";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
-import { SearchAdapter, WikiNature, WikiQuery, WikiSnapshotsAdapter } from "@statewalker/wiki";
+import { SearchAdapter, WikiNature, WikiQuery, WikiSnapshotsAdapter } from "@statewalker/wiki.core";
 import { Workspace } from "@statewalker/workspace.core";
 import { describe, expect, it } from "vitest";
 import initWiki, { deriveWikiConfig } from "../../src/init-wiki.js";

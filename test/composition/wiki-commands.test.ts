@@ -3,7 +3,7 @@ import { AiConfig } from "@statewalker/ai-config";
 import { Commands } from "@statewalker/shared-commands";
 import { Slots } from "@statewalker/shared-slots";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
-import { WikiAskCommand, WikiSearchCommand } from "@statewalker/wiki";
+import { WikiAskCommand, WikiSearchCommand } from "@statewalker/wiki.core";
 import { Workspace } from "@statewalker/workspace.core";
 import { describe, expect, it } from "vitest";
 import initWiki from "../../src/init-wiki.js";
