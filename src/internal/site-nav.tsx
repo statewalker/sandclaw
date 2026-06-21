@@ -1,5 +1,5 @@
 import { ScrollArea } from "@statewalker/ui.view.shadcn";
-import type { SitePage } from "@statewalker/wiki";
+import type { SitePage } from "@statewalker/wiki.core";
 import type { ReactElement } from "react";
 
 interface SiteNavProps {

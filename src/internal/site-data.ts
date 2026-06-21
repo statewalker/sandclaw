@@ -1,6 +1,6 @@
 import { Commands } from "@statewalker/shared-commands";
 import { useAppWorkspace } from "@statewalker/ui.view.react";
-import type { SiteManifest } from "@statewalker/wiki";
+import type { SiteManifest } from "@statewalker/wiki.core";
 import { LoadFileCommand } from "@statewalker/workspace.core";
 import { useEffect, useState } from "react";
 

@@ -10,7 +10,7 @@ import { newRegistry } from "@statewalker/shared-registry";
 import { Slots } from "@statewalker/shared-slots";
 import { ShowDockPanelCommand } from "@statewalker/shell.core";
 import { dockTabIconSlot } from "@statewalker/shell.view.react";
-import { OpenWikiSiteCommand } from "@statewalker/wiki";
+import { OpenWikiSiteCommand } from "@statewalker/wiki.core";
 import { getWorkspace } from "@statewalker/workspace.core";
 import { BookText } from "lucide-react";
 import { WikiSiteView } from "../internal/wiki-site-view.js";

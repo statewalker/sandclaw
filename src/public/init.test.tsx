@@ -2,7 +2,7 @@ import { SpecStore } from "@statewalker/render.core";
 import { Commands } from "@statewalker/shared-commands";
 import { Slots } from "@statewalker/shared-slots";
 import { ShowDockPanelCommand } from "@statewalker/shell.core";
-import { OpenWikiSiteCommand } from "@statewalker/wiki";
+import { OpenWikiSiteCommand } from "@statewalker/wiki.core";
 import { Workspace } from "@statewalker/workspace.core";
 import { describe, expect, it } from "vitest";
 import { wikiSiteSpecId } from "./catalog.js";

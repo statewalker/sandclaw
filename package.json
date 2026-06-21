@@ -38,7 +38,7 @@
     "@statewalker/shell.view.react": "workspace:*",
     "@statewalker/ui.view.react": "workspace:*",
     "@statewalker/ui.view.shadcn": "workspace:*",
-    "@statewalker/wiki": "workspace:*",
+    "@statewalker/wiki.core": "workspace:*",
     "@statewalker/workspace.core": "workspace:*",
     "lucide-react": "catalog:",
     "zod": "catalog:"
