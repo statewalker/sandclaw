@@ -3,8 +3,7 @@ import { AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime.core";
 import initAgentRuntime from "@statewalker/ai-agent-runtime.core/fragment";
 import { AiConfig } from "@statewalker/ai-config.core";
 import initAiConfig from "@statewalker/ai-config.core/fragment";
-import initProviders from "@statewalker/ai-providers/fragment";
-import initModelsConfig from "@statewalker/models-config/fragment";
+import initAiLocalModels from "@statewalker/ai-local-models.core/fragment";
 import initActiveModelProjection from "../../src/init-active-model-projection.js";
 import initDock from "@statewalker/shell.core/fragment";
 import {
@@ -34,8 +33,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * logic-only layer (no React), post AI-migration:
  *
  *   1. All built-in logic fragments register against the same Workspace,
- *      including `ai-config` (unified config) + `models-config` (which owns the
- *      AiConfig → `ActiveModel` projection and the runtime empty-state).
+ *      including `ai-config` (unified config), the chat-app active-model
+ *      projection (AiConfig → `ActiveModel` + runtime empty-state), and
+ *      `ai-local-models` (the local-model domain with its own store).
  *   2. `ChangeWorkspaceCommand` opens the workspace against a MemFilesApi
  *      (registering `Secrets` via `initWorkspace`).
  *   3. With no AiConfig connections, the runtime is `no-providers`.
@@ -43,9 +43,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  *      projects a remote `ActiveModel` whose `createProvider()` is buildable.
  *   5. The agent-runtime manager observes `ActiveModel`, builds the AgentRuntime,
  *      and `AgentRuntimeAdapter.getState().status` becomes `"ready"`.
- *
- * `ai-providers` is still booted as the local-model store, but no longer writes
- * the remote `ActiveModel` — that single owner is the AiConfig projection.
  */
 
 beforeEach(() => {
@@ -67,10 +64,9 @@ describe("chat-mini end-to-end (logic fragments)", () => {
     cleanups.push(initWorkspaceBridge(ctx));
     cleanups.push(initAgentRuntime(ctx));
     cleanups.push(initSettings(ctx));
-    cleanups.push(initProviders(ctx));
     cleanups.push(await initAiConfig(ctx));
     cleanups.push(initActiveModelProjection(ctx));
-    cleanups.push(await initModelsConfig(ctx));
+    cleanups.push(initAiLocalModels(ctx));
     cleanups.push(initWorkspaceFiles(ctx));
     cleanups.push(initFiles(ctx));
     cleanups.push(initMarkdownViewer(ctx));
@@ -87,14 +83,15 @@ describe("chat-mini end-to-end (logic fragments)", () => {
 
       // Fire the canonical workspace-change command — the workspace-bridge
       // handler runs close → initWorkspace (registers Secrets/Settings) →
-      // open, firing onLoad listeners (ai-config.load, models-config
-      // projection, ...) and triggering the rebuild chain.
+      // open, firing onLoad listeners (ai-config.load, the chat-app
+      // active-model projection, ai-local-models.load, ...) and triggering
+      // the rebuild chain.
       await commands.call(ChangeWorkspaceCommand, { files, label: "test" })
         .promise;
       await vi.runAllTimersAsync();
 
       // No AiConfig connections yet → the runtime empty-state owner
-      // (models-config) reports `no-providers`.
+      // (the chat-app active-model projection) reports `no-providers`.
       expect(adapter.getState().status).toBe("no-providers");
 
       // Seed an AiConfig connection (key → Secrets) and an active selection.
