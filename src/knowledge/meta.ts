@@ -15,21 +15,46 @@ import { SUMMARIZED_SIGNAL } from "./summarizer.js";
 import type { DocumentMeta, DocumentOutlier, DocumentTopic } from "./types.js";
 
 /**
- * Enforce meta shape deterministically after a (lenient) parse: drop topic /
- * outlier declarations a non-strict model occasionally emits with a blank key,
- * and outliers lacking the required `whySurprising` justification. The schema is
- * tolerant so one off-shape declaration never throws and drops the whole document
- * (mirrors the graph extractor's `filterUnknownSubjects`); usability is restored
- * here instead.
+ * Enforce meta shape deterministically after a (lenient) parse: every schema
+ * field is optional, so a non-strict model omitting one (commonly `brief`, or a
+ * blank `key`) never throws and drops the whole document (mirrors the graph
+ * extractor's `filterUnknownSubjects`). Here we drop declarations missing the
+ * fields that carry meaning — a blank `key`, or an outlier lacking its
+ * `whySurprising` justification — and default the rest so downstream consumers
+ * always see well-formed declarations.
  */
-export function normalizeMeta(raw: { topics?: DocumentTopic[]; outliers?: DocumentOutlier[] }): {
+export function normalizeMeta(raw: {
+  topics?: Partial<DocumentTopic>[];
+  outliers?: Partial<DocumentOutlier>[];
+}): {
   topics: DocumentTopic[];
   outliers: DocumentOutlier[];
 } {
   const filled = (s?: string) => !!s && s.trim().length > 0;
   return {
-    topics: (raw.topics ?? []).filter((t) => filled(t.key)),
-    outliers: (raw.outliers ?? []).filter((o) => filled(o.key) && filled(o.whySurprising)),
+    topics: (raw.topics ?? [])
+      .filter((t): t is Partial<DocumentTopic> & { key: string } => filled(t.key))
+      .map((t) => ({
+        key: t.key,
+        name: t.name ?? t.key,
+        description: t.description,
+        sectionKeys: t.sectionKeys ?? [],
+        brief: t.brief ?? "",
+      })),
+    outliers: (raw.outliers ?? [])
+      .filter(
+        (o): o is Partial<DocumentOutlier> & { key: string; whySurprising: string } =>
+          filled(o.key) && filled(o.whySurprising),
+      )
+      .map((o) => ({
+        key: o.key,
+        name: o.name ?? o.key,
+        description: o.description,
+        globalClass: o.globalClass,
+        sectionKeys: o.sectionKeys ?? [],
+        brief: o.brief ?? "",
+        whySurprising: o.whySurprising,
+      })),
   };
 }
 

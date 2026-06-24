@@ -2,12 +2,21 @@ import { createDefaultRegistry } from "@statewalker/content-extractors";
 import type { FilesApi } from "@statewalker/webrun-files";
 import { LoggerAdapter, type LoggerLevel, Workspace } from "@statewalker/workspace.core";
 import { stringify as stringifyYaml } from "yaml";
+import { WikiPageMeta, WikiPageSummary } from "../knowledge/index.js";
 import { costOf, roundUsd, type WikiConfigData, wikiConfigOf } from "../llm/index.js";
 import type { Answer } from "../query/index.js";
 import { type QueryProgress, WikiQuery } from "../query/index.js";
+import { SearchAdapter } from "../search/index.js";
 import { PinoLoggerAdapter } from "./logger.js";
 import { resolveProvidersFromEnv } from "./providers.js";
 import { registerWiki, type WikiDeps, wireWikiProject } from "./register-wiki.js";
+import {
+  buildSearchDocuments,
+  renderSearchDocuments,
+  type SearchDetail,
+  type SectionInfo,
+  type SectionInfoLookup,
+} from "./search-output.js";
 import { wikiNatureOf } from "./wiki-nature.js";
 
 const LOG_LEVELS: readonly LoggerLevel[] = ["fatal", "error", "warn", "info", "debug", "trace"];
@@ -66,6 +75,34 @@ function extractFormat(args: string[]): { format?: OutputFormat; args: string[] 
   return { format, args: rest };
 }
 
+/** `search` retrieval mode: full-text, vector, or both fused (`hybrid`, default). */
+export type SearchMode = "fts" | "vector" | "hybrid";
+const SEARCH_MODES: readonly SearchMode[] = ["fts", "vector", "hybrid"];
+const SEARCH_DETAILS: readonly SearchDetail[] = ["short", "normal", "full"];
+
+/**
+ * Pull a single-valued `--name <v>` / `--name=<v>` flag (any alias in `names`) out of
+ * the argument list, returning the last value seen and the remaining args.
+ */
+function extractFlag(args: string[], names: string[]): { value?: string; args: string[] } {
+  let value: string | undefined;
+  const rest: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === undefined) continue;
+    const inline = a.match(/^(--[\w-]+)=(.*)$/);
+    if (inline && names.includes(inline[1]!)) {
+      value = inline[2];
+    } else if (names.includes(a)) {
+      const v = args[++i];
+      if (v !== undefined) value = v;
+    } else {
+      rest.push(a);
+    }
+  }
+  return { value, args: rest };
+}
+
 /** Minimal sink the CLI writes its data channel to (e.g. `process.stdout`). */
 export interface OutputStream {
   write(chunk: string): unknown;
@@ -99,7 +136,9 @@ export interface CliDeps {
 }
 
 const USAGE =
-  "usage: wiki <root> <scan|status|query|restart|invalidate> <project> [question|builder|stage…|force] [--format <none|json|yaml>] [--log-level <fatal|error|warn|info|debug|trace>]";
+  "usage: wiki <root> <scan|status|query|search|restart|invalidate> <project> [question|query|builder|stage…|force] " +
+  "[--mode <fts|vector|hybrid>] [--detail <short|normal|full>] [--top-k <n>] " +
+  "[--format <none|json|yaml>] [--log-level <fatal|error|warn|info|debug|trace>]";
 
 /**
  * Map the query engine's `Answer` onto the shared wiki answer shape used across
@@ -189,7 +228,18 @@ function reportStats(progress: QueryProgress, warn: (m: string) => void): void {
 export async function runWikiCli(args: string[], deps: CliDeps): Promise<void> {
   // Flags are CLI-level; strip them before positional parsing.
   const { level: logLevel, args: afterLevel } = extractLogLevel(args);
-  const { format: flagFormat, args: positional } = extractFormat(afterLevel);
+  const { format: flagFormat, args: afterFormat } = extractFormat(afterLevel);
+  const { value: detailRaw, args: afterDetail } = extractFlag(afterFormat, ["--detail", "-d"]);
+  const { value: modeRaw, args: afterMode } = extractFlag(afterDetail, ["--mode", "-m"]);
+  const { value: topKRaw, args: positional } = extractFlag(afterMode, ["--top-k", "-k"]);
+  const detail: SearchDetail = SEARCH_DETAILS.includes(detailRaw as SearchDetail)
+    ? (detailRaw as SearchDetail)
+    : "normal";
+  const searchMode: SearchMode = SEARCH_MODES.includes(modeRaw as SearchMode)
+    ? (modeRaw as SearchMode)
+    : "hybrid";
+  const topK =
+    topKRaw !== undefined && Number.isFinite(Number(topKRaw)) ? Number(topKRaw) : undefined;
   const [command, projectKey, ...rest] = positional;
 
   const workspace = new Workspace().setFileSystem(deps.filesApi);
@@ -296,6 +346,51 @@ export async function runWikiCli(args: string[], deps: CliDeps): Promise<void> {
       reportStats(progress, warn);
       // Data channel: the structured search result in the shared answer shape.
       emit(answerToResult(answer, { question, createdAt: now() }));
+      break;
+    }
+    case "search": {
+      const query = rest.join(" ");
+      if (!query) {
+        warn(
+          "usage: wiki <root> search <project> <query…> [--mode fts|vector|hybrid] [--detail short|normal|full] [--top-k <n>]",
+        );
+        emit({ command: "search", project: projectKey, error: "no query" });
+        break;
+      }
+      const search = project.requireAdapter(SearchAdapter);
+      // `hybrid` fuses full-text + vector; the adapter silently drops vector mode for a
+      // text-only project (no embedding model), so a vector/hybrid request still works.
+      const modes: ("fts" | "vector")[] =
+        searchMode === "hybrid" ? ["fts", "vector"] : [searchMode];
+      const matches = await search.search({ query, modes, ...(topK ? { topK } : {}) });
+
+      // For normal/full, resolve each matched document's section titles (and summaries +
+      // topics for full) once from its page summary/meta artifacts. `short` needs neither.
+      let info: SectionInfoLookup | undefined;
+      if (detail !== "short") {
+        const byUri = new Map<string, Map<string, SectionInfo>>();
+        for (const m of matches) {
+          const resource = await project.getProjectResource(m.uri);
+          const summary = await resource?.requireAdapter(WikiPageSummary).get();
+          const meta =
+            detail === "full" ? await resource?.requireAdapter(WikiPageMeta).get() : undefined;
+          const sectionMap = new Map<string, SectionInfo>();
+          for (const s of summary?.sections ?? []) {
+            const topics =
+              meta?.topics.filter((t) => t.sectionKeys.includes(s.key)).map((t) => t.name) ?? [];
+            sectionMap.set(s.key, { title: s.title, summary: s.summary, topics });
+          }
+          byUri.set(m.uri, sectionMap);
+        }
+        info = (uri, key) => byUri.get(uri)?.get(key) ?? { title: key, summary: "", topics: [] };
+      }
+
+      const documents = buildSearchDocuments(matches, detail, info);
+      warn(
+        `search '${query}' (mode=${searchMode}, detail=${detail}): ${documents.length} document(s)`,
+      );
+      for (const line of renderSearchDocuments(documents, detail)) warn(line);
+      emit({ command: "search", project: projectKey, query, mode: searchMode, detail, documents });
       break;
     }
     case "restart": {

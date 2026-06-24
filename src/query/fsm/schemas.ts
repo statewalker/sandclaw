@@ -27,9 +27,28 @@ export const intentDetectionSchema = z
         "When onCorpus is false, a one-line reason the prompt is not a retrieval request against this corpus; null otherwise.",
       ),
     subjects: z
-      .array(z.object({ prompt: z.string() }))
+      .array(
+        z.object({
+          prompt: z
+            .string()
+            .describe(
+              "Standalone, vault-aligned reformulation of this subject as a natural-language statement — drives topic-class routing over the corpus index. PRESERVE named entities and specific terms verbatim.",
+            ),
+          semanticQuery: z
+            .string()
+            .describe(
+              "A HYPOTHETICAL ANSWER to this subject — a short factual passage (1–3 sentences) written as if it were an ideal corpus excerpt answering it, NOT a restatement of the question. Embedded for SEMANTIC (vector) retrieval: a fake answer lands nearer real answers than the bare question. Invented specifics are embedding bait only. PRESERVE named entities verbatim.",
+            ),
+          ftsQueries: z
+            .array(z.string())
+            .min(1)
+            .describe(
+              "Distinctive KEYWORDS for full-text search — individual content terms and named entities from the subject, NOT phrases or sentences. List the salient terms (proper nouns, organisations, people, places, tickers, numbers, defining nouns), each as its OWN entry; a block matching more entries ranks higher. 1–6 entries; omit stop-words and filler. Keep specific terms VERBATIM.",
+            ),
+        }),
+      )
       .describe(
-        "The distinct subjects the prompt decomposes into, each re-formulated as a standalone search prompt. PRESERVE named entities and specific terms (proper nouns, organisations, people, places, tickers) verbatim — they drive full-text retrieval. Use one subject for a single-subject prompt.",
+        "The distinct subjects the prompt decomposes into. Each carries a natural-language `prompt` (topic routing), a `semanticQuery` hypothetical answer (vector search), and `ftsQueries` keywords (full-text search). Use one subject for a single-subject prompt.",
       ),
     language: z
       .string()

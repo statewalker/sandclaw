@@ -115,7 +115,9 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       return out({ facts: refs.map((r) => ({ statement: "fact", citations: [r] })) });
     }
     case "compose-answer": {
-      const claims = (spec.input as { facts: { statement: string; citations: string[] }[] }).facts.map((m) => ({
+      const claims = (
+        spec.input as { facts: { statement: string; citations: string[] }[] }
+      ).facts.map((m) => ({
         statement: "fact",
         citations: m.citations,
       }));
@@ -136,7 +138,11 @@ const embed = async (text: string): Promise<Float32Array> => {
 };
 
 /** A fixed hybrid-search result, or no search adapter at all when omitted. */
-type SearchStub = { search: () => Promise<{ uri: string; sections: { sectionKey: string }[] }[]> };
+type SearchStub = {
+  search: () => Promise<
+    { uri: string; sections: { sectionKey: string; modes: ("fts" | "vector")[] }[] }[]
+  >;
+};
 
 /** Build a project with one real document (content → summarize → meta only). */
 async function buildBase(config: WikiConfigData, searchStub?: SearchStub): Promise<Project> {
@@ -332,7 +338,7 @@ describe("topicDescent fusion — descent score stays internal (ADR 0001)", () =
     // Hybrid search surfaces ONLY the founders section, so founders is corroborated
     // (tier 0) while intro is descent-only (tier 1) despite its internal score 2.
     const project = await buildBase(TEXT_ONLY_CONFIG, {
-      search: async () => [{ uri: "a.md", sections: [{ sectionKey: "founders" }] }],
+      search: async () => [{ uri: "a.md", sections: [{ sectionKey: "founders", modes: ["fts"] }] }],
     });
     // Two root leaves: founders + intro, both judged relevant (internal score 2).
     const index: TopicIndex = {

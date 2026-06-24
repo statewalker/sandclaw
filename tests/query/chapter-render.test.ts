@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { ChapterNode } from "../../src/index.js";
-import { renderDocumentBlock, sectionChapters } from "../../src/query/fsm/retrieval.js";
+import type { ChapterNode, SectionGraph } from "../../src/index.js";
+import {
+  renderDocumentBlock,
+  renderSectionGraph,
+  sectionChapters,
+} from "../../src/query/fsm/retrieval.js";
 
 describe("sectionChapters — section → parent chapter", () => {
   it("maps section keys to their leaf chapter, including nested sub-chapters", () => {
@@ -47,5 +51,58 @@ describe("renderDocumentBlock — chapter overlay", () => {
     });
     expect(out).not.toContain("<chapter ");
     expect(out).toContain('<section ref="/a.md#s0">');
+  });
+});
+
+describe("renderDocumentBlock — graph vs raw evidence", () => {
+  it("renders a <graph> block when the section has a graph (no raw)", () => {
+    const out = renderDocumentBlock({
+      title: "Doc",
+      summary: "ds",
+      chapters: [
+        {
+          title: "Doc",
+          summary: "ds",
+          sections: [{ ref: "/a.md#s0", title: "t", description: "d", graph: "Entities: Acme" }],
+        },
+      ],
+    });
+    expect(out).toContain("<graph>\nEntities: Acme\n</graph>");
+    expect(out).not.toContain("<raw_content>");
+  });
+
+  it("falls back to <raw_content> when the section has no graph", () => {
+    const out = renderDocumentBlock({
+      title: "Doc",
+      summary: "ds",
+      chapters: [
+        {
+          title: "Doc",
+          summary: "ds",
+          sections: [{ ref: "/a.md#s0", title: "t", description: "d", raw: "RAW" }],
+        },
+      ],
+    });
+    expect(out).toContain("<raw_content>\nRAW\n</raw_content>");
+    expect(out).not.toContain("<graph>");
+  });
+});
+
+describe("renderSectionGraph", () => {
+  it("renders entities and statements/relations, with a trailing details object", () => {
+    const g: SectionGraph = {
+      sectionKey: "s",
+      entities: [
+        { value: "Fund", type: "fund" },
+        { value: "MSCI World Index", type: "index" },
+      ],
+      statements: [["MSCI World Index", "returns", "28.24%", { year: 2016, currency: "GBP" }]],
+      relations: [["Fund", "benchmarked against", "MSCI World Index"]],
+    };
+    const out = renderSectionGraph(g);
+    expect(out).toContain("Entities: Fund (fund); MSCI World Index (index)");
+    expect(out).toContain('- MSCI World Index — returns — 28.24% {"year":2016,"currency":"GBP"}');
+    expect(out).toContain("Relations:");
+    expect(out).toContain("- Fund — benchmarked against — MSCI World Index");
   });
 });

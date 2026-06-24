@@ -35,7 +35,7 @@ _Avoid_: provider (overloaded — see Flagged ambiguities).
 The single chat model AiConfig marks active. **Chat-only** — wiki does not read it.
 
 **Stage**:
-A step of the wiki build/query pipeline (summarize, meta, reorganize, embed,
+A step of the wiki build/query pipeline (summarize, meta, graph, reorganize, embed,
 query, …) that can bind to its own model.
 
 **Model Reference**:
@@ -88,11 +88,29 @@ _Avoid_: query, prompt (overloaded).
 
 **Front-end** (retrieval):
 A retrieval strategy that, given a **Subject**, returns candidate document
-**sections** by `(uri, sectionKey)`. Front-ends are interchangeable section
-producers and run in parallel; today there are two — hybrid search (FTS+vector) and
-the topic front-end (over the **topic index**). All on-corpus subjects run *every*
-front-end and the results are fused (recall-first), rather than one being selected.
-_Avoid_: retriever, channel.
+**sections** by `(uri, sectionKey)`, each with a per-front-end rank. There are
+four — **full-text**, **vector**, **topic-descent**, and **outlier** — fused by
+**RRF fusion** into one continuous section score. They run in two phases: full-text
++ vector run **eagerly** (cheap, no LLM beyond one embed); topic-descent + outlier
+are **deferred** to escalation (or run eagerly for a thematic **Subject**). See
+`docs/adr/0003`.
+_Avoid_: retriever, channel, hybrid search (full-text and vector are separate
+front-ends, not one fused front-end).
+
+**RRF fusion**:
+Reciprocal-Rank-Fusion of the **front-ends**' ranked outputs into one continuous
+per-section score: agreement across front-ends raises a section (consensus), while a
+single front-end's top-ranked hit still scores high on its own (magnitude).
+Down-weights topic-descent/outlier so the precision signal stays cross-method. See
+`docs/adr/0003`.
+_Avoid_: blending, overlap count.
+
+**Tier**:
+An escalation band of candidate **sections** derived from the continuous RRF score.
+Tier-1 (the *consensus floor*) = sections surfaced by ≥2 **front-ends** or a single
+front-end at top rank; lower tiers are consumed only when the composed answer is
+still insufficient.
+_Avoid_: rank, bucket.
 
 **Evidence section**:
 A retrieved document section (`uri` + `sectionKey` + title + summary + raw block)
@@ -100,13 +118,38 @@ that is filtered for relevance, summarised, and cited when composing an answer.
 Sections are the unit every front-end produces and the unit the answer cites.
 
 **Grounded fact**:
-A single factual statement the summarize stage extracts from a document's
-section(s), carrying the verbatim section citation(s) it rests on. Atomic and
-**single-document** — a fact never merges sections from different documents (that
-prevents cross-document conflation). Cross-document corroboration is composed
-later: an answer **claim** may rest on grounded facts from several documents, each
-independently cited. A fact with no valid citation is dropped.
+A single factual statement the query-side summarize stage extracts from a section's
+**Section graph** (its raw-derived entities/statements/relations; raw content is
+read only as a last resort), carrying the verbatim section citation(s) it rests on.
+Atomic and **single-document** — a fact never merges sections from different
+documents (that prevents cross-document conflation). Cross-document corroboration is
+composed later: an answer **claim** may rest on grounded facts from several
+documents, each independently cited. A fact with no valid citation is dropped.
+See `docs/adr/0002` (atomicity) and `docs/adr/0004` (source).
 _Avoid_: summary (the stage emits grounded facts, not free prose).
+
+**Entity**:
+A named thing referable more than once — a person, organisation, place, named
+period/event, or named work/method/dataset/concept — with a canonical `value` and an
+open lowercase `type`. NOT an entity: a finding (that is a **Statement**) or a
+one-off literal (that is a Statement's object).
+_Avoid_: node, tag.
+
+**Statement**:
+A `[subject, predicate, object]` triple where the subject is an **Entity** value and
+the object is a literal (finding, label, date, number). Belongs to one **section**.
+
+**Relation**:
+A `[subject, predicate, object]` triple where both subject and object are **Entity**
+values (entity-to-entity). Belongs to one **section**.
+
+**Section graph**:
+The per-**section** set of **Entities**, **Statements**, and **Relations**, built at
+indexation from the section's title + summary + raw content (so it is authoritative
+and figure-bearing). It is the default authoritative evidence the query **filter**
+and **summarize** stages read; raw content is consulted only as a last resort. See
+`docs/adr/0004`.
+_Avoid_: knowledge graph (reserved for a future cross-document graph), triples.
 
 ## Relationships
 
@@ -115,6 +158,8 @@ _Avoid_: summary (the stage emits grounded facts, not free prose).
 - A **Wiki** has one wiki configuration binding each **Stage** to a **Model Reference**
 - **AiConfig** resolves a **Model Reference** to a runtime model via its **Connection**
 - **Chat** uses the **Active Selection**; **Wiki** uses its own per-Stage references — they share only AiConfig's Connections and keys
+- Each **section** has one **Section graph**; the query **filter** and **summarize** stages read it (raw content only as a last resort)
+- The four **front-ends** fuse via **RRF fusion** into one section score; **Tiers** (escalation bands) derive from that score
 
 ## Flagged ambiguities
 
@@ -129,3 +174,10 @@ _Avoid_: summary (the stage emits grounded facts, not free prose).
   summarize stage** (answer time — retrieved **sections** → **grounded facts**). They
   share a verb, not a job; name the stage (build summarizer / query summarize) when
   ambiguous.
+- "graph" was once a leaf artifact disabled for lack of a consumer — resolved: it is
+  re-activated and consumed as the authoritative query-evidence layer (**Section
+  graph**, ADR 0004).
+- a **Statement** (a build-time structured triple in a **Section graph**) and a
+  **Grounded fact** (a query-time prose fact) are both single-section, single-document,
+  cited claims — resolved: the Section graph is now the *source* the grounded fact
+  rests on; the grounded fact is the *query-time, question-specific* derivation of it.

@@ -4,6 +4,13 @@ status: accepted
 
 # Grounded facts are atomic and single-document
 
+> **Note (see [ADR 0004](0004-section-graphs-as-authoritative-query-evidence.md)):** the
+> grounding *source* has changed — a grounded fact now rests on the section's
+> raw-derived **Section graph** (raw content only as a last resort), not on raw content
+> directly. The atomicity rule below — every fact single-section, single-document,
+> citation-gated, no cross-document conflation — is **unaffected** (a Section graph is
+> per-section, hence single-document).
+
 Query answers were hallucinating by conflating sections from different documents: the query-side summarize stage rendered a batch of retrieved sections with no document provenance and blended them into one summary, so compose faithfully cited a fact that was synthesised across two documents.
 
 We decided the summarize stage emits **grounded facts** — `{ statement, citations }` — instead of prose, with these mechanically-enforced rules: every fact carries ≥1 verbatim section citation; a fact with no valid citation is dropped; and **all of a fact's citations must belong to the same document**. A fact whose valid citations span two documents is dropped. Cross-document corroboration is therefore impossible to express *as a fact* — it happens one stage later, where a compose `claim` may rest on grounded facts from several documents, each independently cited (and `Verify` still filters citations mechanically).

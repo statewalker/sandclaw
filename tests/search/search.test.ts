@@ -102,6 +102,46 @@ describe("SearchAdapter", () => {
     expect(results.find((r) => r.uri === "b.md")).toBeDefined();
   });
 
+  it("tags each section with the sub-indexes that surfaced it", async () => {
+    const search = await buildAndSearch();
+    const sectionOf = (
+      rs: Awaited<ReturnType<SearchAdapter["search"]>>,
+      uri: string,
+      key: string,
+    ) => rs.find((r) => r.uri === uri)?.sections.find((s) => s.sectionKey === key);
+
+    const fts = await search.search({ query: "charlie", modes: ["fts"] });
+    expect(sectionOf(fts, "b.md", "main")?.modes).toEqual(["fts"]);
+
+    const vec = await search.search({ query: "charlie", modes: ["vector"] });
+    expect(sectionOf(vec, "b.md", "main")?.modes).toEqual(["vector"]);
+
+    // Hybrid: "charlie" matches both the full-text content and the embedding.
+    const hybrid = await search.search({ query: "charlie" });
+    expect(sectionOf(hybrid, "b.md", "main")?.modes.sort()).toEqual(["fts", "vector"]);
+  });
+
+  it("uses the ftsQueries ladder for full-text, not the (semantic) query", async () => {
+    const search = await buildAndSearch();
+    // `query` alone matches nothing in FTS; the relaxed ladder entry finds the doc.
+    expect(
+      (await search.search({ query: "zzz", modes: ["fts"] })).find((r) => r.uri === "b.md"),
+    ).toBeUndefined();
+    expect(
+      (await search.search({ query: "zzz", ftsQueries: ["charlie"], modes: ["fts"] })).find(
+        (r) => r.uri === "b.md",
+      ),
+    ).toBeDefined();
+    // The ladder unions its entries: a strict + a relaxed query reach both documents.
+    const both = await search.search({
+      query: "zzz",
+      ftsQueries: ["charlie main content", "alpha"],
+      modes: ["fts"],
+    });
+    expect(both.find((r) => r.uri === "a.md")).toBeDefined();
+    expect(both.find((r) => r.uri === "b.md")).toBeDefined();
+  });
+
   it("persists the index and loads it on a fresh adapter without rebuilding", async () => {
     await buildAndSearch();
     const filesApi = repository.files;

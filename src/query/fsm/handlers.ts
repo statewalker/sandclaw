@@ -1,7 +1,7 @@
 import { loggerOf, type Project } from "@statewalker/workspace.core";
 import { WikiTopicIndex } from "../../knowledge/indexes.js";
-import { WikiPageSummary } from "../../knowledge/page-adapters.js";
-import type { DocumentMeta } from "../../knowledge/types.js";
+import { WikiPageGraph, WikiPageSummary } from "../../knowledge/page-adapters.js";
+import type { DocumentMeta, SectionGraph } from "../../knowledge/types.js";
 import { type LlmApi, llmOf, type WikiLlmConfiguration, wikiConfigOf } from "../../llm/index.js";
 import { SearchAdapter } from "../../search/index.js";
 import { toCanonical } from "../../uri/wiki-uri.js";
@@ -15,7 +15,13 @@ import {
   SUMMARIZE_PROMPT,
   TOPIC_SELECT_PROMPT,
 } from "./prompts.js";
-import type { Candidate, GroundedFact, QueryContext, SubjectGroup } from "./query-context.js";
+import type {
+  Candidate,
+  GroundedFact,
+  QueryContext,
+  Subject,
+  SubjectGroup,
+} from "./query-context.js";
 import type { QueryHandler } from "./query-fsm.js";
 import {
   aggregateClasses,
@@ -29,6 +35,7 @@ import {
   packFilterBatches,
   readClassIndexes,
   renderDocumentBlock,
+  renderSectionGraph,
   sectionChapters,
   sectionId,
   withinScope,
@@ -62,9 +69,12 @@ const SUMMARIZE_MIN_CONTENT_CHARS = 4_000;
 const SECTION_TAG_CHARS = 200;
 const SUMMARIZE_CONCURRENCY = 5;
 
-/** Pack sections into batches bounded by both a section count and a raw-content char ceiling. */
+/** Pack sections into batches bounded by both a section count and an evidence char
+ * ceiling. `evidenceChars` gives the size of the section's chosen evidence (rendered
+ * graph, or raw fallback) so batches reflect what is actually sent to the model. */
 function batchSections(
   sections: EvidenceSection[],
+  evidenceChars: (ev: EvidenceSection) => number,
   maxCount: number,
   maxChars: number,
 ): EvidenceSection[][] {
@@ -72,7 +82,7 @@ function batchSections(
   let cur: EvidenceSection[] = [];
   let chars = 0;
   for (const ev of sections) {
-    const cost = ev.rawBlock.length + ev.summary.length + ev.title.length + SECTION_TAG_CHARS;
+    const cost = evidenceChars(ev) + ev.summary.length + ev.title.length + SECTION_TAG_CHARS;
     if (cur.length > 0 && (cur.length >= maxCount || chars + cost > maxChars)) {
       batches.push(cur);
       cur = [];
@@ -152,9 +162,17 @@ export const IntentDetectionTrigger: QueryHandler = async function* (ctx) {
     strict: true,
   });
 
-  // Recall-first fallback: an on-corpus prompt with no subjects becomes the whole question.
-  const subjects =
-    output.onCorpus && output.subjects.length === 0 ? [{ prompt: req.question }] : output.subjects;
+  // Normalize each subject: fall back to its prompt for an omitted semanticQuery or empty
+  // keyword list. Recall-first: an on-corpus prompt with no subjects becomes the whole question.
+  const subjects: Subject[] = (
+    output.onCorpus && output.subjects.length === 0
+      ? [{ prompt: req.question, semanticQuery: req.question, ftsQueries: [req.question] }]
+      : output.subjects
+  ).map((s) => ({
+    prompt: s.prompt,
+    semanticQuery: s.semanticQuery?.trim() ? s.semanticQuery : s.prompt,
+    ftsQueries: s.ftsQueries?.length ? s.ftsQueries : [s.prompt],
+  }));
   ctx.setIntent({
     onCorpus: output.onCorpus,
     subjects: output.onCorpus ? subjects : [],
@@ -241,6 +259,7 @@ export const RetrieveTrigger: QueryHandler = async function* (ctx) {
   const { subjects } = ctx.intent;
   const paths = ctx.request.paths;
   const search = project.getAdapter(SearchAdapter);
+  const log = loggerOf(project, "QueryFsm");
   const metaCache = new Map<string, DocumentMeta | undefined>();
 
   // Per unique section, track which front-ends surfaced it (→ score) and which
@@ -266,7 +285,7 @@ export const RetrieveTrigger: QueryHandler = async function* (ctx) {
   await Promise.all(
     subjects.map(async (subject, i) => {
       const [searchHits, ladderHits] = await Promise.all([
-        search ? hybridSearch(search, subject.prompt, paths) : Promise.resolve([]),
+        search ? hybridSearch(search, log, subject, paths) : Promise.resolve([]),
         classLadder(project, llm, cfg, progress, subject.prompt, metaCache),
       ]);
       record(searchHits, "search", i);
@@ -295,7 +314,7 @@ export const RetrieveTrigger: QueryHandler = async function* (ctx) {
   progress.evidence = candidates.map((c) => c.section);
   const perDoc = new Map<string, number>();
   for (const c of candidates) perDoc.set(c.section.uri, (perDoc.get(c.section.uri) ?? 0) + 1);
-  loggerOf(project, "QueryFsm").info("retrieved evidence", {
+  log.info("retrieved evidence", {
     subjects: subjects.length,
     sections: candidates.length,
     documents: perDoc.size,
@@ -461,10 +480,12 @@ export const SelectSectionsTrigger: QueryHandler = async function* (ctx) {
 
 /**
  * Batch summarization: split THIS tier's selected sections into batches (bounded by
- * section count and raw-content size), and in a SEPARATE call per batch (≤ SUMMARIZE_CONCURRENCY
- * in parallel) extract single-document grounded facts — sections rendered grouped by document so
- * facts stay within document boundaries. Facts are mechanically grounded (citations must be in the
- * batch; cross-document facts dropped) and appended via `ctx.addFacts`; yields `summarized`.
+ * section count and evidence size), and in a SEPARATE call per batch (≤ SUMMARIZE_CONCURRENCY
+ * in parallel) extract single-document grounded facts. Each section's evidence is its built
+ * graph (entities + statements/relations), or its raw block when no graph exists yet; sections
+ * are rendered grouped by document so facts stay within document boundaries. Facts are
+ * mechanically grounded (citations must be in the batch; cross-document facts dropped) and
+ * appended via `ctx.addFacts`; yields `summarized`.
  */
 export const SummarizeTrigger: QueryHandler = async function* (ctx) {
   const { project, request: req, progress } = ctx;
@@ -485,11 +506,36 @@ export const SummarizeTrigger: QueryHandler = async function* (ctx) {
     }
   }
 
+  // Load each unique section's built graph (one read per document, indexed by section
+  // key). The rendered graph is the fact source; a section with no built graph falls
+  // back to its raw block (a transition safety net, not the deferred verbatim escalation).
+  const graphByUri = new Map<string, Map<string, SectionGraph>>();
+  const evidence = new Map<string, { graph?: string; raw?: string }>();
+  for (const ev of sections) {
+    const id = sectionId(ev.uri, ev.sectionKey);
+    let perDoc = graphByUri.get(ev.uri);
+    if (!perDoc) {
+      const dg = await (await project.getProjectResource(ev.uri))
+        ?.requireAdapter(WikiPageGraph)
+        .get();
+      perDoc = new Map((dg?.sections ?? []).map((sg) => [sg.sectionKey, sg]));
+      graphByUri.set(ev.uri, perDoc);
+    }
+    const sg = perDoc.get(ev.sectionKey);
+    evidence.set(id, sg ? { graph: renderSectionGraph(sg) } : { raw: ev.rawBlock });
+  }
+  const evidenceOf = (ev: EvidenceSection) => evidence.get(sectionId(ev.uri, ev.sectionKey)) ?? {};
+
   // Reserve room for the fixed per-call overhead (instructions + the question + <sources> scaffold)
   // so the section content plus the prompt stays within the call budget.
   const reserve = SUMMARIZE_PROMPT.length + req.question.length + 512;
   const contentBudget = Math.max(SUMMARIZE_MIN_CONTENT_CHARS, SUMMARIZE_BATCH_CHARS - reserve);
-  const batches = batchSections(sections, SUMMARIZE_BATCH_SIZE, contentBudget);
+  const batches = batchSections(
+    sections,
+    (ev) => (evidenceOf(ev).graph ?? evidenceOf(ev).raw ?? "").length,
+    SUMMARIZE_BATCH_SIZE,
+    contentBudget,
+  );
   log.info("summarize batches", {
     sections: sections.length,
     batches: batches.length,
@@ -518,7 +564,13 @@ export const SummarizeTrigger: QueryHandler = async function* (ctx) {
       const chapters: {
         title: string;
         summary: string;
-        sections: { ref: string; title: string; description: string; raw: string }[];
+        sections: {
+          ref: string;
+          title: string;
+          description: string;
+          graph?: string;
+          raw?: string;
+        }[];
       }[] = [];
       const byChapterKey = new Map<string, number>();
       for (const ev of evs) {
@@ -539,7 +591,7 @@ export const SummarizeTrigger: QueryHandler = async function* (ctx) {
           ref,
           title: ev.title,
           description: ev.summary,
-          raw: ev.rawBlock,
+          ...evidenceOf(ev),
         });
       }
       docBlocks.push(
@@ -557,7 +609,7 @@ export const SummarizeTrigger: QueryHandler = async function* (ctx) {
       {
         name: "summarize-batch",
         description:
-          "Extract question-specific, single-document grounded facts from the raw content; cite each fact's section ref(s).",
+          "Extract question-specific, single-document grounded facts from each section's graph (raw fallback); cite each fact's section ref(s).",
         model: cfg.modelFor("query"),
         system: SUMMARIZE_PROMPT,
         input: {

@@ -52,4 +52,36 @@ describe("resolveWikiMasks", () => {
   it("a whole-wiki mask wins over a restricted one for the same wiki", () => {
     expect(norm(resolveWikiMasks(["a", "a/docs/*"], WIKIS))).toEqual([{ project: "a", paths: [] }]);
   });
+
+  it("`*/docs/**` spans every project's docs subtree at any depth", () => {
+    expect(norm(resolveWikiMasks(["*/docs/**"], WIKIS))).toEqual([
+      { project: "a", paths: ["docs/api/ref.md", "docs/intro.md"] },
+      { project: "b", paths: ["docs/guide.md"] },
+    ]);
+  });
+});
+
+// A leading `/` anchors the first segment to a project name (here the project IS "docs").
+const PROJECTS: WikiResources[] = [
+  { name: "docs", resources: ["intro.md", "api/ref.md", "guide/setup.md"] },
+  { name: "blog", resources: ["post.md"] },
+];
+
+describe("resolveWikiMasks — leading-slash project anchor", () => {
+  it("`/docs` and `/docs/` target the whole docs project", () => {
+    expect(norm(resolveWikiMasks(["/docs"], PROJECTS))).toEqual([{ project: "docs", paths: [] }]);
+    expect(norm(resolveWikiMasks(["/docs/"], PROJECTS))).toEqual([{ project: "docs", paths: [] }]);
+  });
+
+  it("`/docs/*` scopes the docs project to its first level", () => {
+    expect(norm(resolveWikiMasks(["/docs/*"], PROJECTS))).toEqual([
+      { project: "docs", paths: ["intro.md"] },
+    ]);
+  });
+
+  it("`/docs/**` scopes the docs project to all levels", () => {
+    expect(norm(resolveWikiMasks(["/docs/**"], PROJECTS))).toEqual([
+      { project: "docs", paths: ["api/ref.md", "guide/setup.md", "intro.md"] },
+    ]);
+  });
 });

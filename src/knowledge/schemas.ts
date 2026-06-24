@@ -117,50 +117,61 @@ export const aggregateChaptersSchema = z
   .describe("One chapter-aggregation round: a coherent grouping of the supplied members.");
 
 // ── Meta (topics + outliers) ─────────────────────────────────────────────────
-// Lenient on purpose: no `.min(1)` on fields, and the top-level arrays default to
-// empty. Non-strict generation occasionally emits an off-shape declaration (a
-// blank field, an omitted `outliers` array); a `.min(1)` would make the WHOLE
-// document parse throw and drop the source. Shape is enforced deterministically
-// afterwards by `normalizeMeta` (drops blank-key / unjustified declarations),
-// matching how the graph extractor handles off-shape triples.
+// Lenient on purpose: EVERY field is `.optional()` (no `.min(1)` either), and the
+// top-level arrays default to empty. With `strictJsonSchema: false` the schema is
+// not enforced during generation, so a model routinely emits an off-shape
+// declaration (a blank or omitted field — `brief` is the common one). A required
+// field would make the WHOLE document parse throw and drop the source. Shape is
+// enforced deterministically afterwards by `normalizeMeta` (drops blank-key /
+// unjustified declarations, defaults the rest), matching how the graph extractor
+// handles off-shape triples.
 
 export const documentTopicSchema = z
   .object({
     key: z
       .string()
+      .optional()
       .describe(
         "Generic class slug (kebab-case). For an existing class, reuse its slug verbatim. NEVER instance-specific (use 'company-founders', not 'acme-founders').",
       ),
-    name: z.string().describe("Generic class name. NEVER instance-specific."),
+    name: z.string().optional().describe("Generic class name. NEVER instance-specific."),
     description: z
       .string()
+      .optional()
       .describe(
         "ABSTRACT one-line definition of the class, document-independent. When reusing an existing class, COPY its description verbatim.",
       ),
     sectionKeys: z
       .array(z.string())
+      .optional()
       .describe("Section keys (from the summary) where this class is covered."),
     brief: z
       .string()
+      .optional()
       .describe("Per-source-per-class brief — what THIS source specifically contributes."),
   })
   .describe("Per-document topic-class declaration.");
 
 export const documentOutlierSchema = z
   .object({
-    key: z.string().describe("Outlier class slug (kebab-case, generic)."),
-    name: z.string().describe("Outlier class name. Generic."),
+    key: z.string().optional().describe("Outlier class slug (kebab-case, generic)."),
+    name: z.string().optional().describe("Outlier class name. Generic."),
     description: z
       .string()
+      .optional()
       .describe("ABSTRACT one-line definition of the outlier class. Copy verbatim when reusing."),
     globalClass: z
       .string()
       .optional()
       .describe("Optional global outlier-class slug when the per-doc key differs."),
-    sectionKeys: z.array(z.string()).describe("Section keys where the finding surfaces."),
-    brief: z.string().describe("Per-source brief of the surprising finding."),
+    sectionKeys: z
+      .array(z.string())
+      .optional()
+      .describe("Section keys where the finding surfaces."),
+    brief: z.string().optional().describe("Per-source brief of the surprising finding."),
     whySurprising: z
       .string()
+      .optional()
       .describe("One sentence explaining what expectation the finding violates. REQUIRED."),
   })
   .describe("Per-document outlier-class declaration; only when the source itself flags surprise.");
@@ -210,27 +221,34 @@ export const entitySchema = z
     type: z
       .string()
       .optional()
-      .describe("Open lowercase enum: person, organisation, place, paper, tool, dataset, …"),
+      .describe(
+        "OPEN lowercase label — these are examples, not a fixed list: person, organisation, place, index, sector, fund, company, instrument, event, dataset, tool, concept, … Coin a precise type when none fits; never force a poor fit. Currencies/units are NOT entities.",
+      ),
   })
-  .describe("An actor / method / dataset / concept the section is about.");
-
-// Lenient on purpose: no `.length(3)` / element `.min(1)` constraints. With
-// `strictJsonSchema: false` the schema is NOT enforced during generation, so a
-// single off-shape triple (missing field, 2- or 4-element array) would make the
-// WHOLE-document parse throw and drop the document. Triple shape is enforced
-// deterministically afterwards (see `filterUnknownSubjects`), matching how
-// unknown subjects are already handled.
-const tripleArraySchema = z
-  .array(z.string())
   .describe(
-    "[subject, predicate, object] triple — exactly three non-empty strings. Subject (index 0) MUST be an entity.value declared in this document's graph. Off-shape triples are dropped by the runtime filter.",
+    "A named actor / work / event / concept the section is about (not a currency or unit).",
+  );
+
+// Lenient on purpose: the triple is `z.array(z.unknown())` — element TYPE and arity
+// are NOT constrained. With `strictJsonSchema: false` the schema is not enforced
+// during generation, and any element-level constraint (string-only, or a strict
+// details-object union) would make the WHOLE-document parse throw and drop the
+// document when the model emits a stray number, a 2-/4-element array, or a details
+// value outside string/number/boolean. The shape — three non-empty strings plus an
+// OPTIONAL 4th plain details object — is enforced deterministically afterwards (see
+// `filterUnknownSubjects`); the expected shape is conveyed to the model via the
+// description + the system prompt, not the JSON schema.
+const tripleArraySchema = z
+  .array(z.unknown())
+  .describe(
+    '[subject, predicate, object] — three non-empty strings — with an OPTIONAL 4th element: a flat details object of qualifiers, e.g. { "year": 2015, "currency": "GBP" }. Subject (index 0) MUST be an entity.value declared in this document\'s graph. The predicate (index 1) is plain natural-language text, NOT camelCase and carrying no qualifiers. Off-shape triples are dropped by the runtime filter.',
   );
 
 export const statementSchema = tripleArraySchema.describe(
-  "Entity-attribute fact: subject is an entity.value, object is a stringified literal.",
+  "Entity-attribute fact: subject is an entity.value; object is a stringified literal; the optional 4th details object carries qualifiers (year, currency, …).",
 );
 export const relationSchema = tripleArraySchema.describe(
-  "Entity-to-entity fact: both subject and object are entity.value strings.",
+  "Entity-to-entity fact: subject and object are entity.value strings; the optional 4th details object carries qualifiers.",
 );
 
 export const sectionGraphSchema = z
@@ -253,11 +271,26 @@ export const documentGraphSchema = z
   })
   .describe("Per-document structured-signal layer.");
 
+export const graphSectionInputSchema = z
+  .object({
+    key: z.string().min(1).describe("Section key — the output sectionKey MUST match this value."),
+    title: z.string().describe("Section heading. CONTEXT for extraction — not a source of facts."),
+    summary: z
+      .string()
+      .describe("Section narrative summary. CONTEXT only — never a source of facts or citations."),
+    raw: z
+      .string()
+      .describe(
+        "Section raw text. The SOURCE of every entity, statement, and relation — all facts must come from here.",
+      ),
+  })
+  .describe("One section's graph-extraction input: title+summary are context, raw is the source.");
+
 export const graphExtractorInputSchema = z
   .object({
     uri: z.string().describe("Document URI — project-relative path including extension."),
     sections: z
-      .array(sectionSummarySchema)
+      .array(graphSectionInputSchema)
       .describe(
         "Sections of the document — output sectionKey values must match these section.key values.",
       ),

@@ -150,29 +150,56 @@ corpus purpose (frames what counts as on-corpus): ${CORPUS_PURPOSE_PLACEHOLDER}`
 
 /** Per-section graph extraction prompt (lifted from wiki-runtime). */
 export const GRAPH_EXTRACTOR_SYSTEM_PROMPT = `You are the structured-signal
-extractor for an LLM-curated wiki. For each section of a document, produce
-'entities', 'statements', and 'relations' that capture the section's headline
-content — NOT a verbatim re-encoding of every fact.
+extractor for an LLM-curated wiki. For each section you receive its 'title' and
+'summary' as CONTEXT and its 'raw' text as the SOURCE. Produce 'entities',
+'statements', and 'relations' grounded in the 'raw' text (use title/summary only to
+frame what matters) — capturing the section's headline content and its answer
+anchors, NOT a verbatim re-encoding of every fact.
 
 WHAT TO KEEP: the main subject(s); named actors (people, organisations, places,
 periods); named methods / algorithms / datasets / products / concepts; headline
-findings and conclusions; source-flagged outliers; recommendations / thresholds.
+findings and conclusions; source-flagged outliers; recommendations / thresholds;
+salient figures and metrics (e.g. NAV, returns, totals) AND every date and named
+identifier (tickers, ISINs, reference codes, reporting dates) — even when not a
+headline — recorded as statement objects, because they anchor later lookups.
 
-WHAT TO DROP: routine measurements, hyperparameters, config knobs; individual
-table rows when the trend is the point; latency/cost figures unless headline;
-statistical-test bookkeeping (p-values, CIs); implementation details unless the
-argument turns on them.
+WHAT TO DROP: statistical-test bookkeeping (p-values, confidence intervals);
+hyperparameters / config knobs; intermediate calculation steps; individual table
+rows when a whole-table reading captures the point (but still keep any dates or
+identifiers they carry); implementation details unless the argument turns on them.
 
 THREE DISTINCT SHAPES:
 
-ENTITIES — things in the world we can refer to by name more than once: a person,
-place, organisation, named period/event, or named work/method/dataset/concept.
-NOT entities: findings/conclusions (those are STATEMENTS); one-off literals
-(dates, numbers — those are the OBJECT of a statement). entity.value is the
-canonical name; reuse it across sections. entity.type is an open lowercase enum.
+ENTITIES — named things we can refer to by name more than once: e.g. a person,
+organisation, place, index/benchmark, sector, fund, company, instrument, named
+event, or named work/method/dataset/concept. entity.value is the canonical name;
+reuse it across sections.
 
-TRIPLES — both 'relations' and 'statements' are 3-element arrays
-[subject, predicate, object] reading as simplified phrases.
+NOT entities — keep these OUT of 'entities':
+- currencies and units (GBP, USD, Sterling, %, bps): they QUALIFY a measurement —
+  put them in a statement's 'details' object, e.g. { "currency": "GBP" }.
+- bare literals — dates, numbers, percentages, and findings/conclusions: these are
+  the OBJECT of a statement (or a 'details' value), never an entity.
+
+entity.type is an OPEN lowercase label. The types listed above are EXAMPLES, NOT a
+fixed vocabulary: choose the most precise type that fits, and COIN a new precise
+lowercase type when none of the examples fit. NEVER force a poor-fitting type — a
+currency is not a "place", an event is not a "paper".
+
+TRIPLES — both 'relations' and 'statements' are arrays of
+[subject, predicate, object] reading as simplified phrases, with an OPTIONAL 4th
+element: a 'details' object of qualifiers.
+
+PREDICATES are plain natural-language verbs or short verb phrases in lowercase words
+— NOT camelCase, and carrying NO qualifiers. Put the time period, scope, currency, or
+basis in the 'details' object, never in the predicate. For example write
+["MSCI World Index", "returns", "5% in GBP", { "year": 2015 }] — NOT
+["MSCI World Index", "returnedIn2015", "5% in GBP"].
+
+DETAILS (optional 4th element): a flat object mapping qualifier keys to
+string / number / boolean values that constrain the fact (e.g. year, period,
+currency, region, basis, asOf). Numbers may stay numbers here. Omit it entirely when
+there is nothing to qualify.
 
 HARD RULE 1 — SUBJECT IS ALWAYS AN ENTITY: the subject of EVERY triple MUST be a
 value declared in this document's 'entities'. The runtime filter mechanically
@@ -184,8 +211,8 @@ object MUST be entity.value strings. If the object isn't an entity, the fact
 belongs in 'statements'.
 
 STATEMENTS: subject is an entity.value; object is a stringified literal (finding,
-label, date, number). Numbers/dates/booleans are written as strings.
-RELATIONS: entity-to-entity; predicates are short camelCase/snake_case verbs.
+label, date, number) — written as a string; structured qualifiers go in 'details'.
+RELATIONS: entity-to-entity; predicates are plain lowercase verbs.
 
 VOCABULARY COHERENCE within one document: reuse entity.value, entity.type, and
 predicate strings rather than coining near-duplicates.

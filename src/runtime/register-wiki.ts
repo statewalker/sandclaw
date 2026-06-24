@@ -11,6 +11,7 @@ import {
   docTopicEmbedderBuilder,
   EMBEDDED_SIGNAL,
   embedderBuilder,
+  graphBuilder,
   metaBuilder,
   pruneBuilder,
   registerKnowledgeAdapters,
@@ -145,9 +146,11 @@ export function createWikiBuilders(opts: WikiBuildOptions = {}): RegisteredBuild
     contentBuilder(),
     summarizeBuilder({ force }),
     metaBuilder({ force }),
-    // GraphExtractor is disabled: its per-section graph.json is a leaf artifact
-    // that nothing downstream (retrieval, indexes) consumes. The builder lives on
-    // in `graphBuilder` (still unit-tested) for re-enabling — just drop it here.
+    // Per-section knowledge graph: depends on the summarizer (consumes SUMMARIZED_SIGNAL,
+    // summary = extraction context) but keys its content + freshness on the raw source.
+    // The authoritative query-evidence layer (ADR 0004); no downstream build stage
+    // requires its GRAPH_SIGNAL yet (query-side consumption is a separate change).
+    graphBuilder({ force }),
     embedderBuilder({ force }),
     // Embed each document's topics, then attribute them onto the topic DAG, then
     // automatically clean up scattered near-duplicate index topics.

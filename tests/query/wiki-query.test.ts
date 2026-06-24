@@ -7,6 +7,7 @@ import {
   type DocumentSummaryOutput,
   docTopicEmbedderBuilder,
   type EmbedFn,
+  graphBuilder,
   type LlmApi,
   metaBuilder,
   registerContentExtraction,
@@ -51,6 +52,27 @@ const META: DocumentMetaOutput = {
   outliers: [],
 };
 
+/** Per-section graph for the fixture doc, returned by the stub graph extractor. */
+const GRAPH = {
+  sections: [
+    {
+      sectionKey: "intro",
+      entities: [{ value: "Acme", type: "organisation" }],
+      statements: [["Acme", "is a", "company"]],
+      relations: [],
+    },
+    {
+      sectionKey: "founders",
+      entities: [
+        { value: "Acme", type: "organisation" },
+        { value: "Jane", type: "person" },
+      ],
+      statements: [["Acme", "founded by", "Jane"]],
+      relations: [["Jane", "founded", "Acme"]],
+    },
+  ],
+};
+
 const REF_RE = /ref="([^"]+)"/g;
 
 // Per-test controls + observations.
@@ -79,6 +101,8 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       return out(SUMMARY);
     case "extract-document-meta":
       return out(META);
+    case "extract-document-graph":
+      return out(GRAPH);
     case "intent-detection":
       return out(intent);
     case "topic-descent": {
@@ -135,7 +159,7 @@ const blocks = async (resource: Resource): Promise<SearchBlock[]> => {
   return summary.sections.map((s) => ({ blockId: s.key, text: `${s.title} ${s.summary}` }));
 };
 
-async function buildProject() {
+async function buildProject(opts: { graph?: boolean } = {}) {
   const filesApi = new MemFilesApi({
     initialFiles: { "proj/a.md": "Acme is a company.\nJane founded Acme." },
   });
@@ -163,6 +187,7 @@ async function buildProject() {
   builder.registerBuilder(contentBuilder());
   builder.registerBuilder(summarizeBuilder());
   builder.registerBuilder(metaBuilder());
+  if (opts.graph) builder.registerBuilder(graphBuilder());
   builder.registerBuilder(docTopicEmbedderBuilder());
   builder.registerBuilder(reorganizeBuilder());
   builder.registerBuilder(searchBuilder({ inputSignal: "summarized" }));
@@ -254,6 +279,19 @@ describe("WikiQuery — FSM-driven retrieval", () => {
       expect(batch).toContain("<raw_content>");
       // Batch summarization is stateless — no carried-over rolling summary.
       expect(batch).not.toContain("<previous_summary>");
+    }
+  });
+
+  it("grounds facts in the section graph when one is built (no raw_content)", async () => {
+    const graphProject = await buildProject({ graph: true });
+    foldSections = [];
+    await graphProject.requireAdapter(WikiQuery).ask("Who founded Acme?").complete();
+    expect(foldSections.length).toBeGreaterThan(0);
+    for (const batch of foldSections) {
+      // The section's built graph is rendered as the fact source, not its raw text.
+      expect(batch).toContain("<graph>");
+      expect(batch).toContain("Jane"); // from the graph's "Acme — founded by — Jane" statement
+      expect(batch).not.toContain("<raw_content>");
     }
   });
 

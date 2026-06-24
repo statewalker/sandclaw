@@ -20,10 +20,14 @@ export interface QueryRequest {
   paths?: string[];
 }
 
-/** One distinct subject the prompt decomposes into, re-formulated as a search prompt. */
+/** One distinct subject the prompt decomposes into, re-formulated for retrieval. */
 export interface Subject {
-  /** Standalone, vault-aligned search prompt for this subject. */
+  /** Standalone, vault-aligned reformulation of this subject; drives topic-class routing. */
   prompt: string;
+  /** Hypothetical answer to the subject (HyDE); embedded for semantic (vector) search. */
+  semanticQuery: string;
+  /** Distinctive keywords for full-text search (content terms + named entities, not phrases). */
+  ftsQueries: string[];
 }
 
 /** IntentDetection output: on/off-corpus, the decomposed subjects, and the request language. */

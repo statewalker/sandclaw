@@ -119,12 +119,26 @@ export interface DocumentMeta {
 export interface Entity {
   /** Canonical name; stable across re-ingests. */
   value: string;
-  /** Open enum: person, organisation, place, paper, tool, dataset, algorithm, … */
+  /**
+   * Open lowercase label — illustrative, not a fixed vocabulary: person,
+   * organisation, place, index, sector, fund, company, instrument, event, dataset,
+   * tool, concept, … A precise type is coined when none fits. Currencies and units
+   * are NOT entities (they qualify a measurement via a triple's details object).
+   */
   type?: string;
 }
 
-/** `[subject, predicate, object]`. Subject MUST be an entity.value. */
-export type Triple = readonly string[];
+/** Optional qualifiers that constrain a triple, e.g. `{ year: 2015, currency: "GBP" }`. */
+export type TripleDetails = Record<string, string | number | boolean>;
+
+/**
+ * `[subject, predicate, object]` with an OPTIONAL 4th element: a {@link TripleDetails}
+ * object of qualifiers. Subject (0), predicate (1), and object (2) are strings; index 3,
+ * when present, is the details object. The predicate is plain text, not camelCase, and
+ * carries no qualifiers (those live in the details object). Shape is enforced by
+ * `filterUnknownSubjects`.
+ */
+export type Triple = readonly (string | TripleDetails)[];
 export type Statement = Triple;
 export type Relation = Triple;
 

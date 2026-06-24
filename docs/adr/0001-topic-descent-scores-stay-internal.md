@@ -1,8 +1,13 @@
 ---
-status: accepted
+status: superseded by ADR-0003
 ---
 
 # Topic-descent relevance scores stay internal to the topic front-end
+
+> **Superseded by [ADR 0003](0003-continuous-cross-strategy-rrf-scoring.md).** Section
+> scoring moved to a continuous cross-strategy RRF axis. The precision concern below
+> is preserved differently: topic/outlier are down-weighted corroborators and
+> topic-descent is deferred, so tier-1 stays cross-method (FTS×vector).
 
 The query stage scores each evidence section by **how many independent front-ends surfaced it** (found by both hybrid search and the topic front-end → tier 0; one → tier 1), and `SelectSections → Respond` escalates tier by tier. When the topic front-end is upgraded to scored DAG descent over the topic index, it produces its own per-node relevance scores (relevant = 2 / maybe = 1 / non-relevant = 0), and a section's intra-front-end score is the sum of the scores of the topics referencing it.
 

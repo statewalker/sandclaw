@@ -16,11 +16,24 @@ greeting or small talk, a creative-writing or coding task, arithmetic, or a ques
 plainly unrelated to the corpus with no searchable corpus term. Then give a one-line offCorpusReason
 and return no subjects.
 
-When on-corpus, decompose the prompt into its distinct SUBJECTS, each re-formulated as a standalone
-search prompt. PRESERVE every specific term and named entity (proper nouns, organisations, people,
-places, tickers) VERBATIM in the subject — these are the search terms that drive full-text retrieval;
-never paraphrase them away. Align the surrounding wording with the corpus where natural, but keep the
-named entities intact. A single-subject prompt yields exactly one subject. Do NOT answer the prompt.
+When on-corpus, decompose the prompt into its distinct SUBJECTS. For each subject produce THREE things:
+- \`prompt\`: a standalone, natural-language reformulation of the subject. It drives topic-class
+  routing over the corpus index. Align the wording with the corpus where natural, but keep named
+  entities intact.
+- \`semanticQuery\`: a HYPOTHETICAL ANSWER to the subject — a short, factual passage written as if it
+  were an ideal excerpt from a corpus document that answers it. Do NOT echo the question; assert a
+  plausible answer in the corpus's register (1–3 sentences). This is embedded for SEMANTIC (vector)
+  retrieval, where a fake answer lands nearer the real answers than the bare question does. Any
+  specifics you invent are embedding bait only — never shown or trusted downstream.
+- \`ftsQueries\`: the distinctive KEYWORDS for full-text search — individual content terms and named
+  entities drawn from the subject, NOT phrases or sentences. List the salient terms (proper nouns,
+  organisations, people, places, tickers, numbers, and the few defining nouns), each as its OWN
+  entry; a block matching more entries ranks higher. Give 1–6 entries; omit stop-words and generic
+  filler.
+PRESERVE every specific term and named entity (proper nouns, organisations, people, places, tickers,
+numbers) VERBATIM across \`prompt\`, \`semanticQuery\`, and \`ftsQueries\` — never paraphrase them away.
+
+A single-subject prompt yields exactly one subject. Do NOT answer the prompt.
 
 Also DETECT the language the user wrote the prompt in and return its English name in \`language\` (e.g.
 "English", "French", "Japanese") — the final answer will be written in it. Use "English" when the
@@ -66,17 +79,21 @@ The input is ONE XML payload with these parts — use each part for its stated r
     - <section_title> — the section's title. CONTEXT ONLY.
     - <section_summary> — the section's pre-existing generic summary. CONTEXT ONLY — it may OMIT
       specifics the question needs, so it is a guide, never the source of a fact.
-    - <raw_content> — the section's ORIGINAL TEXT. This is the ONLY source of facts and citations.
+    - <graph> — the section's STRUCTURED FACTS: an "Entities:" line plus "Statements:" / "Relations:"
+      bullets, each "subject — predicate — object" with a trailing {…} details object of qualifiers
+      (year, currency, …). This is the SOURCE of facts and citations.
+    - <raw_content> — present ONLY when a section has no <graph>; then it is the section's ORIGINAL
+      TEXT and is the fallback SOURCE of facts and citations.
 
-Return \`facts\`: question-specific statements, each grounded in <raw_content>. A statement should be
-information-rich — capture the concrete specifics the question needs (full entity names, numbers,
-dates, relationships) that the generic summaries may omit. Together the facts are the question's
-grounded summary.
+Return \`facts\`: question-specific statements, each grounded in the section's <graph> (or its
+<raw_content> fallback). A statement should be information-rich — capture the concrete specifics the
+question needs (full entity names, numbers, dates, relationships, and any details qualifiers).
+Together the facts are the question's grounded summary.
 
 RULES — load-bearing:
 1. Every fact MUST cite ≥1 section \`ref\` VERBATIM, and every word of it MUST be supported by the
-   cited section(s)' <raw_content>. Never use a summary, a title, or outside / "common-sense"
-   knowledge as the source of a fact.
+   cited section(s)' <graph> (or <raw_content> fallback). Never use a <section_summary>, a title, or
+   outside / "common-sense" knowledge as the source of a fact.
 2. A single fact MUST draw only on sections of ONE document — NEVER merge content across documents.
    When two documents say related things, emit a SEPARATE fact per document.
 3. Keep only facts relevant to <question>; discard the rest. Do NOT answer the question — only

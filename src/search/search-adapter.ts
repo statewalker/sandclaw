@@ -62,7 +62,12 @@ export interface SearchDeps {
 }
 
 export interface SearchQuery {
+  /** The semantic query — embedded for vector search, and the full-text fallback when
+   * `ftsQueries` is omitted. */
   query: string;
+  /** Full-text query ladder (strict → relaxed). Blocks matching more entries rank higher.
+   * Defaults to `[query]` when omitted. */
+  ftsQueries?: string[];
   modes?: ("fts" | "vector")[];
   paths?: string[];
   topK?: number;
@@ -70,7 +75,13 @@ export interface SearchQuery {
 
 export interface DocumentMatch {
   uri: string;
-  sections: { sectionKey: string; score: number; snippet?: string }[];
+  sections: {
+    sectionKey: string;
+    score: number;
+    snippet?: string;
+    /** Which sub-indexes surfaced this section in the fused result (its retrieval provenance). */
+    modes: ("fts" | "vector")[];
+  }[];
 }
 
 interface AdapterOptions extends Record<string, unknown>, SearchDeps {}
@@ -286,8 +297,9 @@ export class SearchAdapter extends ProjectAdapter {
     const request: SearchRequest = { topK: query.topK ?? DEFAULT_TOP_K };
     if (query.paths) request.paths = query.paths.map(toDocumentPath);
     if (modes.includes("fts")) {
+      const ftsQueries = query.ftsQueries?.length ? query.ftsQueries : [query.query];
       ftsAccess.setQuery(request, {
-        queries: [query.query],
+        queries: ftsQueries,
       } satisfies FulltextQuery);
     }
     if (modes.includes("vector")) {
@@ -300,10 +312,17 @@ export class SearchAdapter extends ProjectAdapter {
     for await (const r of index.search(request)) {
       const uri = fromDocumentPath(r.path);
       const match = byDoc.get(uri) ?? { uri, sections: [] };
+      // Per-section provenance: a sub-index's getResult is defined only when it
+      // contributed to this fused entry.
+      const fts = ftsAccess.getResult(r);
+      const modes: ("fts" | "vector")[] = [];
+      if (fts) modes.push("fts");
+      if (vecAccess.getResult(r)) modes.push("vector");
       match.sections.push({
         sectionKey: r.blockId,
         score: r.score,
-        snippet: ftsAccess.getResult(r)?.snippet,
+        snippet: fts?.snippet,
+        modes,
       });
       byDoc.set(uri, match);
     }

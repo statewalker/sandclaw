@@ -10,10 +10,15 @@ import type {
   DocumentMeta,
   GlobalOutlier,
   GlobalTopic,
+  SectionGraph,
+  Triple,
+  TripleDetails,
 } from "../../knowledge/types.js";
 import type { SearchAdapter } from "../../search/index.js";
 import { parseWikiUri, toCanonical } from "../../uri/wiki-uri.js";
 import type { AnswerTopic, EvidenceSection } from "../progress.js";
+import type { QueryLog } from "./llm-call.js";
+import type { Subject } from "./query-context.js";
 
 /** `${uri}#${sectionKey}` — the dedup identity of an evidence section. */
 export function sectionId(uri: string, sectionKey: string): string {
@@ -92,17 +97,47 @@ export function withinScope(uri: string, paths?: string[]): boolean {
   });
 }
 
-/** Mechanical hybrid (FTS + vector) search for one subject prompt → candidate sections. */
+/**
+ * Mechanical hybrid search for one subject → candidate sections. The subject's
+ * `ftsQueries` keywords drive full-text retrieval; its `semanticQuery` (a
+ * hypothetical answer, HyDE) is embedded for the semantic side. Logs the exact
+ * queries used and the hits they yielded (alongside the topic-descent log) so the
+ * retrieval that found each fragment is visible.
+ */
 export async function hybridSearch(
   search: SearchAdapter,
-  subjectPrompt: string,
+  log: QueryLog,
+  subject: Subject,
   paths?: string[],
 ): Promise<{ uri: string; sectionKey: string }[]> {
-  const matches = await search.search({ query: subjectPrompt, modes: ["fts", "vector"], paths });
+  const ftsQueries = subject.ftsQueries.length > 0 ? subject.ftsQueries : [subject.prompt];
+  const matches = await search.search({
+    query: subject.semanticQuery,
+    ftsQueries,
+    modes: ["fts", "vector"],
+    paths,
+  });
   const out: { uri: string; sectionKey: string }[] = [];
+  // Split the surfaced sections by provenance so the log shows which the full-text
+  // ladder found vs which the semantic (vector) query found (a section may be both).
+  const ftsSections: string[] = [];
+  const vectorSections: string[] = [];
   for (const m of matches) {
-    for (const s of m.sections) out.push({ uri: m.uri, sectionKey: s.sectionKey });
+    for (const s of m.sections) {
+      out.push({ uri: m.uri, sectionKey: s.sectionKey });
+      const id = sectionId(m.uri, s.sectionKey);
+      if (s.modes.includes("fts")) ftsSections.push(id);
+      if (s.modes.includes("vector")) vectorSections.push(id);
+    }
   }
+  log.info("hybrid search", {
+    semanticQuery: subject.semanticQuery,
+    ftsQueries,
+    documents: matches.length,
+    sections: out.length,
+    ftsSections,
+    vectorSections,
+  });
   return out;
 }
 
@@ -256,7 +291,7 @@ export function renderDocumentBlock(input: {
   chapters: {
     title: string;
     summary: string;
-    sections: { ref: string; title: string; description: string; raw: string }[];
+    sections: { ref: string; title: string; description: string; graph?: string; raw?: string }[];
   }[];
 }): string {
   const parts: string[] = [
@@ -276,14 +311,44 @@ export function renderDocumentBlock(input: {
         `<section ref="${s.ref}">`,
         `<section_title>\n${s.title}\n</section_title>`,
         `<section_summary>\n${s.description}\n</section_summary>`,
-        `<raw_content>\n${s.raw}\n</raw_content>`,
-        "</section>",
       );
+      // The section's built graph is the fact source; raw is rendered only as a
+      // fallback when a section has no graph yet (un-reindexed corpus).
+      if (s.graph !== undefined) parts.push(`<graph>\n${s.graph}\n</graph>`);
+      else if (s.raw !== undefined) parts.push(`<raw_content>\n${s.raw}\n</raw_content>`);
+      parts.push("</section>");
     }
     if (!flat) parts.push("</chapter>");
   }
   parts.push("</document>");
   return parts.join("\n");
+}
+
+/**
+ * Render a section's graph as compact, LLM-readable evidence: an `Entities:` line
+ * (`value (type)`, `; `-joined) plus `Statements:` / `Relations:` bullets, each
+ * `subject — predicate — object` with a trailing JSON details object when present.
+ * Empty groups are omitted.
+ */
+export function renderSectionGraph(g: SectionGraph): string {
+  const lines: string[] = [];
+  if (g.entities.length > 0) {
+    lines.push(
+      `Entities: ${g.entities.map((e) => (e.type ? `${e.value} (${e.type})` : e.value)).join("; ")}`,
+    );
+  }
+  const renderTriple = (t: Triple): string => {
+    const [s, p, o, d] = t as [string, string, string, TripleDetails?];
+    const head = `${s} — ${p} — ${o}`;
+    return d ? `${head} ${JSON.stringify(d)}` : head;
+  };
+  if (g.statements.length > 0) {
+    lines.push("Statements:", ...g.statements.map((t) => `- ${renderTriple(t)}`));
+  }
+  if (g.relations.length > 0) {
+    lines.push("Relations:", ...g.relations.map((t) => `- ${renderTriple(t)}`));
+  }
+  return lines.join("\n");
 }
 
 /**

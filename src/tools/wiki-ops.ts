@@ -62,7 +62,8 @@ async function targetsFor(
   paths: string[] | undefined,
 ): Promise<{ wikis: Project[]; targets: ReturnType<typeof resolveWikiMasks> }> {
   const wikis = await boundWikis(workspace);
-  const needResources = (paths ?? []).some((m) => m.includes("/"));
+  // An inner glob (a `/` past the optional leading-slash project anchor) needs resources.
+  const needResources = (paths ?? []).some((m) => m.trim().replace(/^\/+/, "").includes("/"));
   const withResources: WikiResources[] = needResources
     ? await Promise.all(
         wikis.map(async (w) => ({ name: w.projectName, resources: await listResources(w) })),

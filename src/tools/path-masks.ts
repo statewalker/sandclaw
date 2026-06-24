@@ -4,6 +4,11 @@
  * the first `/` selects bound wikis by name, the remainder filters resources within
  * each. A mask with no `/` matches project names only (all paths). An empty/omitted
  * mask list targets every wiki, all paths.
+ *
+ * A leading `/` is optional and ignored, so it anchors the first segment to a project
+ * name: `/docs` (or `/docs/`) is the whole `docs` project, `/docs/*` its first level,
+ * `/docs/**` all levels. A `*`-prefixed mask instead spans every project's `docs/`
+ * subtree at any depth (the project glob is `*`, the inner glob `docs/` + `**`).
  */
 
 /** A bound wiki and its known resource set (project-relative uris). */
@@ -60,7 +65,7 @@ export function resolveWikiMasks(
   masks: string[] | undefined,
   wikis: WikiResources[],
 ): MaskTarget[] {
-  const clean = (masks ?? []).map((m) => m.trim()).filter((m) => m.length > 0);
+  const clean = (masks ?? []).map((m) => m.trim().replace(/^\/+/, "")).filter((m) => m.length > 0);
   if (clean.length === 0) return wikis.map((w) => ({ project: w.name, paths: [] }));
 
   const acc = new Map<string, Acc>();
