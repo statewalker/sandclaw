@@ -9,7 +9,7 @@ import { llmOf, wikiConfigOf } from "../llm/index.js";
 import { toBatch } from "../util/batch.js";
 import { ResourceTextContentCache, WikiPageEmbeddings, WikiPageSummary } from "./page-adapters.js";
 import { SUMMARIZED_SIGNAL } from "./summarizer.js";
-import type { DocumentEmbeddings } from "./types.js";
+import { type DocumentEmbeddings, KNOWLEDGE_SCHEMA_VERSION } from "./types.js";
 
 export const EMBED_BUILDER_ID = "Embedder";
 export const EMBEDDED_SIGNAL = "embedded";
@@ -66,13 +66,19 @@ export function embedderBuilder(opts: { force?: boolean } = {}): RegisteredBuild
           // `Array.isArray(prior.sections)` also rejects the legacy JSON format
           // (vectors inlined as a `Record`), so pre-Arrow embeddings are re-embedded.
           const fresh =
-            !!prior && !!hash && prior.sourceHash === hash.hash && Array.isArray(prior.sections);
+            !!prior &&
+            !!hash &&
+            prior.sourceHash === hash.hash &&
+            prior.schemaVersion === KNOWLEDGE_SCHEMA_VERSION &&
+            Array.isArray(prior.sections);
           if (resource && summary && (opts.force || !fresh)) {
             log.info("embedding sections", { uri: u.uri, sections: summary.sections.length });
-            // One batched embedding call per document.
+            // One batched embedding call per document. Embed the routing payload
+            // (title + summary + details) — the same text the filter tier sees — so
+            // fact-specific queries recall the right section; tables are answer-tier.
             const vectors = summary.sections.length
               ? await llm.embedBatch(
-                  summary.sections.map((s) => s.summary),
+                  summary.sections.map((s) => `${s.title}\n${s.summary}\n${s.details}`),
                   model,
                 )
               : [];
@@ -90,6 +96,7 @@ export function embedderBuilder(opts: { force?: boolean } = {}): RegisteredBuild
               uri: u.uri,
               generated: new Date().toISOString(),
               sourceHash: hash?.hash ?? "",
+              schemaVersion: KNOWLEDGE_SCHEMA_VERSION,
               model,
               dimensionality,
               sections: keys,

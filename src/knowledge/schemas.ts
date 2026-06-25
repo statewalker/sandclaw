@@ -2,6 +2,30 @@ import { z } from "zod";
 
 // ── Summarizer ──────────────────────────────────────────────────────────────
 
+export const detailTableSchema = z
+  .object({
+    caption: z
+      .string()
+      .min(1)
+      .describe(
+        "Self-describing caption naming what the table holds (the objects its rows stand for). The 'details' prose refers to the table by this caption.",
+      ),
+    columns: z
+      .array(z.string())
+      .min(1)
+      .describe(
+        "Column headers — include the unit where it is uniform for the column (e.g. 'Return (%)').",
+      ),
+    rows: z
+      .array(z.array(z.string()))
+      .describe(
+        "Rows; each row has one string cell per column, in column order. Numbers/dates are stringified.",
+      ),
+  })
+  .describe(
+    "A structured table of repetitive facts (a source table or an enumeration of the same attributes across objects).",
+  );
+
 export const sectionSummarySchema = z
   .object({
     key: z
@@ -28,10 +52,23 @@ export const sectionSummarySchema = z
     summary: z
       .string()
       .describe(
-        "Pure narrative summary of this section, NEVER verbatim raw text. Entity-rich: name the main entities and their relations needed to reproduce the section's ideas (persons, organisations, places, dates/periods, products, headline figures). Describe dense numeric blocks/tables AS A WHOLE — the objects the rows stand for, the characteristics the columns capture with their value nature/unit, and a one-line reading of what the block shows — never transcribing cells.",
+        "THIN thematic abstract — 1–3 sentences on what this section is about and why it matters. NEVER verbatim raw. Exhaustive facts go in 'details', not here; do not restate every entity/figure (that would duplicate 'details').",
+      ),
+    details: z
+      .string()
+      .describe(
+        "EXHAUSTIVE facts as markdown: every named entity (full name on first mention), date, identifier, figure, finding, recommendation, threshold, and explicit condition/qualifier — as prose and bullet lists. Include a whole-block description of EACH table in 'tables' (the objects its rows stand for, the columns with units, the one-line reading, and any extreme values), referring to it by its caption. NEVER verbatim raw passages; DROP statistical bookkeeping (p-values, CIs), hyperparameters, and intermediate steps.",
+      ),
+    tables: z
+      .array(detailTableSchema)
+      .default([])
+      .describe(
+        "ALL structured/repetitive data of this section (source tables and enumerations of facts about multiple objects), each as { caption, columns, rows }. Empty array when the section has no tabular data. No row limit.",
       ),
   })
-  .describe("One L2 section: a navigation aid spanning a contiguous range of raw lines.");
+  .describe(
+    "One L2 section: a thin abstract plus its exhaustive facts (details) and structured data (tables).",
+  );
 
 export const documentSummarySchema = z
   .object({
@@ -198,10 +235,28 @@ export const existingClassSchema = z
   })
   .describe("An already-coined class. Reuse its key verbatim; copy its description when reusing.");
 
+// The routing payload (title + summary + details, NO tables): what meta reads.
+const metaSummarySchema = z
+  .object({
+    title: z.string(),
+    summary: z.string(),
+    sections: z.array(
+      z.object({
+        key: z.string(),
+        title: z.string(),
+        summary: z.string(),
+        details: z.string(),
+      }),
+    ),
+  })
+  .describe(
+    "The L2 summary as the routing payload — section title + summary + details, no tables.",
+  );
+
 export const metaExtractorInputSchema = z
   .object({
     uri: z.string().describe("Document URI — project-relative path including extension."),
-    summary: documentSummarySchema.describe(
+    summary: metaSummarySchema.describe(
       "The L2 summary the declarations point at via sectionKeys.",
     ),
     existingClasses: z
@@ -209,93 +264,6 @@ export const metaExtractorInputSchema = z
       .describe("Already-coined classes across the corpus. Reuse keys; copy descriptions."),
   })
   .describe("Input to the meta extraction call. Returns DocumentMeta.");
-
-// ── Graph (entities + statements + relations) ────────────────────────────────
-
-export const entitySchema = z
-  .object({
-    value: z
-      .string()
-      .min(1)
-      .describe("Canonical entity name. Stable across sections / re-ingests."),
-    type: z
-      .string()
-      .optional()
-      .describe(
-        "OPEN lowercase label — these are examples, not a fixed list: person, organisation, place, index, sector, fund, company, instrument, event, dataset, tool, concept, … Coin a precise type when none fits; never force a poor fit. Currencies/units are NOT entities.",
-      ),
-  })
-  .describe(
-    "A named actor / work / event / concept the section is about (not a currency or unit).",
-  );
-
-// Lenient on purpose: the triple is `z.array(z.unknown())` — element TYPE and arity
-// are NOT constrained. With `strictJsonSchema: false` the schema is not enforced
-// during generation, and any element-level constraint (string-only, or a strict
-// details-object union) would make the WHOLE-document parse throw and drop the
-// document when the model emits a stray number, a 2-/4-element array, or a details
-// value outside string/number/boolean. The shape — three non-empty strings plus an
-// OPTIONAL 4th plain details object — is enforced deterministically afterwards (see
-// `filterUnknownSubjects`); the expected shape is conveyed to the model via the
-// description + the system prompt, not the JSON schema.
-const tripleArraySchema = z
-  .array(z.unknown())
-  .describe(
-    '[subject, predicate, object] — three non-empty strings — with an OPTIONAL 4th element: a flat details object of qualifiers, e.g. { "year": 2015, "currency": "GBP" }. Subject (index 0) MUST be an entity.value declared in this document\'s graph. The predicate (index 1) is plain natural-language text, NOT camelCase and carrying no qualifiers. Off-shape triples are dropped by the runtime filter.',
-  );
-
-export const statementSchema = tripleArraySchema.describe(
-  "Entity-attribute fact: subject is an entity.value; object is a stringified literal; the optional 4th details object carries qualifiers (year, currency, …).",
-);
-export const relationSchema = tripleArraySchema.describe(
-  "Entity-to-entity fact: subject and object are entity.value strings; the optional 4th details object carries qualifiers.",
-);
-
-export const sectionGraphSchema = z
-  .object({
-    sectionKey: z
-      .string()
-      .min(1)
-      .describe("Section key — matches a DocumentSummary.sections[].key."),
-    entities: z.array(entitySchema).describe("Entities introduced or referenced by this section."),
-    statements: z.array(statementSchema).describe("Entity-to-literal findings/conclusions."),
-    relations: z.array(relationSchema).describe("Entity-to-entity structural facts."),
-  })
-  .describe("Structured signal for one section of the document.");
-
-export const documentGraphSchema = z
-  .object({
-    sections: z
-      .array(sectionGraphSchema)
-      .describe("One graph per L2 section, in the same order as the summary's sections."),
-  })
-  .describe("Per-document structured-signal layer.");
-
-export const graphSectionInputSchema = z
-  .object({
-    key: z.string().min(1).describe("Section key — the output sectionKey MUST match this value."),
-    title: z.string().describe("Section heading. CONTEXT for extraction — not a source of facts."),
-    summary: z
-      .string()
-      .describe("Section narrative summary. CONTEXT only — never a source of facts or citations."),
-    raw: z
-      .string()
-      .describe(
-        "Section raw text. The SOURCE of every entity, statement, and relation — all facts must come from here.",
-      ),
-  })
-  .describe("One section's graph-extraction input: title+summary are context, raw is the source.");
-
-export const graphExtractorInputSchema = z
-  .object({
-    uri: z.string().describe("Document URI — project-relative path including extension."),
-    sections: z
-      .array(graphSectionInputSchema)
-      .describe(
-        "Sections of the document — output sectionKey values must match these section.key values.",
-      ),
-  })
-  .describe("Input to the per-section graph extraction call. Returns DocumentGraph.");
 
 // ── Attribution (place document topics onto the index DAG) ───────────────────
 // Candidates and index nodes are addressed by `key`: actions name the candidate
@@ -501,7 +469,6 @@ export const nameCategoryOutputSchema = z
 export type DocumentSummaryOutput = z.infer<typeof documentSummarySchema>;
 export type SummarizerInput = z.infer<typeof summarizerInputSchema>;
 export type DocumentMetaOutput = z.infer<typeof documentMetaSchema>;
-export type DocumentGraphOutput = z.infer<typeof documentGraphSchema>;
 export type AttributeActions = z.infer<typeof attributeActionsSchema>;
 export type AttributeAction = AttributeActions["actions"][number];
 export type AttributeInput = z.infer<typeof attributeInputSchema>;

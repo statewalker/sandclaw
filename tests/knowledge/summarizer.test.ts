@@ -18,8 +18,24 @@ const SUMMARY_OUTPUT: DocumentSummaryOutput = {
   title: "About Acme",
   summary: "Acme makes widgets and was founded in 1999.",
   sections: [
-    { key: "overview", title: "Overview", startLine: 0, endLine: 1, summary: "Acme overview." },
-    { key: "history", title: "History", startLine: 2, endLine: 3, summary: "Founded 1999." },
+    {
+      key: "overview",
+      title: "Overview",
+      startLine: 0,
+      endLine: 1,
+      summary: "Acme overview.",
+      details: "Acme makes widgets.",
+      tables: [],
+    },
+    {
+      key: "history",
+      title: "History",
+      startLine: 2,
+      endLine: 3,
+      summary: "Founded 1999.",
+      details: "Acme was founded in 1999.",
+      tables: [],
+    },
   ],
 };
 

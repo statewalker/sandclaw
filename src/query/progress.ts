@@ -1,10 +1,15 @@
-/** A retrieved section: its title + summary plus the corresponding original text block. */
+import type { DetailTable } from "../knowledge/types.js";
+
+/** A retrieved section: its routing fields (title + summary + details) plus its answer-tier tables. */
 export interface EvidenceSection {
   uri: string;
   sectionKey: string;
   title: string;
   summary: string;
-  rawBlock: string;
+  /** Exhaustive facts (markdown) — the routing/answer fact source replacing the old raw block. */
+  details: string;
+  /** Structured bulk data for this section; rendered into the answer-tier payload. */
+  tables: DetailTable[];
 }
 
 /** A topic/outlier class the answer's evidence touched, with its covering citations. */

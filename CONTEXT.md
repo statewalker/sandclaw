@@ -35,7 +35,7 @@ _Avoid_: provider (overloaded — see Flagged ambiguities).
 The single chat model AiConfig marks active. **Chat-only** — wiki does not read it.
 
 **Stage**:
-A step of the wiki build/query pipeline (summarize, meta, graph, reorganize, embed,
+A step of the wiki build/query pipeline (summarize, meta, reorganize, embed,
 query, …) that can bind to its own model.
 
 **Model Reference**:
@@ -119,37 +119,30 @@ Sections are the unit every front-end produces and the unit the answer cites.
 
 **Grounded fact**:
 A single factual statement the query-side summarize stage extracts from a section's
-**Section graph** (its raw-derived entities/statements/relations; raw content is
-read only as a last resort), carrying the verbatim section citation(s) it rests on.
+**Details** and **Tables**, carrying the verbatim section citation(s) it rests on.
 Atomic and **single-document** — a fact never merges sections from different
 documents (that prevents cross-document conflation). Cross-document corroboration is
 composed later: an answer **claim** may rest on grounded facts from several
 documents, each independently cited. A fact with no valid citation is dropped.
-See `docs/adr/0002` (atomicity) and `docs/adr/0004` (source).
+See `docs/adr/0002` (atomicity) and `docs/adr/0005` (source).
 _Avoid_: summary (the stage emits grounded facts, not free prose).
 
-**Entity**:
-A named thing referable more than once — a person, organisation, place, named
-period/event, or named work/method/dataset/concept — with a canonical `value` and an
-open lowercase `type`. NOT an entity: a finding (that is a **Statement**) or a
-one-off literal (that is a Statement's object).
-_Avoid_: node, tag.
+**Details**:
+The per-**section** exhaustive facts, as a markdown string the summarizer emits in the
+same pass as the section: every named entity (in full), date, identifier, figure,
+finding, recommendation, threshold, and explicit condition, plus a whole-block
+description of each of the section's **Tables**. Part of the routing payload
+(`title + summary + details`) and the authoritative fact source the query **filter**
+and **summarize** stages read. See `docs/adr/0005`.
+_Avoid_: graph, triples, entities/statements/relations (the deleted RDF model).
 
-**Statement**:
-A `[subject, predicate, object]` triple where the subject is an **Entity** value and
-the object is a literal (finding, label, date, number). Belongs to one **section**.
-
-**Relation**:
-A `[subject, predicate, object]` triple where both subject and object are **Entity**
-values (entity-to-entity). Belongs to one **section**.
-
-**Section graph**:
-The per-**section** set of **Entities**, **Statements**, and **Relations**, built at
-indexation from the section's title + summary + raw content (so it is authoritative
-and figure-bearing). It is the default authoritative evidence the query **filter**
-and **summarize** stages read; raw content is consulted only as a last resort. See
-`docs/adr/0004`.
-_Avoid_: knowledge graph (reserved for a future cross-document graph), triples.
+**Table**:
+A `{caption, columns, rows}` structure holding a **section**'s repetitive/structured
+data (a source table, or the same attributes across several objects). Answer-tier:
+loaded only when a section is selected for answer composition, never in the routing
+payload. Its `columns` are a document-local schema kept explicit so a future relation
+catalog can align them.
+_Avoid_: matrix; do not transcribe a one-off fact as a one-row table (that goes in **Details**).
 
 ## Relationships
 
@@ -158,7 +151,7 @@ _Avoid_: knowledge graph (reserved for a future cross-document graph), triples.
 - A **Wiki** has one wiki configuration binding each **Stage** to a **Model Reference**
 - **AiConfig** resolves a **Model Reference** to a runtime model via its **Connection**
 - **Chat** uses the **Active Selection**; **Wiki** uses its own per-Stage references — they share only AiConfig's Connections and keys
-- Each **section** has one **Section graph**; the query **filter** and **summarize** stages read it (raw content only as a last resort)
+- Each **section** carries **Details** (routing-tier facts) and **Tables** (answer-tier structured data); the query **filter** reads `title + summary + details`, and **summarize** also reads **Tables**
 - The four **front-ends** fuse via **RRF fusion** into one section score; **Tiers** (escalation bands) derive from that score
 
 ## Flagged ambiguities
@@ -174,10 +167,11 @@ _Avoid_: knowledge graph (reserved for a future cross-document graph), triples.
   summarize stage** (answer time — retrieved **sections** → **grounded facts**). They
   share a verb, not a job; name the stage (build summarizer / query summarize) when
   ambiguous.
-- "graph" was once a leaf artifact disabled for lack of a consumer — resolved: it is
-  re-activated and consumed as the authoritative query-evidence layer (**Section
-  graph**, ADR 0004).
-- a **Statement** (a build-time structured triple in a **Section graph**) and a
-  **Grounded fact** (a query-time prose fact) are both single-section, single-document,
-  cited claims — resolved: the Section graph is now the *source* the grounded fact
-  rests on; the grounded fact is the *query-time, question-specific* derivation of it.
+- "graph" was once re-activated as the authoritative query-evidence layer (ADR 0004) —
+  resolved: the RDF section graph is **deleted** (ADR 0005); per-section facts now live
+  in the summarizer's **Details** (markdown) and **Tables** (structured), with no
+  separate graph artifact or triples.
+- a build-time fact representation and a **Grounded fact** (a query-time prose fact)
+  are both single-section, single-document, cited — resolved: **Details**/**Tables**
+  are the *source* the grounded fact rests on; the grounded fact is the *query-time,
+  question-specific* derivation of it.

@@ -12,7 +12,6 @@ export interface StageModelNames {
   default: string;
   summarize?: string;
   meta?: string;
-  graph?: string;
   reorganize?: string;
   query?: string;
   queryFast?: string;

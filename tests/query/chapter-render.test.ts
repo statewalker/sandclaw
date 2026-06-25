@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { ChapterNode, SectionGraph } from "../../src/index.js";
+import type { ChapterNode, DetailTable } from "../../src/index.js";
 import {
   renderDocumentBlock,
-  renderSectionGraph,
+  renderSectionTables,
   sectionChapters,
 } from "../../src/query/fsm/retrieval.js";
 
@@ -26,7 +26,7 @@ describe("sectionChapters — section → parent chapter", () => {
 });
 
 describe("renderDocumentBlock — chapter overlay", () => {
-  const section = (ref: string) => ({ ref, title: ref, description: "d", raw: "r" });
+  const section = (ref: string) => ({ ref, title: ref, description: "d", details: "facts" });
 
   it("wraps sections under chapter headers for a multi-chapter document", () => {
     const out = renderDocumentBlock({
@@ -54,8 +54,8 @@ describe("renderDocumentBlock — chapter overlay", () => {
   });
 });
 
-describe("renderDocumentBlock — graph vs raw evidence", () => {
-  it("renders a <graph> block when the section has a graph (no raw)", () => {
+describe("renderDocumentBlock — details + tables evidence", () => {
+  it("renders a <details> block, and a <tables> block when present", () => {
     const out = renderDocumentBlock({
       title: "Doc",
       summary: "ds",
@@ -63,15 +63,23 @@ describe("renderDocumentBlock — graph vs raw evidence", () => {
         {
           title: "Doc",
           summary: "ds",
-          sections: [{ ref: "/a.md#s0", title: "t", description: "d", graph: "Entities: Acme" }],
+          sections: [
+            {
+              ref: "/a.md#s0",
+              title: "t",
+              description: "d",
+              details: "Acme makes widgets.",
+              tables: "#### Cap\n| A |\n| --- |\n| 1 |",
+            },
+          ],
         },
       ],
     });
-    expect(out).toContain("<graph>\nEntities: Acme\n</graph>");
-    expect(out).not.toContain("<raw_content>");
+    expect(out).toContain("<details>\nAcme makes widgets.\n</details>");
+    expect(out).toContain("<tables>\n#### Cap");
   });
 
-  it("falls back to <raw_content> when the section has no graph", () => {
+  it("omits <tables> when the section has none", () => {
     const out = renderDocumentBlock({
       title: "Doc",
       summary: "ds",
@@ -79,30 +87,31 @@ describe("renderDocumentBlock — graph vs raw evidence", () => {
         {
           title: "Doc",
           summary: "ds",
-          sections: [{ ref: "/a.md#s0", title: "t", description: "d", raw: "RAW" }],
+          sections: [{ ref: "/a.md#s0", title: "t", description: "d", details: "facts" }],
         },
       ],
     });
-    expect(out).toContain("<raw_content>\nRAW\n</raw_content>");
-    expect(out).not.toContain("<graph>");
+    expect(out).toContain("<details>\nfacts\n</details>");
+    expect(out).not.toContain("<tables>");
   });
 });
 
-describe("renderSectionGraph", () => {
-  it("renders entities and statements/relations, with a trailing details object", () => {
-    const g: SectionGraph = {
-      sectionKey: "s",
-      entities: [
-        { value: "Fund", type: "fund" },
-        { value: "MSCI World Index", type: "index" },
-      ],
-      statements: [["MSCI World Index", "returns", "28.24%", { year: 2016, currency: "GBP" }]],
-      relations: [["Fund", "benchmarked against", "MSCI World Index"]],
-    };
-    const out = renderSectionGraph(g);
-    expect(out).toContain("Entities: Fund (fund); MSCI World Index (index)");
-    expect(out).toContain('- MSCI World Index — returns — 28.24% {"year":2016,"currency":"GBP"}');
-    expect(out).toContain("Relations:");
-    expect(out).toContain("- Fund — benchmarked against — MSCI World Index");
+describe("renderSectionTables", () => {
+  it("renders each table as a captioned GitHub-flavoured markdown table", () => {
+    const tables: DetailTable[] = [
+      {
+        caption: "Quarterly returns",
+        columns: ["Fund", "Return", "Currency"],
+        rows: [
+          ["Innovators Fund One", "6.8%", "GBP"],
+          ["Another Fund", "5.2%", "USD"],
+        ],
+      },
+    ];
+    const out = renderSectionTables(tables);
+    expect(out).toContain("#### Quarterly returns");
+    expect(out).toContain("| Fund | Return | Currency |");
+    expect(out).toContain("| --- | --- | --- |");
+    expect(out).toContain("| Innovators Fund One | 6.8% | GBP |");
   });
 });

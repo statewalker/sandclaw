@@ -7,7 +7,6 @@ import {
   type DocumentSummaryOutput,
   docTopicEmbedderBuilder,
   type EmbedFn,
-  graphBuilder,
   type LlmApi,
   metaBuilder,
   registerContentExtraction,
@@ -35,8 +34,24 @@ const SUMMARY: DocumentSummaryOutput = {
   title: "Acme",
   summary: "Acme and its founders.",
   sections: [
-    { key: "intro", title: "Intro", startLine: 0, endLine: 0, summary: "Acme is a company." },
-    { key: "founders", title: "Founders", startLine: 1, endLine: 1, summary: "Jane founded Acme." },
+    {
+      key: "intro",
+      title: "Intro",
+      startLine: 0,
+      endLine: 0,
+      summary: "Acme is a company.",
+      details: "Acme is a company.",
+      tables: [],
+    },
+    {
+      key: "founders",
+      title: "Founders",
+      startLine: 1,
+      endLine: 1,
+      summary: "Jane founded Acme.",
+      details: "Jane founded Acme.",
+      tables: [],
+    },
   ],
 };
 const META: DocumentMetaOutput = {
@@ -50,27 +65,6 @@ const META: DocumentMetaOutput = {
     },
   ],
   outliers: [],
-};
-
-/** Per-section graph for the fixture doc, returned by the stub graph extractor. */
-const GRAPH = {
-  sections: [
-    {
-      sectionKey: "intro",
-      entities: [{ value: "Acme", type: "organisation" }],
-      statements: [["Acme", "is a", "company"]],
-      relations: [],
-    },
-    {
-      sectionKey: "founders",
-      entities: [
-        { value: "Acme", type: "organisation" },
-        { value: "Jane", type: "person" },
-      ],
-      statements: [["Acme", "founded by", "Jane"]],
-      relations: [["Jane", "founded", "Acme"]],
-    },
-  ],
 };
 
 const REF_RE = /ref="([^"]+)"/g;
@@ -101,8 +95,6 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       return out(SUMMARY);
     case "extract-document-meta":
       return out(META);
-    case "extract-document-graph":
-      return out(GRAPH);
     case "intent-detection":
       return out(intent);
     case "topic-descent": {
@@ -159,7 +151,7 @@ const blocks = async (resource: Resource): Promise<SearchBlock[]> => {
   return summary.sections.map((s) => ({ blockId: s.key, text: `${s.title} ${s.summary}` }));
 };
 
-async function buildProject(opts: { graph?: boolean } = {}) {
+async function buildProject() {
   const filesApi = new MemFilesApi({
     initialFiles: { "proj/a.md": "Acme is a company.\nJane founded Acme." },
   });
@@ -187,7 +179,6 @@ async function buildProject(opts: { graph?: boolean } = {}) {
   builder.registerBuilder(contentBuilder());
   builder.registerBuilder(summarizeBuilder());
   builder.registerBuilder(metaBuilder());
-  if (opts.graph) builder.registerBuilder(graphBuilder());
   builder.registerBuilder(docTopicEmbedderBuilder());
   builder.registerBuilder(reorganizeBuilder());
   builder.registerBuilder(searchBuilder({ inputSignal: "summarized" }));
@@ -265,7 +256,7 @@ describe("WikiQuery — FSM-driven retrieval", () => {
     expect(keys.some((c) => c.includes("#intro"))).toBe(true);
   });
 
-  it("summarizes in batches with the prompt, summaries, and raw text in separate XML tags", async () => {
+  it("summarizes in batches with the prompt, summaries, and details in separate XML tags", async () => {
     await project.requireAdapter(WikiQuery).ask("Who founded Acme?").complete();
     expect(foldSections.length).toBeGreaterThan(0);
     for (const batch of foldSections) {
@@ -273,26 +264,23 @@ describe("WikiQuery — FSM-driven retrieval", () => {
       expect(batch).toContain("<question>");
       expect(batch).toContain("Who founded Acme?");
       expect(batch).toContain("<sources>");
-      // Each section exposes title + summary + raw text as distinct tags.
+      // Each section exposes title + summary + its exhaustive details as distinct tags.
       expect(batch).toContain("<section_title");
       expect(batch).toContain("<section_summary>");
-      expect(batch).toContain("<raw_content>");
+      expect(batch).toContain("<details>");
+      expect(batch).not.toContain("<raw_content>");
+      expect(batch).not.toContain("<graph>");
       // Batch summarization is stateless — no carried-over rolling summary.
       expect(batch).not.toContain("<previous_summary>");
     }
   });
 
-  it("grounds facts in the section graph when one is built (no raw_content)", async () => {
-    const graphProject = await buildProject({ graph: true });
+  it("grounds facts in the section's details (the fact source replacing raw)", async () => {
     foldSections = [];
-    await graphProject.requireAdapter(WikiQuery).ask("Who founded Acme?").complete();
+    await project.requireAdapter(WikiQuery).ask("Who founded Acme?").complete();
     expect(foldSections.length).toBeGreaterThan(0);
-    for (const batch of foldSections) {
-      // The section's built graph is rendered as the fact source, not its raw text.
-      expect(batch).toContain("<graph>");
-      expect(batch).toContain("Jane"); // from the graph's "Acme — founded by — Jane" statement
-      expect(batch).not.toContain("<raw_content>");
-    }
+    // The founders section's details ("Jane founded Acme.") is the rendered fact source.
+    expect(foldSections.some((batch) => batch.includes("Jane"))).toBe(true);
   });
 
   it("grounds every surviving citation in a retrieved section", async () => {

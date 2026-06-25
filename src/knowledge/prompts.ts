@@ -9,78 +9,69 @@ export function fillCorpusPurpose(prompt: string, corpusPurpose?: string): strin
   return prompt.split(CORPUS_PURPOSE_PLACEHOLDER).join(purpose);
 }
 
-/** L2 narrative summarization prompt (lifted from wiki-runtime). */
-export const SUMMARIZER_SYSTEM_PROMPT = `You are the L2 narrative summarizer for an LLM-curated wiki.
+/** L2 summarizer prompt: sections a block and, for each section, emits a thin
+ * thematic summary plus its exhaustive facts (details) and structured data (tables). */
+export const SUMMARIZER_SYSTEM_PROMPT = `You are the L2 summarizer for an LLM-curated wiki.
 
-Your job: take a raw text source and produce a structured summary that bridges
-between physical (line numbers in raw) and logical (section-anchor) addressing.
+Your job: section a raw text source and, for EACH section, produce three things with
+DISTINCT, NON-OVERLAPPING jobs — a thin 'summary', the exhaustive 'details', and the
+structured 'tables'. Never state the same fact in both 'summary' and 'details'.
 
-RULES — these are load-bearing:
+SECTIONING:
 
-1. Body is pure summary. NEVER quote raw verbatim in section.summary. Verbatim
-   text is reserved for citation-time and pulled from raw via the line range.
-2. Section count: 3–15 in normal cases. For tiny snippets, 1 section is fine.
-   NEVER produce 30+ sections — aggregate fine-grained subtopics under one
-   heading.
-3. Each section MUST carry a kebab-case 'key' (ASCII alphanumeric + dashes),
-   derived from the section title. Keys are stable identifiers; on re-ingest
-   prefer reusing prior keys for semantically equivalent sections rather than
-   renaming for cosmetic reasons.
-4. Each section MUST carry a [startLine .. endLine] range that names the line
-   region in raw text this section summarises. Line numbers are 0-indexed and
-   inclusive. Ranges may overlap slightly when raw lacks clean break points.
-5. The document 'title' is the source's natural title — use the explicit title
-   from raw if present, otherwise pick a concise descriptive title.
-6. The document 'summary' is a 1–3 sentence document-level abstract — the
-   concatenation of section themes, not an independent claim. Stay faithful to
-   what the sections actually cover.
-7. Each section.summary is ENTITY-RICH: name every main entity and the relations
-   among them needed to reproduce the section's ideas — persons, organisations,
-   places, dates / periods, products, instruments, and headline figures. Naming a
-   fact (a name, a date, an amount) is NOT "quoting raw" — rule 1 forbids copying
-   passages, not stating facts. A summary a reader cannot reconstruct the
-   section's who / what / when / where from is too thin.
-   NAME ENTITIES IN FULL: every referenced entity must be identified completely, not
-   by a bare surname, acronym, pronoun, or partial label. For a PERSON, give the full
-   name (first + last, plus any title that disambiguates) at least at its FIRST mention
-   in the summary; later mentions may shorten. For an ORGANISATION, give its full name
-   on first mention (an acronym may follow in parentheses); likewise spell out places
-   and products fully. If the source itself only gives a partial name, use what it
-   gives — never invent a fuller name.
-8. DENSE NUMERIC BLOCKS — tables, matrices, long figure runs — are described AS A
-   WHOLE, never transcribed cell by cell. In prose, state:
-   - the OBJECTS the rows stand for (e.g. cars, clients, funds, measurements);
-   - the CHARACTERISTICS the columns capture (e.g. year, price, AUM, temperature)
-     with the nature / unit of each value (number, date, ISO, USD, %, boolean,
-     short text);
-   - a one-line reading of what the block SHOWS — its main point or trend (e.g.
-     "a table of CO₂ emissions by car: rows are models, columns give engine power
-     (kW) and model year, showing emissions fall as year rises and power drops").
-9. NO INTRODUCTORY FRAMING. section.summary opens directly with the content —
-   never with phrases like "This section synthesizes…", "This section describes…",
-   or "The text covers…". The summary IS a simplified / generalised version of the
-   source text, not a description of itself.
-10. Direct citations are NOT forbidden but NOT encouraged. The goal is a compact
-    explanation carrying the main facts of the corresponding block of source text —
-    not a reproduction of it. Prefer paraphrase; quote only when the exact wording
-    is itself the fact.
+1. Section count: 3–15 in normal cases; 1 for a tiny snippet; NEVER 30+ (aggregate
+   fine-grained subtopics under one heading).
+2. Each section MUST carry a kebab-case 'key' (ASCII alphanumeric + dashes) derived
+   from its title; on re-ingest prefer reusing a prior key for a semantically
+   equivalent section rather than renaming cosmetically.
+3. Each section MUST carry a [startLine .. endLine] range over the raw text it covers
+   (0-indexed, inclusive; ranges may overlap slightly when raw lacks clean breaks).
+4. The document 'title' is the source's natural title (explicit title from raw, else a
+   concise descriptive one). The document 'summary' is a 1–3 sentence abstract — the
+   concatenation of section themes, not an independent claim.
 
-WHAT NOT TO DO:
+'summary' (THIN thematic abstract — the routing tier):
 
-- No verbatim raw in section.summary.
-- No introductory or self-referential framing — output the content, not a sentence
-  about the section (rule 9).
-- No transcribing table cells or long numeric runs — describe the block as a
-  whole per rule 8 (objects, characteristics + value natures, and its meaning).
-- No editorialising. Don't add commentary the source does not support.
-- No "meta-summary" section about the document itself.
-- No empty sections. If a chunk of raw doesn't merit its own summary, fold
-  it into an adjacent section.
+5. 1–3 sentences on what the section is ABOUT and why it matters — the argument, the
+   "so what". Name the central entity for orientation, but do NOT try to be
+   reconstructable from it: every figure/date/relation belongs in 'details', not here.
+6. NO introductory framing ("This section describes…"). Open directly with content.
+   NEVER quote raw verbatim.
+
+'details' (EXHAUSTIVE facts — the evidence tier, markdown string):
+
+7. State every fact a reader needs to reconstruct the section: every named entity,
+   date, identifier (ticker, ISIN, code), figure/metric, headline finding,
+   recommendation, threshold, and every explicit CONDITION or qualifier (e.g. "if NAV
+   falls below £100M, the fee waiver triggers"). Use prose and bullet lists.
+8. NAME ENTITIES IN FULL and disambiguated: full person name (first + last, plus a
+   disambiguating title) on FIRST mention; full organisation name on first mention (an
+   acronym may follow in parentheses); spell out places and products. Later mentions
+   may shorten. Use a consistent canonical form across the section. If the source only
+   gives a partial name, use what it gives — never invent a fuller one.
+9. For EACH table you emit in 'tables', include in 'details' a whole-block description:
+   the OBJECTS its rows stand for, the COLUMNS it captures with their unit, a one-line
+   reading of what it SHOWS, and any NOTABLE EXTREMES (min/max/outlier values) — refer
+   to the table by its caption. This lets the routing tier judge the table without its
+   rows.
+10. DROP bookkeeping: statistical-test noise (p-values, confidence intervals),
+    hyperparameters, intermediate calculation steps, and boilerplate. Stating a fact is
+    NOT "quoting raw" — copying passages is; do not copy passages.
+
+'tables' (STRUCTURED data — the answer tier):
+
+11. Put ALL structured / repetitive data of the section into 'tables': any source
+    table, and any enumeration of the SAME attributes across several objects (e.g.
+    holdings, quarterly returns, sector weights). Each table is { caption, columns,
+    rows }: a self-describing caption, column headers (with units where uniform), and
+    rows of string cells in column order. There is NO row limit — transcribe the data.
+12. A one-off fact about a single object stays in 'details' as a phrase, NOT a
+    one-row table. Use a table only when ≥2 rows share the columns.
+13. 'tables' is an empty array when the section has no structured data.
 
 corpus purpose (steers level of detail per section): ${CORPUS_PURPOSE_PLACEHOLDER}
 
-On-corpus details get more space; off-corpus or tangential details get a
-one-line mention.
+On-corpus details get more space; off-corpus or tangential details get a one-line mention.
 
 BLOCKS: you may receive only a BLOCK of a longer document — a contiguous slice of
 numbered lines, not necessarily the whole source. Section the lines you are given,
@@ -147,77 +138,6 @@ OUTLIERS
 13. NO fabricated outliers.
 
 corpus purpose (frames what counts as on-corpus): ${CORPUS_PURPOSE_PLACEHOLDER}`;
-
-/** Per-section graph extraction prompt (lifted from wiki-runtime). */
-export const GRAPH_EXTRACTOR_SYSTEM_PROMPT = `You are the structured-signal
-extractor for an LLM-curated wiki. For each section you receive its 'title' and
-'summary' as CONTEXT and its 'raw' text as the SOURCE. Produce 'entities',
-'statements', and 'relations' grounded in the 'raw' text (use title/summary only to
-frame what matters) — capturing the section's headline content and its answer
-anchors, NOT a verbatim re-encoding of every fact.
-
-WHAT TO KEEP: the main subject(s); named actors (people, organisations, places,
-periods); named methods / algorithms / datasets / products / concepts; headline
-findings and conclusions; source-flagged outliers; recommendations / thresholds;
-salient figures and metrics (e.g. NAV, returns, totals) AND every date and named
-identifier (tickers, ISINs, reference codes, reporting dates) — even when not a
-headline — recorded as statement objects, because they anchor later lookups.
-
-WHAT TO DROP: statistical-test bookkeeping (p-values, confidence intervals);
-hyperparameters / config knobs; intermediate calculation steps; individual table
-rows when a whole-table reading captures the point (but still keep any dates or
-identifiers they carry); implementation details unless the argument turns on them.
-
-THREE DISTINCT SHAPES:
-
-ENTITIES — named things we can refer to by name more than once: e.g. a person,
-organisation, place, index/benchmark, sector, fund, company, instrument, named
-event, or named work/method/dataset/concept. entity.value is the canonical name;
-reuse it across sections.
-
-NOT entities — keep these OUT of 'entities':
-- currencies and units (GBP, USD, Sterling, %, bps): they QUALIFY a measurement —
-  put them in a statement's 'details' object, e.g. { "currency": "GBP" }.
-- bare literals — dates, numbers, percentages, and findings/conclusions: these are
-  the OBJECT of a statement (or a 'details' value), never an entity.
-
-entity.type is an OPEN lowercase label. The types listed above are EXAMPLES, NOT a
-fixed vocabulary: choose the most precise type that fits, and COIN a new precise
-lowercase type when none of the examples fit. NEVER force a poor-fitting type — a
-currency is not a "place", an event is not a "paper".
-
-TRIPLES — both 'relations' and 'statements' are arrays of
-[subject, predicate, object] reading as simplified phrases, with an OPTIONAL 4th
-element: a 'details' object of qualifiers.
-
-PREDICATES are plain natural-language verbs or short verb phrases in lowercase words
-— NOT camelCase, and carrying NO qualifiers. Put the time period, scope, currency, or
-basis in the 'details' object, never in the predicate. For example write
-["MSCI World Index", "returns", "5% in GBP", { "year": 2015 }] — NOT
-["MSCI World Index", "returnedIn2015", "5% in GBP"].
-
-DETAILS (optional 4th element): a flat object mapping qualifier keys to
-string / number / boolean values that constrain the fact (e.g. year, period,
-currency, region, basis, asOf). Numbers may stay numbers here. Omit it entirely when
-there is nothing to qualify.
-
-HARD RULE 1 — SUBJECT IS ALWAYS AN ENTITY: the subject of EVERY triple MUST be a
-value declared in this document's 'entities'. The runtime filter mechanically
-drops triples whose subject is missing from entities. Reformulate any triple
-whose natural subject is a claim or literal so its subject is a real entity.
-
-HARD RULE 2 — RELATIONS HAVE TWO ENTITIES: for 'relations', BOTH subject and
-object MUST be entity.value strings. If the object isn't an entity, the fact
-belongs in 'statements'.
-
-STATEMENTS: subject is an entity.value; object is a stringified literal (finding,
-label, date, number) — written as a string; structured qualifiers go in 'details'.
-RELATIONS: entity-to-entity; predicates are plain lowercase verbs.
-
-VOCABULARY COHERENCE within one document: reuse entity.value, entity.type, and
-predicate strings rather than coining near-duplicates.
-
-corpus purpose (frames what's worth keeping): ${CORPUS_PURPOSE_PLACEHOLDER}`;
 
 /** Attribution prompt: place per-document topic candidates onto the index DAG. */
 export const ATTRIBUTION_SYSTEM_PROMPT = `You place per-document topic

@@ -20,7 +20,13 @@ import {
   documentSummarySchema,
   summarizerInputSchema,
 } from "./schemas.js";
-import type { ChapterNode, DocumentSummary, SectionSummary } from "./types.js";
+import {
+  type ChapterNode,
+  type DetailTable,
+  type DocumentSummary,
+  KNOWLEDGE_SCHEMA_VERSION,
+  type SectionSummary,
+} from "./types.js";
 
 /** Signal emitted for each page whose L2 summary (Sections) is available/changed. */
 export const SUMMARIZED_SIGNAL = "summarized";
@@ -43,6 +49,22 @@ function slugify(s: string): string {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "") || "section"
   );
+}
+
+/**
+ * Deterministic table cleanup after a (lenient) parse: drop rows whose cell count
+ * does not match the table's columns, and drop tables left with no columns or no
+ * rows. Mirrors how the old graph extractor dropped off-shape triples — one bad row
+ * must never fail the whole document.
+ */
+function cleanTables(tables: DetailTable[] | undefined): DetailTable[] {
+  return (tables ?? [])
+    .map((t) => ({
+      caption: t.caption,
+      columns: t.columns,
+      rows: t.rows.filter((r) => r.length === t.columns.length),
+    }))
+    .filter((t) => t.columns.length > 0 && t.rows.length > 0);
 }
 
 /** Append `-2`, `-3`, … to duplicate keys so every key is unique (stable by document order). */
@@ -124,7 +146,8 @@ export async function sectionizeDocument(
     start = last.endLine + 1 > start ? last.endLine + 1 : end;
   }
 
-  return { title: title || uri, baseSummary, sections: dedupeKeys(sections) };
+  const cleaned = dedupeKeys(sections).map((s) => ({ ...s, tables: cleanTables(s.tables) }));
+  return { title: title || uri, baseSummary, sections: cleaned };
 }
 
 /** One chapter-aggregation round: group ordered members into chapters (mapped to nodes via `attach`). */
@@ -230,7 +253,10 @@ export function summarizeBuilder(opts: { force?: boolean } = {}): RegisteredBuil
               .requireAdapter(ResourceTextContentCache)
               .refresh({ force: opts.force });
             const existing = await resource.requireAdapter(WikiPageSummary).get();
-            const fresh = !!existing && existing.sourceHash === hash;
+            const fresh =
+              !!existing &&
+              existing.sourceHash === hash &&
+              existing.schemaVersion === KNOWLEDGE_SCHEMA_VERSION;
             let produced = false;
             // Skip the (costly) summarization when the source is unchanged.
             if (text && (opts.force || !fresh)) {
@@ -254,6 +280,7 @@ export function summarizeBuilder(opts: { force?: boolean } = {}): RegisteredBuil
                 uri: u.uri,
                 generated: new Date().toISOString(),
                 sourceHash: hash,
+                schemaVersion: KNOWLEDGE_SCHEMA_VERSION,
                 title,
                 summary,
                 sections,

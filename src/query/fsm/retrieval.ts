@@ -1,18 +1,12 @@
 import type { Project } from "@statewalker/workspace.core";
 import { WikiOutlierIndex, WikiTopicIndex } from "../../knowledge/indexes.js";
-import {
-  ResourceTextContentCache,
-  WikiPageMeta,
-  WikiPageSummary,
-} from "../../knowledge/page-adapters.js";
+import { WikiPageMeta, WikiPageSummary } from "../../knowledge/page-adapters.js";
 import type {
   ChapterNode,
+  DetailTable,
   DocumentMeta,
   GlobalOutlier,
   GlobalTopic,
-  SectionGraph,
-  Triple,
-  TripleDetails,
 } from "../../knowledge/types.js";
 import type { SearchAdapter } from "../../search/index.js";
 import { parseWikiUri, toCanonical } from "../../uri/wiki-uri.js";
@@ -141,7 +135,7 @@ export async function hybridSearch(
   return out;
 }
 
-/** Build an evidence section from a page's summary + raw text block. */
+/** Build an evidence section from a page's summary: its routing fields plus answer-tier tables. */
 export async function evidenceFor(
   project: Project,
   uri: string,
@@ -152,12 +146,14 @@ export async function evidenceFor(
   const summary = await resource.requireAdapter(WikiPageSummary).get();
   const section = summary?.sections.find((s) => s.key === sectionKey);
   if (!section) return undefined;
-  const raw = await resource.requireAdapter(ResourceTextContentCache).getTextContent();
-  const rawBlock = raw
-    .split("\n")
-    .slice(section.startLine, section.endLine + 1)
-    .join("\n");
-  return { uri, sectionKey, title: section.title, summary: section.summary, rawBlock };
+  return {
+    uri,
+    sectionKey,
+    title: section.title,
+    summary: section.summary,
+    details: section.details,
+    tables: section.tables,
+  };
 }
 
 /**
@@ -291,7 +287,13 @@ export function renderDocumentBlock(input: {
   chapters: {
     title: string;
     summary: string;
-    sections: { ref: string; title: string; description: string; graph?: string; raw?: string }[];
+    sections: {
+      ref: string;
+      title: string;
+      description: string;
+      details: string;
+      tables?: string;
+    }[];
   }[];
 }): string {
   const parts: string[] = [
@@ -312,10 +314,9 @@ export function renderDocumentBlock(input: {
         `<section_title>\n${s.title}\n</section_title>`,
         `<section_summary>\n${s.description}\n</section_summary>`,
       );
-      // The section's built graph is the fact source; raw is rendered only as a
-      // fallback when a section has no graph yet (un-reindexed corpus).
-      if (s.graph !== undefined) parts.push(`<graph>\n${s.graph}\n</graph>`);
-      else if (s.raw !== undefined) parts.push(`<raw_content>\n${s.raw}\n</raw_content>`);
+      // The section's exhaustive facts are the fact source; tables carry its structured data.
+      parts.push(`<details>\n${s.details}\n</details>`);
+      if (s.tables) parts.push(`<tables>\n${s.tables}\n</tables>`);
       parts.push("</section>");
     }
     if (!flat) parts.push("</chapter>");
@@ -325,30 +326,19 @@ export function renderDocumentBlock(input: {
 }
 
 /**
- * Render a section's graph as compact, LLM-readable evidence: an `Entities:` line
- * (`value (type)`, `; `-joined) plus `Statements:` / `Relations:` bullets, each
- * `subject — predicate — object` with a trailing JSON details object when present.
- * Empty groups are omitted.
+ * Render a section's tables as markdown — one `#### caption` heading followed by a
+ * GitHub-flavoured markdown table (header row + separator + rows). Empty input
+ * yields an empty string.
  */
-export function renderSectionGraph(g: SectionGraph): string {
-  const lines: string[] = [];
-  if (g.entities.length > 0) {
-    lines.push(
-      `Entities: ${g.entities.map((e) => (e.type ? `${e.value} (${e.type})` : e.value)).join("; ")}`,
-    );
-  }
-  const renderTriple = (t: Triple): string => {
-    const [s, p, o, d] = t as [string, string, string, TripleDetails?];
-    const head = `${s} — ${p} — ${o}`;
-    return d ? `${head} ${JSON.stringify(d)}` : head;
-  };
-  if (g.statements.length > 0) {
-    lines.push("Statements:", ...g.statements.map((t) => `- ${renderTriple(t)}`));
-  }
-  if (g.relations.length > 0) {
-    lines.push("Relations:", ...g.relations.map((t) => `- ${renderTriple(t)}`));
-  }
-  return lines.join("\n");
+export function renderSectionTables(tables: DetailTable[]): string {
+  return tables
+    .map((t) => {
+      const header = `| ${t.columns.join(" | ")} |`;
+      const sep = `| ${t.columns.map(() => "---").join(" | ")} |`;
+      const rows = t.rows.map((r) => `| ${r.join(" | ")} |`);
+      return [`#### ${t.caption}`, header, sep, ...rows].join("\n");
+    })
+    .join("\n\n");
 }
 
 /**

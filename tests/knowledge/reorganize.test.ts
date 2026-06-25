@@ -20,7 +20,17 @@ import { registerStubLlm } from "../util/stub-llm.js";
 const SUMMARY: DocumentSummaryOutput = {
   title: "Doc",
   summary: "About founders.",
-  sections: [{ key: "s", title: "S", startLine: 0, endLine: 0, summary: "founders" }],
+  sections: [
+    {
+      key: "s",
+      title: "S",
+      startLine: 0,
+      endLine: 0,
+      summary: "founders",
+      details: "founders",
+      tables: [],
+    },
+  ],
 };
 const META: DocumentMetaOutput = {
   topics: [

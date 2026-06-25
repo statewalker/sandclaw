@@ -39,7 +39,7 @@ describe("WikiLlmConfiguration — stage→model resolution", () => {
     });
     expect(cfg.modelFor("summarize")).toBe("model-b");
     expect(cfg.modelFor("meta")).toBe("model-a");
-    expect(cfg.modelFor("graph")).toBe("model-a");
+    expect(cfg.modelFor("reorganize")).toBe("model-a");
     expect(cfg.embedModel).toBe("embed-x");
     expect(cfg.dimensionality).toBe(3);
     expect(cfg.corpusPurpose).toBe("purpose");

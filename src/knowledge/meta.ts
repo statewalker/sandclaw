@@ -12,13 +12,18 @@ import { ResourceTextContentCache, WikiPageMeta, WikiPageSummary } from "./page-
 import { fillCorpusPurpose, META_EXTRACTOR_SYSTEM_PROMPT } from "./prompts.js";
 import { documentMetaSchema, metaExtractorInputSchema } from "./schemas.js";
 import { SUMMARIZED_SIGNAL } from "./summarizer.js";
-import type { DocumentMeta, DocumentOutlier, DocumentTopic } from "./types.js";
+import {
+  type DocumentMeta,
+  type DocumentOutlier,
+  type DocumentTopic,
+  KNOWLEDGE_SCHEMA_VERSION,
+} from "./types.js";
 
 /**
  * Enforce meta shape deterministically after a (lenient) parse: every schema
  * field is optional, so a non-strict model omitting one (commonly `brief`, or a
- * blank `key`) never throws and drops the whole document (mirrors the graph
- * extractor's `filterUnknownSubjects`). Here we drop declarations missing the
+ * blank `key`) never throws and drops the whole document (mirrors the summarizer's
+ * `cleanTables`). Here we drop declarations missing the
  * fields that carry meaning — a blank `key`, or an outlier lacking its
  * `whySurprising` justification — and default the rest so downstream consumers
  * always see well-formed declarations.
@@ -102,17 +107,33 @@ export function metaBuilder(opts: { force?: boolean } = {}): RegisteredBuilder {
           const summary = await resource?.requireAdapter(WikiPageSummary).get();
           const hash = await resource?.requireAdapter(ResourceTextContentCache).getRawMeta();
           const prior = await resource?.requireAdapter(WikiPageMeta).get();
-          const fresh = !!prior && !!hash && prior.sourceHash === hash.hash;
+          const fresh =
+            !!prior &&
+            !!hash &&
+            prior.sourceHash === hash.hash &&
+            prior.schemaVersion === KNOWLEDGE_SCHEMA_VERSION;
           let produced = false;
           if (resource && summary && (opts.force || !fresh)) {
             log.info("extracting meta", { uri: u.uri });
+            // The routing payload only: title + summary + per-section title/summary/details
+            // (NOT tables — those are answer-tier bulk the classifier does not need).
+            const routingSummary = {
+              title: summary.title,
+              summary: summary.summary,
+              sections: summary.sections.map((s) => ({
+                key: s.key,
+                title: s.title,
+                summary: s.summary,
+                details: s.details,
+              })),
+            };
             const { output } = await llm.generateObject({
               name: "extract-document-meta",
               description:
                 "Declare the topic and outlier classes covered by this document. Reuse existing class keys; copy their description verbatim. Mark outliers only when the source itself flags surprise.",
               model: cfg.modelFor("meta"),
               system,
-              input: { uri: u.uri, summary, existingClasses },
+              input: { uri: u.uri, summary: routingSummary, existingClasses },
               inputSchema: metaExtractorInputSchema,
               outputSchema: documentMetaSchema,
             });
@@ -122,6 +143,7 @@ export function metaBuilder(opts: { force?: boolean } = {}): RegisteredBuilder {
               uri: u.uri,
               generated: new Date().toISOString(),
               sourceHash: hash?.hash ?? "",
+              schemaVersion: KNOWLEDGE_SCHEMA_VERSION,
               topics,
               outliers,
             };

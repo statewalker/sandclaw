@@ -1,6 +1,11 @@
 ---
-status: accepted
+status: superseded
+superseded-by: 0005
 ---
+
+> **Superseded by [ADR 0005](0005-section-details-tables-replace-the-graph.md).** The
+> RDF section graph is deleted; per-section evidence is now `summary` + `details` +
+> `tables` produced in the summarizer. This document is retained for history.
 
 # Section graphs are re-activated and consumed as the authoritative query evidence
 

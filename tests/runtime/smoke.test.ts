@@ -8,7 +8,6 @@ import { NodeFilesApi } from "@statewalker/webrun-files-node";
 import { Workspace } from "@statewalker/workspace.core";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  type DocumentGraphOutput,
   type DocumentMetaOutput,
   type DocumentSummaryOutput,
   type LlmApi,
@@ -33,7 +32,15 @@ const SUMMARY: DocumentSummaryOutput = {
   title: "Acme",
   summary: "Acme overview.",
   sections: [
-    { key: "intro", title: "Intro", startLine: 0, endLine: 0, summary: "Acme is a company." },
+    {
+      key: "intro",
+      title: "Intro",
+      startLine: 0,
+      endLine: 0,
+      summary: "Acme is a company.",
+      details: "Acme is a company.",
+      tables: [],
+    },
   ],
 };
 const META: DocumentMetaOutput = {
@@ -48,9 +55,6 @@ const META: DocumentMetaOutput = {
   ],
   outliers: [],
 };
-const GRAPH: DocumentGraphOutput = {
-  sections: [{ sectionKey: "intro", entities: [{ value: "Acme" }], statements: [], relations: [] }],
-};
 const REF_RE = /ref="([^"]+)"/g;
 
 const generateObject: LlmApi["generateObject"] = async (spec) => {
@@ -61,8 +65,6 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       return out(SUMMARY);
     case "extract-document-meta":
       return out(META);
-    case "extract-document-graph":
-      return out(GRAPH);
     case "intent-detection":
       return out({
         onCorpus: true,
@@ -96,7 +98,9 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
     }
     case "compose-answer": {
       // One grounded claim per marker the rolling summaries carried.
-      const claims = (spec.input as { facts: { statement: string; citations: string[] }[] }).facts.map((m) => ({
+      const claims = (
+        spec.input as { facts: { statement: string; citations: string[] }[] }
+      ).facts.map((m) => ({
         statement: "Acme is a company.",
         citations: m.citations,
       }));

@@ -15,7 +15,28 @@ export interface RawMeta {
 
 // ── L2 narrative summary (Summarizer) ──────────────────────────────────────
 
-/** One L2 section: a contiguous range of raw lines summarised as prose. */
+/**
+ * Bumped whenever the section data shape (summary/details/tables) or the prompt
+ * that fills it changes. Stored on the summary/meta/embeddings artifacts and
+ * checked alongside `sourceHash` so a schema change regenerates artifacts even
+ * when the source bytes are unchanged. v1 = legacy RDF-graph era; v2 = the merged
+ * summary + details + tables layer.
+ */
+export const KNOWLEDGE_SCHEMA_VERSION = 2;
+
+/**
+ * A structured table of repetitive facts within a section (a source table, or an
+ * enumeration of the same attributes across several objects). Cells are strings;
+ * `caption` is the self-describing anchor `details` refers to. `columns` is a
+ * document-local schema kept explicit so a future relation catalog can align it.
+ */
+export interface DetailTable {
+  caption: string;
+  columns: string[];
+  rows: string[][];
+}
+
+/** One L2 section: a contiguous range of raw lines summarised as prose, with its exhaustive facts. */
 export interface SectionSummary {
   /** Kebab-case slug; stable across re-ingests when the section is semantically the same. */
   key: string;
@@ -23,8 +44,16 @@ export interface SectionSummary {
   /** 0-indexed inclusive line range in the raw text. */
   startLine: number;
   endLine: number;
-  /** Narrative summary of the section — never verbatim raw. */
+  /** Thin thematic abstract — what the section is about and why it matters; never verbatim raw. */
   summary: string;
+  /**
+   * Routing-tier exhaustive facts as markdown: every named entity (in full),
+   * date, identifier, figure, finding, condition, and a whole-block description of
+   * each table in `tables`. The fact-bearing layer that replaces the RDF graph.
+   */
+  details: string;
+  /** Answer-tier structured bulk data; loaded only when the section is selected. */
+  tables: DetailTable[];
 }
 
 /**
@@ -49,6 +78,8 @@ export interface DocumentSummary {
   generated: string;
   /** SHA-256 of the source this summary was derived from (see {@link RawMeta}). */
   sourceHash: string;
+  /** Section-data schema version this summary was produced under (see {@link KNOWLEDGE_SCHEMA_VERSION}). */
+  schemaVersion: number;
   title: string;
   /** Document-level abstract, derived from the top-level chapter summaries. */
   summary: string;
@@ -74,6 +105,8 @@ export interface DocumentEmbeddings {
   generated: string;
   /** SHA-256 of the source these embeddings were derived from (see {@link RawMeta}). */
   sourceHash: string;
+  /** Section-data schema version the embedded text was built under (see {@link KNOWLEDGE_SCHEMA_VERSION}). */
+  schemaVersion: number;
   /** Embedding model id these vectors were produced with. */
   model: string;
   /** Vector dimensionality. */
@@ -110,51 +143,10 @@ export interface DocumentMeta {
   generated: string;
   /** SHA-256 of the source this meta was derived from (see {@link RawMeta}). */
   sourceHash: string;
+  /** Section-data schema version the meta input was read under (see {@link KNOWLEDGE_SCHEMA_VERSION}). */
+  schemaVersion: number;
   topics: DocumentTopic[];
   outliers: DocumentOutlier[];
-}
-
-// ── Per-section graph (GraphExtractor) ──────────────────────────────────────
-
-export interface Entity {
-  /** Canonical name; stable across re-ingests. */
-  value: string;
-  /**
-   * Open lowercase label — illustrative, not a fixed vocabulary: person,
-   * organisation, place, index, sector, fund, company, instrument, event, dataset,
-   * tool, concept, … A precise type is coined when none fits. Currencies and units
-   * are NOT entities (they qualify a measurement via a triple's details object).
-   */
-  type?: string;
-}
-
-/** Optional qualifiers that constrain a triple, e.g. `{ year: 2015, currency: "GBP" }`. */
-export type TripleDetails = Record<string, string | number | boolean>;
-
-/**
- * `[subject, predicate, object]` with an OPTIONAL 4th element: a {@link TripleDetails}
- * object of qualifiers. Subject (0), predicate (1), and object (2) are strings; index 3,
- * when present, is the details object. The predicate is plain text, not camelCase, and
- * carries no qualifiers (those live in the details object). Shape is enforced by
- * `filterUnknownSubjects`.
- */
-export type Triple = readonly (string | TripleDetails)[];
-export type Statement = Triple;
-export type Relation = Triple;
-
-export interface SectionGraph {
-  sectionKey: string;
-  entities: Entity[];
-  statements: Statement[];
-  relations: Relation[];
-}
-
-export interface DocumentGraph {
-  uri: string;
-  generated: string;
-  /** SHA-256 of the source this graph was derived from (see {@link RawMeta}). */
-  sourceHash: string;
-  sections: SectionGraph[];
 }
 
 // ── Global aggregated indexes (Reorganizer) ─────────────────────────────────

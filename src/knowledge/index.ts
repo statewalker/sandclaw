@@ -4,7 +4,6 @@ export {
   docTopicEmbedderBuilder,
 } from "./doc-topic-embedder.js";
 export { EMBED_BUILDER_ID, EMBEDDED_SIGNAL, embedderBuilder } from "./embedder.js";
-export { filterUnknownSubjects, GRAPH_BUILDER_ID, GRAPH_SIGNAL, graphBuilder } from "./graph.js";
 export {
   collectExistingClasses,
   WikiOutlierIndex,
@@ -20,7 +19,6 @@ export {
 export {
   ResourceTextContentCache,
   WikiPageEmbeddings,
-  WikiPageGraph,
   WikiPageMeta,
   WikiPageSummary,
 } from "./page-adapters.js";
@@ -28,7 +26,6 @@ export { pageArtifactPath, pageDirPath, projectIndexPath, resourceUri } from "./
 export {
   ATTRIBUTION_SYSTEM_PROMPT,
   fillCorpusPurpose,
-  GRAPH_EXTRACTOR_SYSTEM_PROMPT,
   MERGE_TOPICS_SYSTEM_PROMPT,
   META_EXTRACTOR_SYSTEM_PROMPT,
   RECLUSTER_SYSTEM_PROMPT,
@@ -51,10 +48,8 @@ export {
   type AttributeInput,
   attributeActionsSchema,
   attributeInputSchema,
-  type DocumentGraphOutput,
   type DocumentMetaOutput,
   type DocumentSummaryOutput,
-  documentGraphSchema,
   documentMetaSchema,
   documentSummarySchema,
   type MergeOutput,
@@ -92,27 +87,22 @@ export {
 } from "./topic-graph.js";
 export type {
   ChapterNode,
+  DetailTable,
   DocumentEmbeddings,
-  DocumentGraph,
   DocumentMeta,
   DocumentOutlier,
   DocumentSummary,
   DocumentTopic,
-  Entity,
   GlobalOutlier,
   GlobalTopic,
   OutlierIndex,
-  Relation,
-  SectionGraph,
   SectionSummary,
-  Statement,
   TopicCategory,
   TopicIndex,
   TopicIndexNode,
   TopicNode,
-  Triple,
 } from "./types.js";
-export { isCategory, isIndexTopic } from "./types.js";
+export { isCategory, isIndexTopic, KNOWLEDGE_SCHEMA_VERSION } from "./types.js";
 
 /**
  * Knowledge adapters are concrete classes that self-host on their handle

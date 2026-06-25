@@ -13,7 +13,6 @@ import { tryReadJson, tryReadText, writeJsonAtomic, writeTextAtomic } from "../u
 import { pageArtifactPath } from "./page-paths.js";
 import type {
   DocumentEmbeddings,
-  DocumentGraph,
   DocumentMeta,
   DocumentSummary,
   RawMeta,
@@ -117,21 +116,6 @@ export class WikiPageMeta extends ResourceAdapter {
 
   async write(meta: DocumentMeta): Promise<void> {
     await writeJsonAtomic(filesApiOf(this), this.artifactPath(), meta);
-  }
-}
-
-/** Reads/writes a source resource's `DocumentGraph` (`graph.json`). */
-export class WikiPageGraph extends ResourceAdapter {
-  private artifactPath(): string {
-    return pageArtifactPath(this.resource, "graph.json");
-  }
-
-  async get(): Promise<DocumentGraph | undefined> {
-    return tryReadJson<DocumentGraph>(filesApiOf(this), this.artifactPath());
-  }
-
-  async write(graph: DocumentGraph): Promise<void> {
-    await writeJsonAtomic(filesApiOf(this), this.artifactPath(), graph);
   }
 }
 

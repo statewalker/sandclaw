@@ -1,7 +1,7 @@
 import { loggerOf, type Project } from "@statewalker/workspace.core";
 import { WikiTopicIndex } from "../../knowledge/indexes.js";
-import { WikiPageGraph, WikiPageSummary } from "../../knowledge/page-adapters.js";
-import type { DocumentMeta, SectionGraph } from "../../knowledge/types.js";
+import { WikiPageSummary } from "../../knowledge/page-adapters.js";
+import type { DocumentMeta } from "../../knowledge/types.js";
 import { type LlmApi, llmOf, type WikiLlmConfiguration, wikiConfigOf } from "../../llm/index.js";
 import { SearchAdapter } from "../../search/index.js";
 import { toCanonical } from "../../uri/wiki-uri.js";
@@ -35,7 +35,7 @@ import {
   packFilterBatches,
   readClassIndexes,
   renderDocumentBlock,
-  renderSectionGraph,
+  renderSectionTables,
   sectionChapters,
   sectionId,
   withinScope,
@@ -506,25 +506,17 @@ export const SummarizeTrigger: QueryHandler = async function* (ctx) {
     }
   }
 
-  // Load each unique section's built graph (one read per document, indexed by section
-  // key). The rendered graph is the fact source; a section with no built graph falls
-  // back to its raw block (a transition safety net, not the deferred verbatim escalation).
-  const graphByUri = new Map<string, Map<string, SectionGraph>>();
-  const evidence = new Map<string, { graph?: string; raw?: string }>();
+  // Each section's evidence is its exhaustive 'details' (the fact source) plus its
+  // 'tables' rendered as markdown (answer-tier structured data) — both carried on the
+  // EvidenceSection, so no extra per-document read is needed.
+  const evidence = new Map<string, { details: string; tables?: string }>();
   for (const ev of sections) {
     const id = sectionId(ev.uri, ev.sectionKey);
-    let perDoc = graphByUri.get(ev.uri);
-    if (!perDoc) {
-      const dg = await (await project.getProjectResource(ev.uri))
-        ?.requireAdapter(WikiPageGraph)
-        .get();
-      perDoc = new Map((dg?.sections ?? []).map((sg) => [sg.sectionKey, sg]));
-      graphByUri.set(ev.uri, perDoc);
-    }
-    const sg = perDoc.get(ev.sectionKey);
-    evidence.set(id, sg ? { graph: renderSectionGraph(sg) } : { raw: ev.rawBlock });
+    const tables = ev.tables.length > 0 ? renderSectionTables(ev.tables) : undefined;
+    evidence.set(id, { details: ev.details, tables });
   }
-  const evidenceOf = (ev: EvidenceSection) => evidence.get(sectionId(ev.uri, ev.sectionKey)) ?? {};
+  const evidenceOf = (ev: EvidenceSection) =>
+    evidence.get(sectionId(ev.uri, ev.sectionKey)) ?? { details: "" };
 
   // Reserve room for the fixed per-call overhead (instructions + the question + <sources> scaffold)
   // so the section content plus the prompt stays within the call budget.
@@ -532,7 +524,10 @@ export const SummarizeTrigger: QueryHandler = async function* (ctx) {
   const contentBudget = Math.max(SUMMARIZE_MIN_CONTENT_CHARS, SUMMARIZE_BATCH_CHARS - reserve);
   const batches = batchSections(
     sections,
-    (ev) => (evidenceOf(ev).graph ?? evidenceOf(ev).raw ?? "").length,
+    (ev) => {
+      const e = evidenceOf(ev);
+      return e.details.length + (e.tables?.length ?? 0);
+    },
     SUMMARIZE_BATCH_SIZE,
     contentBudget,
   );
@@ -568,8 +563,8 @@ export const SummarizeTrigger: QueryHandler = async function* (ctx) {
           ref: string;
           title: string;
           description: string;
-          graph?: string;
-          raw?: string;
+          details: string;
+          tables?: string;
         }[];
       }[] = [];
       const byChapterKey = new Map<string, number>();
@@ -609,7 +604,7 @@ export const SummarizeTrigger: QueryHandler = async function* (ctx) {
       {
         name: "summarize-batch",
         description:
-          "Extract question-specific, single-document grounded facts from each section's graph (raw fallback); cite each fact's section ref(s).",
+          "Extract question-specific, single-document grounded facts from each section's details and tables; cite each fact's section ref(s).",
         model: cfg.modelFor("query"),
         system: SUMMARIZE_PROMPT,
         input: {

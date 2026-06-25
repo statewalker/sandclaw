@@ -99,6 +99,8 @@ describe("buildOutline — chapter overlay", () => {
       startLine: i,
       endLine: i,
       summary: `sum${i}`,
+      details: `details${i}`,
+      tables: [],
     }));
 
   it("wraps a small section set in one chapter with no aggregation call", async () => {

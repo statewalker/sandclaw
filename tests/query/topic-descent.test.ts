@@ -35,8 +35,24 @@ const SUMMARY: DocumentSummaryOutput = {
   title: "Acme",
   summary: "Acme and its founders.",
   sections: [
-    { key: "intro", title: "Intro", startLine: 0, endLine: 0, summary: "Acme is a company." },
-    { key: "founders", title: "Founders", startLine: 1, endLine: 1, summary: "Jane founded Acme." },
+    {
+      key: "intro",
+      title: "Intro",
+      startLine: 0,
+      endLine: 0,
+      summary: "Acme is a company.",
+      details: "Acme is a company.",
+      tables: [],
+    },
+    {
+      key: "founders",
+      title: "Founders",
+      startLine: 1,
+      endLine: 1,
+      summary: "Jane founded Acme.",
+      details: "Jane founded Acme.",
+      tables: [],
+    },
   ],
 };
 const FOUNDERS_TOPIC = {

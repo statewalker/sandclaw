@@ -79,20 +79,20 @@ The input is ONE XML payload with these parts — use each part for its stated r
     - <section_title> — the section's title. CONTEXT ONLY.
     - <section_summary> — the section's pre-existing generic summary. CONTEXT ONLY — it may OMIT
       specifics the question needs, so it is a guide, never the source of a fact.
-    - <graph> — the section's STRUCTURED FACTS: an "Entities:" line plus "Statements:" / "Relations:"
-      bullets, each "subject — predicate — object" with a trailing {…} details object of qualifiers
-      (year, currency, …). This is the SOURCE of facts and citations.
-    - <raw_content> — present ONLY when a section has no <graph>; then it is the section's ORIGINAL
-      TEXT and is the fallback SOURCE of facts and citations.
+    - <details> — the section's EXHAUSTIVE FACTS as markdown: named entities (in full), dates,
+      identifiers, figures, findings, and explicit conditions/qualifiers. This is the SOURCE of facts
+      and citations.
+    - <tables> — present when the section has structured data: GitHub-flavoured markdown tables
+      (a "#### caption" heading then header/rows). Also a SOURCE of facts and citations.
 
-Return \`facts\`: question-specific statements, each grounded in the section's <graph> (or its
-<raw_content> fallback). A statement should be information-rich — capture the concrete specifics the
-question needs (full entity names, numbers, dates, relationships, and any details qualifiers).
+Return \`facts\`: question-specific statements, each grounded in the section's <details> (and its
+<tables>). A statement should be information-rich — capture the concrete specifics the
+question needs (full entity names, numbers, dates, relationships, and any qualifiers).
 Together the facts are the question's grounded summary.
 
 RULES — load-bearing:
 1. Every fact MUST cite ≥1 section \`ref\` VERBATIM, and every word of it MUST be supported by the
-   cited section(s)' <graph> (or <raw_content> fallback). Never use a <section_summary>, a title, or
+   cited section(s)' <details> (or <tables>). Never use a <section_summary>, a title, or
    outside / "common-sense" knowledge as the source of a fact.
 2. A single fact MUST draw only on sections of ONE document — NEVER merge content across documents.
    When two documents say related things, emit a SEPARATE fact per document.
