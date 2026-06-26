@@ -41,8 +41,6 @@ const SUMMARY: DocumentSummaryOutput = {
       startLine: 0,
       endLine: 0,
       summary: "Acme is a company.",
-      details: "Acme is a company.",
-      tables: [],
     },
     {
       key: "founders",
@@ -50,8 +48,6 @@ const SUMMARY: DocumentSummaryOutput = {
       startLine: 1,
       endLine: 1,
       summary: "Jane founded Acme.",
-      details: "Jane founded Acme.",
-      tables: [],
     },
   ],
 };
@@ -96,6 +92,18 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
   switch (spec.name) {
     case "summarize-document":
       return out(SUMMARY);
+    case "aggregate-chapters":
+      return out({
+        chapters: [
+          {
+            title: "All",
+            summary: "All members.",
+            memberKeys: (spec.input as { members: { key: string }[] }).members.map((m) => m.key),
+          },
+        ],
+      });
+    case "extract-tables":
+      return out({ tables: [] });
     case "extract-document-meta":
       return out(meta);
     case "intent-detection": {
@@ -125,10 +133,10 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       const docs = (spec.input as { documents: { sections: { uri: string }[] }[] }).documents;
       return out({ relevantUris: docs.flatMap((d) => d.sections.map((s) => s.uri)) });
     }
-    case "summarize-batch": {
-      const sections = (spec.input as { request: string }).request;
-      const refs = [...sections.matchAll(REF_RE)].map((m) => m[1]);
-      return out({ facts: refs.map((r) => ({ statement: "fact", citations: [r] })) });
+    case "rolling-summarize": {
+      const sources = (spec.input as { request: string }).request;
+      const refs = [...sources.matchAll(REF_RE)].map((m) => m[1]);
+      return out({ summaries: refs.map((r) => ({ sectionRef: r, summary: "fact" })) });
     }
     case "compose-answer": {
       const claims = (
@@ -350,9 +358,10 @@ describe("topicDescent fusion — descent score stays internal (ADR 0001)", () =
     sufficientAfter = 0;
   });
 
-  it("a both-front-end section is tier 0; a descent-only section (any internal score) is tier 1", async () => {
-    // Hybrid search surfaces ONLY the founders section, so founders is corroborated
-    // (tier 0) while intro is descent-only (tier 1) despite its internal score 2.
+  it("retrieves both a both-front-end section and a descent-only section (filter disabled)", async () => {
+    // Hybrid search surfaces ONLY the founders section (both fronts); intro is descent-only.
+    // The descent score stays internal (ADR 0001); with the relevance filter disabled BOTH
+    // candidates are rolling-summarized and become evidence.
     const project = await buildBase(TEXT_ONLY_CONFIG, {
       search: async () => [{ uri: "a.md", sections: [{ sectionKey: "founders", modes: ["fts"] }] }],
     });
@@ -375,12 +384,10 @@ describe("topicDescent fusion — descent score stays internal (ADR 0001)", () =
 
     const answer = await project.requireAdapter(WikiQuery).ask("founders").complete();
 
-    // The first compose is sufficient, so only the tier-0 pass is consumed: founders
-    // (both fronts) is selected; intro (descent-only) is not — its internal score did
-    // not promote it to the corroboration tier.
-    expect(answer.evidenceCount).toBe(1);
+    // No tier gating: both the corroborated `founders` and the descent-only `intro` are evidence.
+    expect(answer.evidenceCount).toBe(2);
     expect(answer.citations.some((c) => c.includes("#founders"))).toBe(true);
-    expect(answer.citations.some((c) => c.includes("#intro"))).toBe(false);
+    expect(answer.citations.some((c) => c.includes("#intro"))).toBe(true);
   });
 });
 

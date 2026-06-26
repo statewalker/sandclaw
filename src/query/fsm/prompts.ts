@@ -27,11 +27,14 @@ When on-corpus, decompose the prompt into its distinct SUBJECTS. For each subjec
   specifics you invent are embedding bait only — never shown or trusted downstream.
 - \`ftsQueries\`: the distinctive KEYWORDS for full-text search — individual content terms and named
   entities drawn from the subject, NOT phrases or sentences. List the salient terms (proper nouns,
-  organisations, people, places, tickers, numbers, and the few defining nouns), each as its OWN
-  entry; a block matching more entries ranks higher. Give 1–6 entries; omit stop-words and generic
+  organisations, people, places, identifiers/codes, numbers, and the few defining nouns), each as its
+  OWN entry; a block matching more entries ranks higher. Give 1–6 entries; omit stop-words and generic
   filler.
-PRESERVE every specific term and named entity (proper nouns, organisations, people, places, tickers,
-numbers) VERBATIM across \`prompt\`, \`semanticQuery\`, and \`ftsQueries\` — never paraphrase them away.
+Write \`prompt\`, \`semanticQuery\`, and \`ftsQueries\` in ENGLISH — the corpus and its index are
+English, so translate the subject's wording into English even when the user wrote in another language.
+(The detected \`language\` below governs ONLY the final answer, never these retrieval queries.)
+PRESERVE every specific term and named entity (proper nouns, organisations, people, places,
+identifiers/codes, numbers) VERBATIM across all three — never paraphrase or translate the entities away.
 
 A single-subject prompt yields exactly one subject. Do NOT answer the prompt.
 
@@ -68,36 +71,31 @@ Drop a section ONLY when its title/summary shows it does not bear on the prompt 
 merely from a relevant document but about a different matter). Return an empty array when none in this
 batch qualify. Selection only — do not answer the prompt.`;
 
-export const SUMMARIZE_PROMPT = `You extract question-specific grounded facts from wiki documents.
+export const ROLLING_SUMMARIZE_PROMPT = `You extract prompt-relevant information from wiki sections, one section at a time.
 
-The input is ONE XML payload with these parts — use each part for its stated role ONLY:
+The input is ONE XML payload — use each part for its stated role ONLY:
 - <question> … </question> — the user's prompt. Extract only content that helps answer it.
 - <sources> … </sources> — the documents to mine, each a <document title="…"> containing:
   - <document_summary> — the document's overall summary. CONTEXT/navigation ONLY.
-  - <chapter title="…"> with <chapter_summary> — an optional intra-document grouping. CONTEXT ONLY.
-  - <section ref="…"> — a retrieved section, carrying:
-    - <section_title> — the section's title. CONTEXT ONLY.
-    - <section_summary> — the section's pre-existing generic summary. CONTEXT ONLY — it may OMIT
-      specifics the question needs, so it is a guide, never the source of a fact.
-    - <details> — the section's EXHAUSTIVE FACTS as markdown: named entities (in full), dates,
-      identifiers, figures, findings, and explicit conditions/qualifiers. This is the SOURCE of facts
-      and citations.
-    - <tables> — present when the section has structured data: GitHub-flavoured markdown tables
-      (a "#### caption" heading then header/rows). Also a SOURCE of facts and citations.
+  - <section ref="…"> — a candidate section, carrying:
+    - <context> — the section's place in the document outline: each ancestor TOC node's title and
+      summary, outermost first. CONTEXT ONLY.
+    - <title> — the section's title. CONTEXT ONLY.
+    - <content> — the section's RAW text. This is the ONLY SOURCE of facts and citations.
 
-Return \`facts\`: question-specific statements, each grounded in the section's <details> (and its
-<tables>). A statement should be information-rich — capture the concrete specifics the
-question needs (full entity names, numbers, dates, relationships, and any qualifiers).
-Together the facts are the question's grounded summary.
+For EACH <section>, decide whether its <content> contains anything relevant to <question>:
+- If it does, emit ONE entry in \`summaries\` with that section's \`sectionRef\` (verbatim) and a
+  \`summary\` that captures ALL prompt-relevant information from the <content> — the concrete specifics
+  (full entity names, numbers, dates, relationships, conditions) a later stage needs.
+- If the section has NOTHING relevant to the question, SKIP it entirely — emit no entry for it.
 
 RULES — load-bearing:
-1. Every fact MUST cite ≥1 section \`ref\` VERBATIM, and every word of it MUST be supported by the
-   cited section(s)' <details> (or <tables>). Never use a <section_summary>, a title, or
+1. Every entry MUST carry the section's \`sectionRef\` VERBATIM, and every word of its \`summary\` MUST be
+   supported by THAT section's <content>. Never use the <context>, <title>, <document_summary>, or
    outside / "common-sense" knowledge as the source of a fact.
-2. A single fact MUST draw only on sections of ONE document — NEVER merge content across documents.
-   When two documents say related things, emit a SEPARATE fact per document.
-3. Keep only facts relevant to <question>; discard the rest. Do NOT answer the question — only
-   extract its grounded facts.`;
+2. One entry per kept section; never merge content from different sections into one entry.
+3. EXTRACT, do NOT ANSWER. The \`summary\` gathers the relevant facts for a downstream stage to answer
+   with — it is not itself the answer. A section with nothing relevant produces NO entry.`;
 
 export const COMPOSE_PROMPT = `Answer the question using ONLY the supplied grounded facts. Each fact
 carries a \`citations\` list — the section refs it rests on. Return the answer as \`claims\`: an ordered

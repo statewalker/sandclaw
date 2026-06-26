@@ -16,8 +16,8 @@ export type QueryStateKey =
   | "Query"
   | "IntentDetection"
   | "Retrieve"
-  | "SelectSections"
-  | "Summarize"
+  // | "SelectSections"  // relevance filter DISABLED (retained in handlers.ts for re-activation)
+  | "RollingSummarize"
   | "Respond"
   | "Verify"
   | "Response"
@@ -26,9 +26,11 @@ export type QueryStateKey =
 /**
  * The query pipeline as a flat Finite State Machine.
  *
- * `IntentDetection → Retrieve → SelectSections → Summarize → Respond → Verify →
- * Response`, with `NegativeResponse` reachable from `IntentDetection` (off-corpus),
- * `Retrieve` (no candidates), and `SelectSections` (filter kept nothing).
+ * `IntentDetection → Retrieve → RollingSummarize → Respond → Verify → Response`,
+ * with `NegativeResponse` reachable from `IntentDetection` (off-corpus), `Retrieve`
+ * (no candidates), and `RollingSummarize` (no relevant summary kept). The relevance
+ * filter (`SelectSections`) is DISABLED — its handler is retained in `handlers.ts`;
+ * to re-enable, route `Retrieve→SelectSections→RollingSummarize` and restore its state.
  *
  * Retrieval runs two front-ends in parallel inside the `Retrieve` handler — the
  * mechanical hybrid (FTS + vector) search and the LLM topic/doc-topic class
@@ -53,13 +55,12 @@ export const QUERY_FSM: FsmStateConfig = {
     ["*", "error", ""],
     ["IntentDetection", "onCorpus", "Retrieve"],
     ["IntentDetection", "offCorpus", "NegativeResponse"],
-    ["Retrieve", "gathered", "SelectSections"],
+    // Relevance filter disabled: retrieved candidates go straight to rolling summarization.
+    ["Retrieve", "gathered", "RollingSummarize"],
     ["Retrieve", "empty", "NegativeResponse"],
-    ["SelectSections", "selected", "Summarize"],
-    ["SelectSections", "empty", "NegativeResponse"],
-    ["Summarize", "summarized", "Respond"],
+    ["RollingSummarize", "summarized", "Respond"],
+    ["RollingSummarize", "empty", "NegativeResponse"],
     ["Respond", "answered", "Verify"],
-    ["Respond", "insufficient", "SelectSections"],
     ["Verify", "verified", "Response"],
     ["Response", "done", ""],
     ["NegativeResponse", "done", ""],
@@ -83,27 +84,19 @@ export const QUERY_FSM: FsmStateConfig = {
       },
     },
     {
-      key: "SelectSections",
+      key: "RollingSummarize",
       description:
-        "Consume the next retrieval tier (both-front-end intersection first, then the rest); LLM-filter it for relevance and group survivors by subject. Re-entered to escalate.",
+        "Conditional rolling summarization over ALL retrieved candidates (cheap model): each section's raw content is summarized against the prompt; non-relevant sections are skipped.",
       events: {
-        selected: "A tier was consumed (its relevant sections added to the evidence).",
-        empty: "No candidate section anywhere.",
+        summarized: "At least one prompt-relevant section summary was kept.",
+        empty: "No candidate section carried anything relevant to the prompt.",
       },
     },
     {
-      key: "Summarize",
-      description:
-        "Per-subject rolling summarization of the new tier (subjects in parallel); each fold exposes the section's raw content.",
-      events: { summarized: "Rolling summaries produced." },
-    },
-    {
       key: "Respond",
-      description:
-        "Compose the grounded, cited answer and judge sufficiency: answer, or escalate for more evidence.",
+      description: "Compose the grounded, cited answer from the rolling summaries (strong model).",
       events: {
-        answered: "Answer composed (evidence sufficient, or exhausted → best-effort).",
-        insufficient: "Evidence is missing and a wider retrieval tier remains.",
+        answered: "Answer composed from the grounded summaries.",
       },
     },
     {

@@ -8,13 +8,13 @@ export const detailTableSchema = z
       .string()
       .min(1)
       .describe(
-        "Self-describing caption naming what the table holds (the objects its rows stand for). The 'details' prose refers to the table by this caption.",
+        "Self-describing caption naming what the table holds (the objects its rows stand for).",
       ),
     columns: z
       .array(z.string())
       .min(1)
       .describe(
-        "Column headers — include the unit where it is uniform for the column (e.g. 'Return (%)').",
+        "Column headers — include the unit where it is uniform for the column (e.g. 'Duration (ms)').",
       ),
     rows: z
       .array(z.array(z.string()))
@@ -52,22 +52,31 @@ export const sectionSummarySchema = z
     summary: z
       .string()
       .describe(
-        "THIN thematic abstract — 1–3 sentences on what this section is about and why it matters. NEVER verbatim raw. Exhaustive facts go in 'details', not here; do not restate every entity/figure (that would duplicate 'details').",
+        "Summary stating the section's MAIN FACTS in prose (1–4 sentences): the key entities, findings, figures, and what the section establishes — enough to judge relevance, NOT exhaustive. NEVER verbatim raw. Do NOT transcribe tables or list every number; instead, when the section holds table-like data or images, note their presence via the flags below.",
       ),
-    details: z
+    hasTables: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when the section's content contains table-like / structured tabular data (a source table or an enumeration of the same attributes across objects).",
+      ),
+    tableHints: z
       .string()
+      .optional()
       .describe(
-        "EXHAUSTIVE facts as markdown: every named entity (full name on first mention), date, identifier, figure, finding, recommendation, threshold, and explicit condition/qualifier — as prose and bullet lists. Include a whole-block description of EACH table in 'tables' (the objects its rows stand for, the columns with units, the one-line reading, and any extreme values), referring to it by its caption. NEVER verbatim raw passages; DROP statistical bookkeeping (p-values, CIs), hyperparameters, and intermediate steps.",
+        "Short description of what that tabular data is about. Only when hasTables is true.",
       ),
-    tables: z
-      .array(detailTableSchema)
-      .default([])
-      .describe(
-        "ALL structured/repetitive data of this section (source tables and enumerations of facts about multiple objects), each as { caption, columns, rows }. Empty array when the section has no tabular data. No row limit.",
-      ),
+    hasImages: z
+      .boolean()
+      .optional()
+      .describe("True when the section contains images, figures, or charts."),
+    imageHints: z
+      .string()
+      .optional()
+      .describe("Short description of what those images depict. Only when hasImages is true."),
   })
   .describe(
-    "One L2 section: a thin abstract plus its exhaustive facts (details) and structured data (tables).",
+    "One leaf section: title, raw line range, a fact-stating summary, and flags for table-like / image content.",
   );
 
 export const documentSummarySchema = z
@@ -153,6 +162,30 @@ export const aggregateChaptersSchema = z
   })
   .describe("One chapter-aggregation round: a coherent grouping of the supplied members.");
 
+// ── Deferred table extraction (per flagged leaf section) ─────────────────────
+
+export const tableExtractInputSchema = z
+  .object({
+    title: z.string().describe("Section title."),
+    summary: z.string().describe("Section summary (it notes the tabular data present)."),
+    hint: z.string().optional().describe("What the tabular data is about, when known."),
+    content: z
+      .string()
+      .describe("The section's raw text content to extract structured tables from."),
+  })
+  .describe("Input to deferred table extraction for one flagged section.");
+
+export const tableExtractSchema = z
+  .object({
+    tables: z
+      .array(detailTableSchema)
+      .default([])
+      .describe(
+        "All structured tables present in the section's content, each as { caption, columns, rows }. Empty when none can be reliably extracted.",
+      ),
+  })
+  .describe("Structured tables extracted from one section's raw content.");
+
 // ── Meta (topics + outliers) ─────────────────────────────────────────────────
 // Lenient on purpose: EVERY field is `.optional()` (no `.min(1)` either), and the
 // top-level arrays default to empty. With `strictJsonSchema: false` the schema is
@@ -235,7 +268,7 @@ export const existingClassSchema = z
   })
   .describe("An already-coined class. Reuse its key verbatim; copy its description when reusing.");
 
-// The routing payload (title + summary + details, NO tables): what meta reads.
+// The routing payload (title + summary, per leaf section): what meta reads.
 const metaSummarySchema = z
   .object({
     title: z.string(),
@@ -245,12 +278,11 @@ const metaSummarySchema = z
         key: z.string(),
         title: z.string(),
         summary: z.string(),
-        details: z.string(),
       }),
     ),
   })
   .describe(
-    "The L2 summary as the routing payload — section title + summary + details, no tables.",
+    "The L2 summary as the routing payload — document title + summary + per-leaf title + summary.",
   );
 
 export const metaExtractorInputSchema = z

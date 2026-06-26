@@ -32,18 +32,18 @@ export const intentDetectionSchema = z
           prompt: z
             .string()
             .describe(
-              "Standalone, vault-aligned reformulation of this subject as a natural-language statement — drives topic-class routing over the corpus index. PRESERVE named entities and specific terms verbatim.",
+              "Standalone, vault-aligned reformulation of this subject as a natural-language statement — drives topic-class routing over the corpus index. Written in ENGLISH (the corpus language) regardless of the user's language. PRESERVE named entities and specific terms verbatim.",
             ),
           semanticQuery: z
             .string()
             .describe(
-              "A HYPOTHETICAL ANSWER to this subject — a short factual passage (1–3 sentences) written as if it were an ideal corpus excerpt answering it, NOT a restatement of the question. Embedded for SEMANTIC (vector) retrieval: a fake answer lands nearer real answers than the bare question. Invented specifics are embedding bait only. PRESERVE named entities verbatim.",
+              "A HYPOTHETICAL ANSWER to this subject — a short factual passage (1–3 sentences) written as if it were an ideal corpus excerpt answering it, NOT a restatement of the question. Embedded for SEMANTIC (vector) retrieval: a fake answer lands nearer real answers than the bare question. Written in ENGLISH (the corpus language) regardless of the user's language. Invented specifics are embedding bait only. PRESERVE named entities verbatim.",
             ),
           ftsQueries: z
             .array(z.string())
             .min(1)
             .describe(
-              "Distinctive KEYWORDS for full-text search — individual content terms and named entities from the subject, NOT phrases or sentences. List the salient terms (proper nouns, organisations, people, places, tickers, numbers, defining nouns), each as its OWN entry; a block matching more entries ranks higher. 1–6 entries; omit stop-words and filler. Keep specific terms VERBATIM.",
+              "Distinctive KEYWORDS for full-text search — individual content terms and named entities from the subject, NOT phrases or sentences. List the salient terms (proper nouns, organisations, people, places, identifiers/codes, numbers, defining nouns), each as its OWN entry; a block matching more entries ranks higher. 1–6 entries; omit stop-words and filler. Written in ENGLISH (the corpus language) regardless of the user's language. Keep specific terms VERBATIM.",
             ),
         }),
       )
@@ -155,33 +155,31 @@ export const sectionFilterSchema = z
   })
   .describe("The relevant section URIs in this batch. Selection only — do not answer the prompt.");
 
-// ── Summarize (one batch of sections → grounded facts, batches run in parallel) ──
-export const summarizeInputSchema = z.object({
+// ── RollingSummarize (one doc-grouped batch of raw sections → per-section summaries) ──
+export const rollingSummarizeInputSchema = z.object({
   /**
    * One XML payload: a `<question>` block (the user's prompt) followed by a `<sources>` block of
-   * `<document>` entries — each with a `<document_summary>`, optional `<chapter>` groupings, and
-   * `<section ref="…">` blocks carrying `<section_title>`, `<section_summary>`, and `<raw_content>`.
+   * `<document>` entries — each with a `<document_summary>` and `<section ref="…">` blocks carrying
+   * the section's `<context>` (ancestor TOC path), `<title>`, and raw `<content>`.
    */
   request: z.string(),
 });
-export const summarizeSchema = z.object({
-  facts: z
+export const rollingSummarizeSchema = z.object({
+  summaries: z
     .array(
       z.object({
-        statement: z
+        sectionRef: z
+          .string()
+          .describe("The section `ref` value, verbatim, this summary was extracted from."),
+        summary: z
           .string()
           .describe(
-            "One self-contained fact, serving the question and drawn from a SINGLE document's section(s).",
-          ),
-        citations: z
-          .array(z.string())
-          .describe(
-            "The section `ref` value(s), verbatim, this fact rests on — ALL from the same document; at least one.",
+            "All prompt-relevant information extracted from THIS section's raw content — the concrete specifics (full entity names, numbers, dates, relationships, conditions) needed downstream. It EXTRACTS; it does NOT answer the question.",
           ),
       }),
     )
     .describe(
-      "Atomic, single-document grounded facts relevant to the question. State nothing not supported by a cited section.",
+      "One entry per RELEVANT section. Sections with nothing relevant to the question are OMITTED entirely (no entry, no ref).",
     ),
 });
 

@@ -21,6 +21,8 @@ export {
   WikiPageEmbeddings,
   WikiPageMeta,
   WikiPageSummary,
+  WikiPageSummaryDraft,
+  WikiPageTables,
 } from "./page-adapters.js";
 export { pageArtifactPath, pageDirPath, projectIndexPath, resourceUri } from "./page-paths.js";
 export {
@@ -73,6 +75,11 @@ export {
   SUMMARIZED_SIGNAL,
   summarizeBuilder,
 } from "./summarizer.js";
+export {
+  TABLE_EXTRACT_BUILDER_ID,
+  TABLES_SIGNAL,
+  tableExtractorBuilder,
+} from "./table-extractor.js";
 export { TOPIC_CLEANUP_BUILDER_ID, topicCleanupBuilder } from "./topic-cleanup.js";
 export {
   cosine,
@@ -86,23 +93,30 @@ export {
   migrateIndex,
 } from "./topic-graph.js";
 export type {
-  ChapterNode,
   DetailTable,
   DocumentEmbeddings,
   DocumentMeta,
   DocumentOutlier,
   DocumentSummary,
+  DocumentTables,
   DocumentTopic,
   GlobalOutlier,
   GlobalTopic,
   OutlierIndex,
-  SectionSummary,
+  SummaryNode,
   TopicCategory,
   TopicIndex,
   TopicIndexNode,
   TopicNode,
 } from "./types.js";
-export { isCategory, isIndexTopic, KNOWLEDGE_SCHEMA_VERSION } from "./types.js";
+export {
+  findSummaryNode,
+  isCategory,
+  isIndexTopic,
+  KNOWLEDGE_SCHEMA_VERSION,
+  summaryLeaves,
+  summaryPath,
+} from "./types.js";
 
 /**
  * Knowledge adapters are concrete classes that self-host on their handle

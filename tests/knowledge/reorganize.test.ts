@@ -27,8 +27,6 @@ const SUMMARY: DocumentSummaryOutput = {
       startLine: 0,
       endLine: 0,
       summary: "founders",
-      details: "founders",
-      tables: [],
     },
   ],
 };

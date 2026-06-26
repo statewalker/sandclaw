@@ -9,7 +9,7 @@ import { llmOf, wikiConfigOf } from "../llm/index.js";
 import { toBatch } from "../util/batch.js";
 import { ResourceTextContentCache, WikiPageEmbeddings, WikiPageSummary } from "./page-adapters.js";
 import { SUMMARIZED_SIGNAL } from "./summarizer.js";
-import { type DocumentEmbeddings, KNOWLEDGE_SCHEMA_VERSION } from "./types.js";
+import { type DocumentEmbeddings, KNOWLEDGE_SCHEMA_VERSION, summaryLeaves } from "./types.js";
 
 export const EMBED_BUILDER_ID = "Embedder";
 export const EMBEDDED_SIGNAL = "embedded";
@@ -72,20 +72,21 @@ export function embedderBuilder(opts: { force?: boolean } = {}): RegisteredBuild
             prior.schemaVersion === KNOWLEDGE_SCHEMA_VERSION &&
             Array.isArray(prior.sections);
           if (resource && summary && (opts.force || !fresh)) {
-            log.info("embedding sections", { uri: u.uri, sections: summary.sections.length });
+            const leaves = summaryLeaves(summary);
+            log.info("embedding sections", { uri: u.uri, sections: leaves.length });
             // One batched embedding call per document. Embed the routing payload
-            // (title + summary + details) — the same text the filter tier sees — so
-            // fact-specific queries recall the right section; tables are answer-tier.
-            const vectors = summary.sections.length
+            // (title + summary) — the same text the routing tier sees — so
+            // fact-specific queries recall the right section.
+            const vectors = leaves.length
               ? await llm.embedBatch(
-                  summary.sections.map((s) => `${s.title}\n${s.summary}\n${s.details}`),
+                  leaves.map((s) => `${s.title}\n${s.summary}`),
                   model,
                 )
               : [];
             // Keep keys + vectors aligned, dropping any section that failed to embed.
             const keys: string[] = [];
             const vecs: Float32Array[] = [];
-            summary.sections.forEach((s, i) => {
+            leaves.forEach((s, i) => {
               const v = vectors[i];
               if (v) {
                 keys.push(s.key);

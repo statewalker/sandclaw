@@ -17,6 +17,7 @@ import {
   type SearchBlock,
   searchBuilder,
   summarizeBuilder,
+  summaryLeaves,
   WikiPageSummary,
   WikiQuery,
 } from "../../src/index.js";
@@ -40,8 +41,6 @@ const SUMMARY: DocumentSummaryOutput = {
       startLine: 0,
       endLine: 0,
       summary: "Acme is a company.",
-      details: "Acme is a company.",
-      tables: [],
     },
     {
       key: "founders",
@@ -49,8 +48,6 @@ const SUMMARY: DocumentSummaryOutput = {
       startLine: 1,
       endLine: 1,
       summary: "Jane founded Acme.",
-      details: "Jane founded Acme.",
-      tables: [],
     },
   ],
 };
@@ -93,6 +90,18 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
   switch (spec.name) {
     case "summarize-document":
       return out(SUMMARY);
+    case "aggregate-chapters":
+      return out({
+        chapters: [
+          {
+            title: "All",
+            summary: "All members.",
+            memberKeys: (spec.input as { members: { key: string }[] }).members.map((m) => m.key),
+          },
+        ],
+      });
+    case "extract-tables":
+      return out({ tables: [] });
     case "extract-document-meta":
       return out(META);
     case "intent-detection":
@@ -120,12 +129,12 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       const docs = (spec.input as { documents: { sections: { uri: string }[] }[] }).documents;
       return out({ relevantUris: docs.flatMap((d) => d.sections.map((s) => s.uri)) });
     }
-    case "summarize-batch": {
-      const sections = (spec.input as { request: string }).request;
-      foldSections.push(sections);
+    case "rolling-summarize": {
+      const sources = (spec.input as { request: string }).request;
+      foldSections.push(sources);
       // Keep every marker in the batch so citations propagate to compose.
-      const refs = [...sections.matchAll(REF_RE)].map((m) => m[1]);
-      return out({ facts: refs.map((r) => ({ statement: "fact", citations: [r] })) });
+      const refs = [...sources.matchAll(REF_RE)].map((m) => m[1]);
+      return out({ summaries: refs.map((r) => ({ sectionRef: r, summary: "fact" })) });
     }
     case "compose-answer": {
       composeLanguage = (spec.input as { language: string }).language;
@@ -148,7 +157,7 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
 const blocks = async (resource: Resource): Promise<SearchBlock[]> => {
   const summary = await resource.getAdapter(WikiPageSummary)?.get();
   if (!summary) return [];
-  return summary.sections.map((s) => ({ blockId: s.key, text: `${s.title} ${s.summary}` }));
+  return summaryLeaves(summary).map((s) => ({ blockId: s.key, text: `${s.title} ${s.summary}` }));
 };
 
 async function buildProject() {
@@ -230,33 +239,20 @@ describe("WikiQuery — FSM-driven retrieval", () => {
     expect(new Set(keys).size).toBe(keys.length); // no duplicates
   });
 
-  it("fans retrieval out per subject, then filters sections once globally", async () => {
+  it("fans retrieval out per subject; the relevance filter is disabled", async () => {
     intent = {
       onCorpus: true,
       subjects: [{ prompt: "Who founded Acme?" }, { prompt: "What is Acme?" }],
     };
     await project.requireAdapter(WikiQuery).ask("Acme + founders").complete();
-    // The topic descent runs once per subject (one bounded level here); the relevance
-    // filter runs once over the pooled candidates.
+    // The topic descent runs once per subject; the relevance filter is disabled, so candidates
+    // go straight to rolling summarization (no section-select call).
     expect(calls["topic-descent"]).toBe(2);
-    expect(calls["section-select"]).toBe(1);
+    expect(calls["section-select"]).toBeUndefined();
+    expect(calls["rolling-summarize"]).toBeGreaterThan(0);
   });
 
-  it("escalates to the next tier when the first answer reports missing information", async () => {
-    // First compose reports insufficient → escalate; second is sufficient.
-    sufficientAfter = 1;
-    const answer = await project.requireAdapter(WikiQuery).ask("Who founded Acme?").complete();
-    // Two filter passes (intersection tier, then the remainder) and two compose attempts.
-    expect(calls["section-select"]).toBe(2);
-    expect(calls["compose-answer"]).toBe(2);
-    // Evidence accumulated across both tiers: the score-2 `founders` and the score-1 `intro`.
-    const keys = answer.citations;
-    expect(answer.evidenceCount).toBe(2);
-    expect(keys.some((c) => c.includes("#founders"))).toBe(true);
-    expect(keys.some((c) => c.includes("#intro"))).toBe(true);
-  });
-
-  it("summarizes in batches with the prompt, summaries, and details in separate XML tags", async () => {
+  it("renders each candidate section's raw content in its TOC path for rolling summarization", async () => {
     await project.requireAdapter(WikiQuery).ask("Who founded Acme?").complete();
     expect(foldSections.length).toBeGreaterThan(0);
     for (const batch of foldSections) {
@@ -264,22 +260,19 @@ describe("WikiQuery — FSM-driven retrieval", () => {
       expect(batch).toContain("<question>");
       expect(batch).toContain("Who founded Acme?");
       expect(batch).toContain("<sources>");
-      // Each section exposes title + summary + its exhaustive details as distinct tags.
-      expect(batch).toContain("<section_title");
-      expect(batch).toContain("<section_summary>");
-      expect(batch).toContain("<details>");
-      expect(batch).not.toContain("<raw_content>");
-      expect(batch).not.toContain("<graph>");
-      // Batch summarization is stateless — no carried-over rolling summary.
-      expect(batch).not.toContain("<previous_summary>");
+      // Each candidate carries its raw content (and TOC context), not a distilled fact dump.
+      expect(batch).toContain("<section ");
+      expect(batch).toContain("<content>");
+      expect(batch).not.toContain("<details>");
+      expect(batch).not.toContain("<section_summary>");
     }
   });
 
-  it("grounds facts in the section's details (the fact source replacing raw)", async () => {
+  it("grounds facts in the section's raw content", async () => {
     foldSections = [];
     await project.requireAdapter(WikiQuery).ask("Who founded Acme?").complete();
     expect(foldSections.length).toBeGreaterThan(0);
-    // The founders section's details ("Jane founded Acme.") is the rendered fact source.
+    // The founders section's raw line ("Jane founded Acme.") is the rendered fact source.
     expect(foldSections.some((batch) => batch.includes("Jane"))).toBe(true);
   });
 

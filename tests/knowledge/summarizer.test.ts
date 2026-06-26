@@ -10,6 +10,7 @@ import {
   registerKnowledgeAdapters,
   SUMMARIZED_SIGNAL,
   summarizeBuilder,
+  summaryLeaves,
   WikiPageSummary,
 } from "../../src/index.js";
 import { registerStubLlm } from "../util/stub-llm.js";
@@ -24,8 +25,6 @@ const SUMMARY_OUTPUT: DocumentSummaryOutput = {
       startLine: 0,
       endLine: 1,
       summary: "Acme overview.",
-      details: "Acme makes widgets.",
-      tables: [],
     },
     {
       key: "history",
@@ -33,8 +32,6 @@ const SUMMARY_OUTPUT: DocumentSummaryOutput = {
       startLine: 2,
       endLine: 3,
       summary: "Founded 1999.",
-      details: "Acme was founded in 1999.",
-      tables: [],
     },
   ],
 };
@@ -117,7 +114,10 @@ describe("summarizeBuilder", () => {
     const resource = await project.getProjectResource("a.md");
     const summary = await resource?.requireAdapter(WikiPageSummary).get();
     expect(summary?.title).toBe("About Acme");
-    expect(summary?.sections.map((s) => s.key)).toEqual(["overview", "history"]);
+    expect((summary ? summaryLeaves(summary) : []).map((s) => s.key)).toEqual([
+      "overview",
+      "history",
+    ]);
 
     // Raw text was cached.
     const raw = await resource?.requireAdapter(ResourceTextContentCache).getTextContent();

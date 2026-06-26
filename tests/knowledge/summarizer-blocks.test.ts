@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { LlmApi } from "../../src/index.js";
-import { buildOutline, sectionizeDocument } from "../../src/knowledge/summarizer.js";
+import {
+  buildTree,
+  type SectionizeCheckpoint,
+  sectionizeDocument,
+} from "../../src/knowledge/summarizer.js";
 
 const usage = { inputTokens: 0, outputTokens: 0 };
 const cfg = (documentChapterFanout: number) =>
-  ({ modelFor: () => "m", documentChapterFanout }) as unknown as Parameters<typeof buildOutline>[1];
+  ({ modelFor: () => "m", documentChapterFanout }) as unknown as Parameters<typeof buildTree>[1];
 
 /** A block-aware sectioning stub: splits each block into a kept head and a (possibly-cut) tail. */
 function sectionizeLlm(): { llm: LlmApi; prevSeen: (boolean | undefined)[] } {
@@ -91,7 +95,55 @@ describe("sectionizeDocument — block walk with section-boundary overlap", () =
   });
 });
 
-describe("buildOutline — chapter overlay", () => {
+describe("sectionizeDocument — checkpoint + resume", () => {
+  const text = Array.from({ length: 10 }, (_, i) => `${i}`).join("\n"); // 10 one-char lines
+
+  it("dumps a checkpoint after each block with a strictly-advancing nextStart", async () => {
+    const { llm } = sectionizeLlm();
+    const checkpoints: SectionizeCheckpoint[] = [];
+    await sectionizeDocument(llm, cfg(8), "sys", "a.md", text, 6, {
+      onBlock: async (cp) => {
+        // The walk mutates one array across blocks; snapshot it.
+        checkpoints.push({ ...cp, sections: [...cp.sections] });
+      },
+    });
+    expect(checkpoints.length).toBeGreaterThan(1);
+    for (let i = 1; i < checkpoints.length; i++) {
+      const prev = checkpoints[i - 1];
+      const cur = checkpoints[i];
+      if (!prev || !cur) throw new Error("missing checkpoint");
+      expect(cur.nextStart).toBeGreaterThan(prev.nextStart);
+      expect(cur.sections.length).toBeGreaterThanOrEqual(prev.sections.length);
+    }
+  });
+
+  it("resumes from a checkpoint and still covers the whole document", async () => {
+    const { llm } = sectionizeLlm();
+    const checkpoints: SectionizeCheckpoint[] = [];
+    await sectionizeDocument(llm, cfg(8), "sys", "a.md", text, 6, {
+      onBlock: async (cp) => {
+        checkpoints.push({ ...cp, sections: [...cp.sections] });
+      },
+    });
+    const mid = checkpoints[0];
+    if (!mid) throw new Error("no checkpoint");
+
+    // Resume from the first checkpoint with a fresh LLM; the result spans the whole document.
+    const { llm: llm2 } = sectionizeLlm();
+    const resumed = await sectionizeDocument(llm2, cfg(8), "sys", "a.md", text, 6, { resume: mid });
+    expect(resumed.sections[0]?.startLine).toBe(0);
+    expect(resumed.sections.at(-1)?.endLine).toBe(9);
+    // Contiguous, gap-free coverage across the resume boundary.
+    for (let i = 1; i < resumed.sections.length; i++) {
+      const prev = resumed.sections[i - 1];
+      const cur = resumed.sections[i];
+      if (!prev || !cur) throw new Error("missing section");
+      expect(cur.startLine).toBe(prev.endLine + 1);
+    }
+  });
+});
+
+describe("buildTree — homogeneous summary node tree", () => {
   const sections = (n: number) =>
     Array.from({ length: n }, (_, i) => ({
       key: `s${i}`,
@@ -99,11 +151,9 @@ describe("buildOutline — chapter overlay", () => {
       startLine: i,
       endLine: i,
       summary: `sum${i}`,
-      details: `details${i}`,
-      tables: [],
     }));
 
-  it("wraps a small section set in one chapter with no aggregation call", async () => {
+  it("a single-section document IS its root (no synthetic wrapper, no LLM call)", async () => {
     let calls = 0;
     const llm = {
       generateObject: async () => {
@@ -111,14 +161,31 @@ describe("buildOutline — chapter overlay", () => {
         return { output: {} as never, usage };
       },
     } as unknown as LlmApi;
-    const { outline, summary } = await buildOutline(llm, cfg(8), "sys", "Doc", "base", sections(2));
-    expect(calls).toBe(0); // mechanical — no LLM
-    expect(outline).toHaveLength(1);
-    expect(outline[0]?.sectionKeys).toEqual(["s0", "s1"]);
-    expect(summary).toBe("base");
+    const root = await buildTree(llm, cfg(8), "sys", "Doc", "base", sections(1));
+    expect(calls).toBe(0);
+    expect(root.key).toBe("s0");
+    expect(root.children).toBeUndefined();
   });
 
-  it("aggregates leaf chapters and re-aggregates into super-chapters past the fan-out", async () => {
+  it("wraps a small section set directly under the root with no aggregation call", async () => {
+    let calls = 0;
+    const llm = {
+      generateObject: async () => {
+        calls++;
+        return { output: {} as never, usage };
+      },
+    } as unknown as LlmApi;
+    const root = await buildTree(llm, cfg(8), "sys", "Doc", "base", sections(2));
+    expect(calls).toBe(0); // mechanical — no LLM
+    expect(root.title).toBe("Doc");
+    expect(root.summary).toBe("base");
+    expect(root.children?.map((c) => c.key)).toEqual(["s0", "s1"]);
+    // Root line range spans its leaves.
+    expect(root.startLine).toBe(0);
+    expect(root.endLine).toBe(1);
+  });
+
+  it("aggregates leaves and re-aggregates into super-nodes past the fan-out", async () => {
     let calls = 0;
     const llm = {
       generateObject: async (spec: { input: unknown }) => {
@@ -136,11 +203,11 @@ describe("buildOutline — chapter overlay", () => {
         return { output: { chapters } as never, usage };
       },
     } as unknown as LlmApi;
-    const { outline } = await buildOutline(llm, cfg(2), "sys", "Doc", "base", sections(5));
-    // 5 sections → 3 leaf chapters (> fanout 2) → re-aggregated into 2 super-chapters.
+    const root = await buildTree(llm, cfg(2), "sys", "Doc", "base", sections(5));
+    // 5 leaves → 3 TOC nodes (> fanout 2) → re-aggregated into 2 → wrapped under one root.
     expect(calls).toBe(2);
-    expect(outline).toHaveLength(2);
-    expect(outline[0]?.children).toBeDefined();
-    expect(outline[0]?.children?.[0]?.sectionKeys).toBeDefined();
+    expect(root.children).toBeDefined();
+    // The root's children are TOC nodes that themselves have children (the leaves/sub-nodes).
+    expect(root.children?.[0]?.children).toBeDefined();
   });
 });

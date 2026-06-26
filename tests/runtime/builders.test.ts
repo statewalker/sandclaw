@@ -38,14 +38,17 @@ function tracker() {
     });
     switch (spec.name) {
       case "summarize-document": {
-        // Title echoes the FIRST raw line so a stale cache is detectable.
+        // Title echoes the FIRST raw line so a stale cache is detectable. A single-section
+        // document makes the root node the section itself, so the leaf carries that title.
         const firstLine = input.rawLines?.[0]?.[1] ?? "";
         return out({
           title: firstLine,
           summary: firstLine,
-          sections: [{ key: "s", title: "S", startLine: 0, endLine: 0, summary: firstLine }],
+          sections: [{ key: "s", title: firstLine, startLine: 0, endLine: 0, summary: firstLine }],
         });
       }
+      case "extract-tables":
+        return out({ tables: [] });
       case "extract-document-meta": {
         const uri = input.uri ?? "";
         const key = topicByUri.get(uri);

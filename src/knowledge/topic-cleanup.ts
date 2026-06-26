@@ -5,7 +5,13 @@ import {
   ProjectBuilder,
   type RegisteredBuilder,
 } from "@statewalker/workspace.core";
-import { type LlmApi, llmOf, type WikiLlmConfiguration, wikiConfigOf } from "../llm/index.js";
+import {
+  BuildTracer,
+  type LlmApi,
+  llmOf,
+  type WikiLlmConfiguration,
+  wikiConfigOf,
+} from "../llm/index.js";
 import { WikiTopicIndex } from "./indexes.js";
 import {
   fillCorpusPurpose,
@@ -137,6 +143,8 @@ export function topicCleanupBuilder(): RegisteredBuilder {
       const log = loggerOf(project, TOPIC_CLEANUP_BUILDER_ID);
       const llm = llmOf(project);
       const cfg = wikiConfigOf(project);
+      const tracer = new BuildTracer(log, TOPIC_CLEANUP_BUILDER_ID);
+      const tracedLlm = tracer.wrap(llm);
       const pending: BuilderUpdate[] = [];
       for await (const u of builder.readUpdates({
         signal: TOPIC_TREE_SIGNAL,
@@ -146,10 +154,11 @@ export function topicCleanupBuilder(): RegisteredBuilder {
       }
       if (pending.length > 0) {
         // Clean up first; only then mark handled, so an interrupt re-triggers.
-        const changed = await cleanupTopics(project, llm, cfg);
+        const changed = await cleanupTopics(project, tracedLlm, cfg);
         if (changed) log.info("cleaned up topic index");
         for (const u of pending) await u.handled();
       }
+      tracer.totals();
       await builder.yieldControl();
       return true;
     },

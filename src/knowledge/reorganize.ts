@@ -7,7 +7,13 @@ import {
   type RegisteredBuilder,
   SOURCES_REMOVED_SIGNAL,
 } from "@statewalker/workspace.core";
-import { type LlmApi, llmOf, type WikiLlmConfiguration, wikiConfigOf } from "../llm/index.js";
+import {
+  BuildTracer,
+  type LlmApi,
+  llmOf,
+  type WikiLlmConfiguration,
+  wikiConfigOf,
+} from "../llm/index.js";
 import { toBatch } from "../util/batch.js";
 import { DOC_TOPICS_EMBEDDED_SIGNAL } from "./doc-topic-embedder.js";
 import { WikiOutlierIndex, WikiTopicIndex } from "./indexes.js";
@@ -342,6 +348,8 @@ export function reorganizeBuilder(): RegisteredBuilder {
       const log = loggerOf(project, REORGANIZE_BUILDER_ID);
       const llm = llmOf(project);
       const cfg = wikiConfigOf(project);
+      const tracer = new BuildTracer(log, REORGANIZE_BUILDER_ID);
+      const tracedLlm = tracer.wrap(llm);
       const pending: BuilderUpdate[] = [];
       const touched = new Set<string>();
       let stamp = 0;
@@ -357,13 +365,21 @@ export function reorganizeBuilder(): RegisteredBuilder {
         // re-triggers attribution rather than silently skipping it.
         const metas = await readTouchedMetas(project, touched);
         const generated = new Date().toISOString();
-        const { leftovers } = await attributeTopics(project, metas, touched, llm, cfg, generated);
+        const { leftovers } = await attributeTopics(
+          project,
+          metas,
+          touched,
+          tracedLlm,
+          cfg,
+          generated,
+        );
         await reorganizeOutliers(project, metas, touched, generated);
         log.info("reorganized indexes", { touched: touched.size, leftovers });
         const emitted: EmittedUpdate = { signal: TOPIC_TREE_SIGNAL, uri: "topics.json", stamp };
         yield emitted;
         for (const u of pending) await u.handled();
       }
+      tracer.totals();
       await builder.yieldControl();
       return true;
     },

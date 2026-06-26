@@ -2,7 +2,7 @@ import { createDefaultRegistry } from "@statewalker/content-extractors";
 import type { FilesApi } from "@statewalker/webrun-files";
 import { LoggerAdapter, type LoggerLevel, Workspace } from "@statewalker/workspace.core";
 import { stringify as stringifyYaml } from "yaml";
-import { WikiPageMeta, WikiPageSummary } from "../knowledge/index.js";
+import { summaryLeaves, WikiPageMeta, WikiPageSummary } from "../knowledge/index.js";
 import { costOf, roundUsd, type WikiConfigData, wikiConfigOf } from "../llm/index.js";
 import type { Answer } from "../query/index.js";
 import { type QueryProgress, WikiQuery } from "../query/index.js";
@@ -375,7 +375,7 @@ export async function runWikiCli(args: string[], deps: CliDeps): Promise<void> {
           const meta =
             detail === "full" ? await resource?.requireAdapter(WikiPageMeta).get() : undefined;
           const sectionMap = new Map<string, SectionInfo>();
-          for (const s of summary?.sections ?? []) {
+          for (const s of summary ? summaryLeaves(summary) : []) {
             const topics =
               meta?.topics.filter((t) => t.sectionKeys.includes(s.key)).map((t) => t.name) ?? [];
             sectionMap.set(s.key, { title: s.title, summary: s.summary, topics });

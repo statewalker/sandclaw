@@ -11,12 +11,17 @@ import { ContentAdapter } from "../content/index.js";
 import { hashStream } from "../util/hash.js";
 import { tryReadJson, tryReadText, writeJsonAtomic, writeTextAtomic } from "../util/io.js";
 import { pageArtifactPath } from "./page-paths.js";
-import type {
-  DocumentEmbeddings,
-  DocumentMeta,
-  DocumentSummary,
-  RawMeta,
-  SectionSummary,
+import {
+  type DocumentEmbeddings,
+  type DocumentMeta,
+  type DocumentSummary,
+  type DocumentTables,
+  findSummaryNode,
+  type RawMeta,
+  type SummaryDraft,
+  type SummaryNode,
+  summaryLeaves,
+  summaryPath,
 } from "./types.js";
 
 function filesApiOf(adapter: { filesApi: FilesApi }): FilesApi {
@@ -94,13 +99,71 @@ export class WikiPageSummary extends ResourceAdapter {
     return tryReadJson<DocumentSummary>(filesApiOf(this), this.artifactPath());
   }
 
-  async *sections(): AsyncIterable<SectionSummary> {
+  /** The in-document-order leaf sections — the addressable / citable unit. */
+  async leaves(): Promise<SummaryNode[]> {
     const summary = await this.get();
-    if (summary) yield* summary.sections;
+    return summary ? summaryLeaves(summary) : [];
+  }
+
+  /** Any node (leaf, TOC item, or root) by its key. */
+  async findByKey(key: string): Promise<SummaryNode | undefined> {
+    const summary = await this.get();
+    return summary ? findSummaryNode(summary, key) : undefined;
+  }
+
+  /** Ancestor path root→…→node (inclusive) for a node key, or `[]` when not found. */
+  async pathToRoot(key: string): Promise<SummaryNode[]> {
+    const summary = await this.get();
+    return summary ? summaryPath(summary, key) : [];
   }
 
   async write(summary: DocumentSummary): Promise<void> {
     await writeJsonAtomic(filesApiOf(this), this.artifactPath(), summary);
+  }
+}
+
+/** Reads/writes/clears a source resource's summarization checkpoint (`summary.tmp.json`). */
+export class WikiPageSummaryDraft extends ResourceAdapter {
+  private artifactPath(): string {
+    return pageArtifactPath(this.resource, "summary.tmp.json");
+  }
+
+  async get(): Promise<SummaryDraft | undefined> {
+    return tryReadJson<SummaryDraft>(filesApiOf(this), this.artifactPath());
+  }
+
+  async write(draft: SummaryDraft): Promise<void> {
+    await writeJsonAtomic(filesApiOf(this), this.artifactPath(), draft);
+  }
+
+  /** Remove the checkpoint once the final `summary.json` is written (best-effort). */
+  async clear(): Promise<void> {
+    try {
+      await filesApiOf(this).remove(this.artifactPath());
+    } catch {
+      // No checkpoint to remove (single-block document, or already cleared) — fine.
+    }
+  }
+}
+
+/** Reads/writes a source resource's deferred-extracted structured tables (`tables.json`). */
+export class WikiPageTables extends ResourceAdapter {
+  private artifactPath(): string {
+    return pageArtifactPath(this.resource, "tables.json");
+  }
+
+  /** All of a page's tables, keyed by the leaf section key they belong to. */
+  async get(): Promise<DocumentTables | undefined> {
+    return tryReadJson<DocumentTables>(filesApiOf(this), this.artifactPath());
+  }
+
+  /** A single section's tables (empty when none). */
+  async forSection(sectionKey: string): Promise<DocumentTables[string]> {
+    return (await this.get())?.[sectionKey] ?? [];
+  }
+
+  async write(tables: DocumentTables): Promise<void> {
+    await writeJsonAtomic(filesApiOf(this), this.artifactPath(), tables);
   }
 }
 

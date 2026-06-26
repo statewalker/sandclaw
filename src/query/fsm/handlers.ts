@@ -4,39 +4,29 @@ import { WikiPageSummary } from "../../knowledge/page-adapters.js";
 import type { DocumentMeta } from "../../knowledge/types.js";
 import { type LlmApi, llmOf, type WikiLlmConfiguration, wikiConfigOf } from "../../llm/index.js";
 import { SearchAdapter } from "../../search/index.js";
-import { toCanonical } from "../../uri/wiki-uri.js";
 import { mapLimit } from "../../util/batch.js";
 import type { EvidenceSection, QueryProgress } from "../progress.js";
 import { logBatchTotals, timedGenerate } from "./llm-call.js";
 import {
   COMPOSE_PROMPT,
   INTENT_DETECTION_PROMPT,
+  ROLLING_SUMMARIZE_PROMPT,
   SECTION_SELECT_PROMPT,
-  SUMMARIZE_PROMPT,
   TOPIC_SELECT_PROMPT,
 } from "./prompts.js";
-import type {
-  Candidate,
-  GroundedFact,
-  QueryContext,
-  Subject,
-  SubjectGroup,
-} from "./query-context.js";
+import type { Candidate, GroundedFact, Subject, SubjectGroup } from "./query-context.js";
 import type { QueryHandler } from "./query-fsm.js";
 import {
   aggregateClasses,
   buildDocTopicCandidates,
+  buildRollingBatches,
   evidenceFor,
   type FilterSection,
   filterCitations,
-  filterGroundedFacts,
   hybridSearch,
   orderEvidence,
   packFilterBatches,
   readClassIndexes,
-  renderDocumentBlock,
-  renderSectionTables,
-  sectionChapters,
   sectionId,
   withinScope,
 } from "./retrieval.js";
@@ -45,10 +35,10 @@ import {
   composeSchema,
   intentDetectionInputSchema,
   intentDetectionSchema,
+  rollingSummarizeInputSchema,
+  rollingSummarizeSchema,
   sectionFilterInputSchema,
   sectionFilterSchema,
-  summarizeInputSchema,
-  summarizeSchema,
   topicSelectInputSchema,
   topicSelectSchema,
 } from "./schemas.js";
@@ -57,57 +47,17 @@ import { topicDescent } from "./topic-descent.js";
 /** Char budget per relevance-filter batch (token-window proxy at ~4 chars/token). */
 const FILTER_CHAR_BUDGET = 16_000;
 
-/** Summarization batching: sections per batch and max parallel calls. */
-const SUMMARIZE_BATCH_SIZE = 4;
-/** Total characters one summarize call may use — raw content + section/document summaries +
- * the instructions (system prompt) + the question. The per-batch section-content budget is this
- * minus the fixed instruction + question reserve (computed per query). */
-const SUMMARIZE_BATCH_CHARS = 24_000;
-/** Floor for the section-content budget once instructions + question are reserved. */
-const SUMMARIZE_MIN_CONTENT_CHARS = 4_000;
-/** Per-section XML scaffolding (tags + ref) charged on top of a section's raw + summary + title. */
-const SECTION_TAG_CHARS = 200;
-const SUMMARIZE_CONCURRENCY = 5;
-
-/** Pack sections into batches bounded by both a section count and an evidence char
- * ceiling. `evidenceChars` gives the size of the section's chosen evidence (rendered
- * graph, or raw fallback) so batches reflect what is actually sent to the model. */
-function batchSections(
-  sections: EvidenceSection[],
-  evidenceChars: (ev: EvidenceSection) => number,
-  maxCount: number,
-  maxChars: number,
-): EvidenceSection[][] {
-  const batches: EvidenceSection[][] = [];
-  let cur: EvidenceSection[] = [];
-  let chars = 0;
-  for (const ev of sections) {
-    const cost = evidenceChars(ev) + ev.summary.length + ev.title.length + SECTION_TAG_CHARS;
-    if (cur.length > 0 && (cur.length >= maxCount || chars + cost > maxChars)) {
-      batches.push(cur);
-      cur = [];
-      chars = 0;
-    }
-    cur.push(ev);
-    chars += cost;
-  }
-  if (cur.length > 0) batches.push(cur);
-  return batches;
-}
+/** Char budget for one rolling-summarization batch's `<sources>` payload (raw content + scaffolding). */
+const ROLLING_CHAR_BUDGET = 20_000;
+/** Max rolling-summarization calls in flight at once. */
+const ROLLING_CONCURRENCY = 5;
 
 /**
- * Escalation ladder by retrieval score: tier 0 = sections found by BOTH front-ends
- * (the high-confidence intersection), tier 1 = the single-front-end remainder.
- * SelectSections consumes one tier per pass; Respond escalates only when the
- * evidence gathered so far does not yet answer the prompt.
+ * Retrieval-score ladder used by the (currently disabled) relevance filter: tier 0 = sections
+ * found by BOTH front-ends (the high-confidence intersection), tier 1 = the single-front-end
+ * remainder. Retained for re-activating `SelectSections`.
  */
 const TIER_SCORES = [2, 1] as const;
-
-/** The ladder tier a section of `score` belongs to (unknown scores fall in the last tier). */
-function tierOfScore(score: number): number {
-  const i = TIER_SCORES.indexOf(score as (typeof TIER_SCORES)[number]);
-  return i === -1 ? TIER_SCORES.length - 1 : i;
-}
 
 /** Render answer claims to prose: each statement followed by its `[[ref]]` citations. Partial-safe
  * (fields may be missing mid-stream); skips empty entries. */
@@ -312,15 +262,22 @@ export const RetrieveTrigger: QueryHandler = async function* (ctx) {
   // The escalation accumulators (tier/evidence/summaries) start from their QueryContext
   // defaults; Retrieve runs once before the SelectSections → Respond loop, so no reset.
   progress.evidence = candidates.map((c) => c.section);
-  const perDoc = new Map<string, number>();
-  for (const c of candidates) perDoc.set(c.section.uri, (perDoc.get(c.section.uri) ?? 0) + 1);
+  // Collect the section keys retrieved per document so the log shows exactly which
+  // sections were found, not just a count.
+  const perDoc = new Map<string, string[]>();
+  for (const c of candidates) {
+    const keys = perDoc.get(c.section.uri) ?? [];
+    keys.push(c.section.sectionKey);
+    perDoc.set(c.section.uri, keys);
+  }
   log.info("retrieved evidence", {
     subjects: subjects.length,
     sections: candidates.length,
     documents: perDoc.size,
+    // One entry per document: `["<n>× <uri>", ...sectionKeys]`, most-covered document first.
     sectionsPerDoc: [...perDoc.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([uri, n]) => `${n}× ${uri}`),
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([uri, keys]) => [`${keys.length}× ${uri}`, ...keys]),
   });
   yield candidates.length > 0 ? "gathered" : "empty";
 };
@@ -479,170 +436,81 @@ export const SelectSectionsTrigger: QueryHandler = async function* (ctx) {
 };
 
 /**
- * Batch summarization: split THIS tier's selected sections into batches (bounded by
- * section count and evidence size), and in a SEPARATE call per batch (≤ SUMMARIZE_CONCURRENCY
- * in parallel) extract single-document grounded facts. Each section's evidence is its built
- * graph (entities + statements/relations), or its raw block when no graph exists yet; sections
- * are rendered grouped by document so facts stay within document boundaries. Facts are
- * mechanically grounded (citations must be in the batch; cross-document facts dropped) and
- * appended via `ctx.addFacts`; yields `summarized`.
+ * Conditional rolling summarization: over ALL retrieved candidate sections (the relevance filter
+ * is disabled), render each leaf's raw content within its ancestor TOC path, grouped by document
+ * (each batch repeats the document summary), and in a SEPARATE call per batch (≤ ROLLING_CONCURRENCY
+ * in parallel, cheap model) summarize each section AGAINST the prompt. A section with nothing
+ * relevant is skipped — no entry, no citation. Each kept summary becomes a single-section grounded
+ * "fact" ({ statement: summary, citations: [sectionRef] }); the sections that produced one form the
+ * evidence. Yields `summarized` when at least one summary was kept, else `empty`.
  */
-export const SummarizeTrigger: QueryHandler = async function* (ctx) {
+export const RollingSummarizeTrigger: QueryHandler = async function* (ctx) {
   const { project, request: req, progress } = ctx;
   const llm = llmOf(project);
   const cfg = wikiConfigOf(project);
-  const key = project.projectName;
   const log = loggerOf(project, "QueryFsm");
 
-  // Flatten this tier's per-subject groups into the unique new sections to summarize.
-  const seen = new Set<string>();
-  const sections: EvidenceSection[] = [];
-  for (const group of ctx.groups) {
-    for (const ev of group.sections) {
-      const id = sectionId(ev.uri, ev.sectionKey);
-      if (seen.has(id)) continue;
-      seen.add(id);
-      sections.push(ev);
-    }
-  }
-
-  // Each section's evidence is its exhaustive 'details' (the fact source) plus its
-  // 'tables' rendered as markdown (answer-tier structured data) — both carried on the
-  // EvidenceSection, so no extra per-document read is needed.
-  const evidence = new Map<string, { details: string; tables?: string }>();
-  for (const ev of sections) {
-    const id = sectionId(ev.uri, ev.sectionKey);
-    const tables = ev.tables.length > 0 ? renderSectionTables(ev.tables) : undefined;
-    evidence.set(id, { details: ev.details, tables });
-  }
-  const evidenceOf = (ev: EvidenceSection) =>
-    evidence.get(sectionId(ev.uri, ev.sectionKey)) ?? { details: "" };
-
-  // Reserve room for the fixed per-call overhead (instructions + the question + <sources> scaffold)
-  // so the section content plus the prompt stays within the call budget.
-  const reserve = SUMMARIZE_PROMPT.length + req.question.length + 512;
-  const contentBudget = Math.max(SUMMARIZE_MIN_CONTENT_CHARS, SUMMARIZE_BATCH_CHARS - reserve);
-  const batches = batchSections(
-    sections,
-    (ev) => {
-      const e = evidenceOf(ev);
-      return e.details.length + (e.tables?.length ?? 0);
-    },
-    SUMMARIZE_BATCH_SIZE,
-    contentBudget,
-  );
-  log.info("summarize batches", {
-    sections: sections.length,
+  const candidateSections = ctx.candidates.map((c) => c.section);
+  const batches = await buildRollingBatches(project, candidateSections, ROLLING_CHAR_BUDGET);
+  log.info("rolling summarize batches", {
+    candidates: candidateSections.length,
     batches: batches.length,
-    contentBudget,
   });
+
   const startedAt = Date.now();
-  const results = await mapLimit(batches, SUMMARIZE_CONCURRENCY, async (batch, b) => {
-    // Group the batch's sections by document, render a title+summary header per document with its
-    // sections nested, and track each section ref's document for the single-document fact check.
-    const byDoc = new Map<string, EvidenceSection[]>();
-    for (const ev of batch) {
-      const list = byDoc.get(ev.uri) ?? [];
-      list.push(ev);
-      byDoc.set(ev.uri, list);
-    }
-    const refToUri = new Map<string, string>();
-    const docBlocks: string[] = [];
-    for (const [uri, evs] of byDoc) {
-      const pageSummary = await (await project.getProjectResource(uri))
-        ?.getAdapter(WikiPageSummary)
-        ?.get();
-      const docTitle = pageSummary?.title ?? uri;
-      // Group this document's retrieved sections under their parent chapter (document order),
-      // so each section carries its chapter's context; falls back to the document when unmapped.
-      const chapterOf = sectionChapters(pageSummary?.outline ?? []);
-      const chapters: {
-        title: string;
-        summary: string;
-        sections: {
-          ref: string;
-          title: string;
-          description: string;
-          details: string;
-          tables?: string;
-        }[];
-      }[] = [];
-      const byChapterKey = new Map<string, number>();
-      for (const ev of evs) {
-        const ref = toCanonical({ key, path: ev.uri, section: ev.sectionKey }, key);
-        refToUri.set(ref, ev.uri);
-        const ch = chapterOf.get(ev.sectionKey) ?? {
-          key: "_doc",
-          title: docTitle,
-          summary: pageSummary?.summary ?? "",
-        };
-        let idx = byChapterKey.get(ch.key);
-        if (idx === undefined) {
-          idx = chapters.length;
-          byChapterKey.set(ch.key, idx);
-          chapters.push({ title: ch.title, summary: ch.summary, sections: [] });
-        }
-        chapters[idx]?.sections.push({
-          ref,
-          title: ev.title,
-          description: ev.summary,
-          ...evidenceOf(ev),
-        });
-      }
-      docBlocks.push(
-        renderDocumentBlock({
-          title: docTitle,
-          summary: pageSummary?.summary ?? "",
-          chapters,
-        }),
-      );
-    }
+  const results = await mapLimit(batches, ROLLING_CONCURRENCY, async (batch, b) => {
     const { output, usage } = await timedGenerate(
       llm,
       log,
       progress,
       {
-        name: "summarize-batch",
+        name: "rolling-summarize",
         description:
-          "Extract question-specific, single-document grounded facts from each section's details and tables; cite each fact's section ref(s).",
-        model: cfg.modelFor("query"),
-        system: SUMMARIZE_PROMPT,
+          "Extract each candidate section's prompt-relevant facts from its raw content; skip non-relevant sections; cite each kept summary's section ref.",
+        // Cheap tier — the strong model is reserved for the final compose.
+        model: cfg.modelFor("queryFast"),
+        system: ROLLING_SUMMARIZE_PROMPT,
         input: {
-          request: `<question>\n${req.question}\n</question>\n\n<sources>\n${docBlocks.join("\n\n")}\n</sources>`,
+          request: `<question>\n${req.question}\n</question>\n\n<sources>\n${batch.payload}\n</sources>`,
         },
-        inputSchema: summarizeInputSchema,
-        outputSchema: summarizeSchema,
+        inputSchema: rollingSummarizeInputSchema,
+        outputSchema: rollingSummarizeSchema,
         strict: true,
       },
-      { batch: b + 1, of: batches.length, sections: batch.length },
+      { batch: b + 1, of: batches.length },
     );
-    // Mechanical grounding: drop uncited facts and cross-document facts (no conflation).
-    const facts: GroundedFact[] = filterGroundedFacts(output.facts, refToUri);
-    return { facts, usage };
+    // Mechanical grounding: keep only entries whose sectionRef is a section in this batch.
+    const facts: GroundedFact[] = [];
+    const kept: EvidenceSection[] = [];
+    for (const s of output.summaries) {
+      const section = batch.sections.get(s.sectionRef);
+      if (!section || !s.summary.trim()) continue;
+      facts.push({ statement: s.summary, citations: [s.sectionRef] });
+      kept.push(section);
+    }
+    return { facts, kept, usage };
   });
   logBatchTotals(
     log,
-    "summarize-batch",
-    cfg.modelFor("query"),
+    "rolling-summarize",
+    cfg.modelFor("queryFast"),
     startedAt,
     results.map((r) => r.usage),
   );
 
   ctx.addFacts(results.flatMap((r) => r.facts));
-  yield "summarized";
+  // The sections that produced a kept summary are the evidence (drives topics + citation verify).
+  await ctx.addEvidence(results.flatMap((r) => r.kept));
+  const total = ctx.facts.length;
+  log.info("rolling summaries", { kept: total, sections: ctx.evidence.length });
+  yield total > 0 ? "summarized" : "empty";
 };
 
-/** Whether any candidate sits in a not-yet-consumed tier (an escalation can still add evidence). */
-function tierRemaining(ctx: QueryContext): boolean {
-  return ctx.candidates.some((c) => tierOfScore(c.score) >= ctx.tier);
-}
-
 /**
- * Compose the grounded, cited answer from the grounded facts and judge whether the
- * gathered evidence actually answers the prompt. Sufficient → `answered`. Insufficient
- * with a lower retrieval tier still available → `insufficient` (escalate: re-enter
- * SelectSections). Insufficient with nothing left → accept the best-effort answer and
- * attach a caveat naming what's missing. Citations are filtered mechanically at `Verify`.
+ * Compose the grounded, cited answer from the rolling section summaries (strong model). Keeps only
+ * grounded claims; when the model reports the evidence is incomplete it attaches a caveat naming
+ * what's missing (no escalation — the relevance filter and its retrieval tiers are disabled).
+ * Citations are filtered mechanically at `Verify`. Yields `answered`.
  */
 export const RespondTrigger: QueryHandler = async function* (ctx) {
   const { project, request: req, progress } = ctx;
@@ -655,8 +523,8 @@ export const RespondTrigger: QueryHandler = async function* (ctx) {
   const { output: composed } = await timedGenerate(llm, log, progress, {
     name: "compose-answer",
     description:
-      "Answer the prompt as individually-cited claims from the grounded facts, and report whether the evidence sufficed.",
-    // The final answer uses the ADVANCED model; sections were pre-selected by the weak `queryFast`.
+      "Answer the prompt as individually-cited claims from the rolling section summaries, and report whether the evidence sufficed.",
+    // The final answer uses the ADVANCED model; rolling summaries were extracted by the weak `queryFast`.
     model: cfg.modelFor("queryStrong"),
     system: COMPOSE_PROMPT,
     input: {
@@ -668,20 +536,12 @@ export const RespondTrigger: QueryHandler = async function* (ctx) {
     outputSchema: composeSchema,
     strict: true,
     // Stream COMPLETED claims only (drop the in-progress last one) so each renders whole with its
-    // citations — char-by-char citation streaming would garble the [[…]] wrappers. Reset on escalate.
+    // citations — char-by-char citation streaming would garble the [[…]] wrappers.
     onPartial: (partial) => {
       const claims = (partial as { claims?: Parameters<typeof renderClaims>[0] }).claims ?? [];
       progress.setPartialText(renderClaims(claims.slice(0, -1)));
     },
   });
-
-  // Escalate before finalising: more evidence may still be gathered.
-  if (!composed.sufficient && tierRemaining(ctx)) {
-    log.info("escalating", { missing: composed.missing });
-    progress.setPartialText("");
-    yield "insufficient";
-    return;
-  }
 
   // Keep only grounded claims (each carries ≥1 citation); render them to the answer text.
   const grounded = composed.claims.filter((c) => c.citations.length > 0);

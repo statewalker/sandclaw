@@ -1,12 +1,17 @@
 import type { Project } from "@statewalker/workspace.core";
 import { WikiOutlierIndex, WikiTopicIndex } from "../../knowledge/indexes.js";
-import { WikiPageMeta, WikiPageSummary } from "../../knowledge/page-adapters.js";
-import type {
-  ChapterNode,
-  DetailTable,
-  DocumentMeta,
-  GlobalOutlier,
-  GlobalTopic,
+import {
+  ResourceTextContentCache,
+  WikiPageMeta,
+  WikiPageSummary,
+} from "../../knowledge/page-adapters.js";
+import {
+  type DocumentMeta,
+  type GlobalOutlier,
+  type GlobalTopic,
+  type SummaryNode,
+  summaryLeaves,
+  summaryPath,
 } from "../../knowledge/types.js";
 import type { SearchAdapter } from "../../search/index.js";
 import { parseWikiUri, toCanonical } from "../../uri/wiki-uri.js";
@@ -135,7 +140,7 @@ export async function hybridSearch(
   return out;
 }
 
-/** Build an evidence section from a page's summary: its routing fields plus answer-tier tables. */
+/** Build an evidence section from a page's summary tree: a leaf's routing fields (title + summary). */
 export async function evidenceFor(
   project: Project,
   uri: string,
@@ -144,16 +149,9 @@ export async function evidenceFor(
   const resource = await project.getProjectResource(uri);
   if (!resource) return undefined;
   const summary = await resource.requireAdapter(WikiPageSummary).get();
-  const section = summary?.sections.find((s) => s.key === sectionKey);
+  const section = summary ? summaryLeaves(summary).find((s) => s.key === sectionKey) : undefined;
   if (!section) return undefined;
-  return {
-    uri,
-    sectionKey,
-    title: section.title,
-    summary: section.summary,
-    details: section.details,
-    tables: section.tables,
-  };
+  return { uri, sectionKey, title: section.title, summary: section.summary };
 }
 
 /**
@@ -175,7 +173,7 @@ export async function orderEvidence(
   for (const [uri, list] of byDoc) {
     const resource = await project.getProjectResource(uri);
     const summary = await resource?.requireAdapter(WikiPageSummary).get();
-    const order = new Map(summary?.sections.map((s, i) => [s.key, i]) ?? []);
+    const order = new Map((summary ? summaryLeaves(summary) : []).map((s, i) => [s.key, i]));
     list.sort((a, b) => (order.get(a.sectionKey) ?? 0) - (order.get(b.sectionKey) ?? 0));
     out.push(...list);
   }
@@ -254,110 +252,110 @@ export function filterCitations(
   return { citations, caveats };
 }
 
-/** Map each section key to its leaf chapter (key/title/summary) by walking a document outline. */
-export function sectionChapters(
-  outline: ChapterNode[],
-): Map<string, { key: string; title: string; summary: string }> {
-  const map = new Map<string, { key: string; title: string; summary: string }>();
-  const walk = (nodes: ChapterNode[]): void => {
-    for (const n of nodes) {
-      if (n.sectionKeys) {
-        for (const k of n.sectionKeys)
-          map.set(k, { key: n.key, title: n.title, summary: n.summary });
-      }
-      if (n.children) walk(n.children);
+/**
+ * Build the rolling-summarization input: candidate sections grouped by document, each leaf
+ * rendered with its ancestor TOC path (root→…→leaf, each node's title + summary) as `<context>`
+ * and its raw `<content>` (sliced by the leaf's line range). Documents are split into
+ * char-budget-bounded batches; a document spanning a boundary repeats its `<document>` header in
+ * each batch (so every batch carries the document summary). Returns one rendered `<sources>`
+ * payload per batch plus the `(ref → EvidenceSection)` map for mechanical grounding.
+ */
+export interface RollingBatch {
+  /** The `<document>…</document>` blocks for this batch (concatenated). */
+  payload: string;
+  /** ref → EvidenceSection for every section rendered in this batch. */
+  sections: Map<string, EvidenceSection>;
+}
+
+/** XML-attribute-safe (drop quotes/newlines that would break a `title="…"`). */
+function attr(s: string): string {
+  return s.replace(/["\n\r]+/g, " ").trim();
+}
+
+export async function buildRollingBatches(
+  project: Project,
+  candidates: EvidenceSection[],
+  charBudget: number,
+): Promise<RollingBatch[]> {
+  const projectKey = project.projectName;
+  // Group candidates by document, first-seen order.
+  const byDoc = new Map<string, EvidenceSection[]>();
+  for (const c of candidates) {
+    const list = byDoc.get(c.uri) ?? [];
+    list.push(c);
+    byDoc.set(c.uri, list);
+  }
+
+  // Each document yields one or more `<document>` blocks (split when its sections exceed budget).
+  const docBlocks: { block: string; sections: Map<string, EvidenceSection> }[] = [];
+  for (const [uri, sectionList] of byDoc) {
+    const resource = await project.getProjectResource(uri);
+    const summary = await resource?.requireAdapter(WikiPageSummary).get();
+    if (!summary) continue;
+    const raw = (await resource?.requireAdapter(ResourceTextContentCache).getTextContent()) ?? "";
+    const lines = raw.split("\n");
+    const header = `<document title="${attr(summary.title)}">\n<document_summary>\n${summary.summary}\n</document_summary>`;
+    const headerCost = header.length + 16;
+
+    // Render each candidate leaf: ancestor path context (between root and leaf) + raw content.
+    const rendered = sectionList.flatMap((ev) => {
+      const leaf = summaryLeaves(summary).find((s) => s.key === ev.sectionKey);
+      if (!leaf) return [];
+      const path = summaryPath(summary, ev.sectionKey); // [root, …, leaf]
+      const ancestors: SummaryNode[] = path.slice(1, -1); // drop root (== document_summary) and the leaf
+      const context = ancestors
+        .map((a) => `<toc title="${attr(a.title)}">\n${a.summary}\n</toc>`)
+        .join("\n");
+      const content = lines.slice(leaf.startLine, leaf.endLine + 1).join("\n");
+      const ref = toCanonical({ key: projectKey, path: uri, section: ev.sectionKey }, projectKey);
+      const block = [
+        `<section ref="${ref}">`,
+        context ? `<context>\n${context}\n</context>` : "<context/>",
+        `<title>\n${ev.title}\n</title>`,
+        `<content>\n${content}\n</content>`,
+        "</section>",
+      ].join("\n");
+      return [{ ref, ev, block, cost: block.length + 8 }];
+    });
+
+    // Pack this document's sections into header-prefixed blocks that fit the budget.
+    let cur: typeof rendered = [];
+    let curCost = headerCost;
+    const flush = () => {
+      if (cur.length === 0) return;
+      const block = `${header}\n${cur.map((r) => r.block).join("\n")}\n</document>`;
+      docBlocks.push({ block, sections: new Map(cur.map((r) => [r.ref, r.ev])) });
+      cur = [];
+      curCost = headerCost;
+    };
+    for (const r of rendered) {
+      if (cur.length > 0 && curCost + r.cost > charBudget) flush();
+      cur.push(r);
+      curCost += r.cost;
     }
+    flush();
+  }
+
+  // Greedily pack `<document>` blocks into batches under the char budget.
+  const batches: RollingBatch[] = [];
+  let payload: string[] = [];
+  let sections = new Map<string, EvidenceSection>();
+  let size = 0;
+  const flushBatch = () => {
+    if (payload.length === 0) return;
+    batches.push({ payload: payload.join("\n\n"), sections });
+    payload = [];
+    sections = new Map();
+    size = 0;
   };
-  walk(outline);
-  return map;
-}
-
-/**
- * Render one document's slice of a summarize batch: a `<document>` block carrying the
- * document title + summary header, its retrieved sections grouped under their parent
- * `<chapter>` (title + summary), each section tagged with its `ref` (the citation token the
- * summarizer must cite), title, prior narrative description, and raw content. Grouping by
- * document keeps facts single-document; the chapter layer gives intra-document context. The
- * chapter wrapper is skipped when the only chapter just mirrors the document (a small
- * document's mechanical single-chapter outline) to avoid redundancy.
- */
-export function renderDocumentBlock(input: {
-  title: string;
-  summary: string;
-  chapters: {
-    title: string;
-    summary: string;
-    sections: {
-      ref: string;
-      title: string;
-      description: string;
-      details: string;
-      tables?: string;
-    }[];
-  }[];
-}): string {
-  const parts: string[] = [
-    `<document title="${input.title}">`,
-    `<document_summary>\n${input.summary}\n</document_summary>`,
-  ];
-  const flat = input.chapters.length === 1 && input.chapters[0]?.title === input.title;
-  for (const ch of input.chapters) {
-    if (!flat) {
-      parts.push(
-        `<chapter title="${ch.title}">`,
-        `<chapter_summary>\n${ch.summary}\n</chapter_summary>`,
-      );
-    }
-    for (const s of ch.sections) {
-      parts.push(
-        `<section ref="${s.ref}">`,
-        `<section_title>\n${s.title}\n</section_title>`,
-        `<section_summary>\n${s.description}\n</section_summary>`,
-      );
-      // The section's exhaustive facts are the fact source; tables carry its structured data.
-      parts.push(`<details>\n${s.details}\n</details>`);
-      if (s.tables) parts.push(`<tables>\n${s.tables}\n</tables>`);
-      parts.push("</section>");
-    }
-    if (!flat) parts.push("</chapter>");
+  for (const d of docBlocks) {
+    if (payload.length > 0 && size + d.block.length > charBudget) flushBatch();
+    payload.push(d.block);
+    for (const [ref, ev] of d.sections) sections.set(ref, ev);
+    size += d.block.length;
   }
-  parts.push("</document>");
-  return parts.join("\n");
-}
-
-/**
- * Render a section's tables as markdown — one `#### caption` heading followed by a
- * GitHub-flavoured markdown table (header row + separator + rows). Empty input
- * yields an empty string.
- */
-export function renderSectionTables(tables: DetailTable[]): string {
-  return tables
-    .map((t) => {
-      const header = `| ${t.columns.join(" | ")} |`;
-      const sep = `| ${t.columns.map(() => "---").join(" | ")} |`;
-      const rows = t.rows.map((r) => `| ${r.join(" | ")} |`);
-      return [`#### ${t.caption}`, header, sep, ...rows].join("\n");
-    })
-    .join("\n\n");
-}
-
-/**
- * Mechanically ground a summarize batch's returned facts: keep only citations supplied in the
- * batch (`refToUri` maps section ref → its document uri), drop a fact left with no valid citation,
- * and drop any fact whose citations span more than one document — so a cross-document conflation
- * cannot survive as a fact. Returns the surviving `{ statement, citations }` facts.
- */
-export function filterGroundedFacts(
-  rawFacts: { statement: string; citations: string[] }[],
-  refToUri: ReadonlyMap<string, string>,
-): { statement: string; citations: string[] }[] {
-  const out: { statement: string; citations: string[] }[] = [];
-  for (const f of rawFacts) {
-    const citations = f.citations.filter((c) => refToUri.has(c));
-    const docs = new Set(citations.map((c) => refToUri.get(c)));
-    if (citations.length > 0 && docs.size === 1) out.push({ statement: f.statement, citations });
-  }
-  return out;
+  flushBatch();
+  return batches;
 }
 
 /** A candidate section as offered to the relevance filter (no raw content — title + summary only). */

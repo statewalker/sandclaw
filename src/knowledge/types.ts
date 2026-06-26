@@ -16,19 +16,19 @@ export interface RawMeta {
 // ── L2 narrative summary (Summarizer) ──────────────────────────────────────
 
 /**
- * Bumped whenever the section data shape (summary/details/tables) or the prompt
- * that fills it changes. Stored on the summary/meta/embeddings artifacts and
- * checked alongside `sourceHash` so a schema change regenerates artifacts even
- * when the source bytes are unchanged. v1 = legacy RDF-graph era; v2 = the merged
- * summary + details + tables layer.
+ * Bumped whenever the summary-node shape or the prompt that fills it changes.
+ * Stored on the summary/meta/embeddings artifacts and checked alongside
+ * `sourceHash` so a schema change regenerates artifacts even when the source
+ * bytes are unchanged. v1 = legacy RDF-graph era; v2 = merged summary + details +
+ * tables layer; v3 = homogeneous SummaryNode tree (no details; tables deferred).
  */
-export const KNOWLEDGE_SCHEMA_VERSION = 2;
+export const KNOWLEDGE_SCHEMA_VERSION = 3;
 
 /**
  * A structured table of repetitive facts within a section (a source table, or an
- * enumeration of the same attributes across several objects). Cells are strings;
- * `caption` is the self-describing anchor `details` refers to. `columns` is a
- * document-local schema kept explicit so a future relation catalog can align it.
+ * enumeration of the same attributes across several objects). Cells are strings.
+ * Extracted by the deferred table-extraction stage and persisted in `tables.json`
+ * keyed by leaf section key — never inline on a {@link SummaryNode}.
  */
 export interface DetailTable {
   caption: string;
@@ -36,57 +36,95 @@ export interface DetailTable {
   rows: string[][];
 }
 
-/** One L2 section: a contiguous range of raw lines summarised as prose, with its exhaustive facts. */
-export interface SectionSummary {
-  /** Kebab-case slug; stable across re-ingests when the section is semantically the same. */
+/** A page's deferred-extracted tables, keyed by the leaf section key they belong to. */
+export type DocumentTables = Record<string, DetailTable[]>;
+
+/**
+ * One node of the document summary tree. Every node — leaf section, intermediate
+ * TOC item, and the document root — shares this shape. Leaves (no `children`) are
+ * the flat, addressable, citable section unit; internal nodes group their children
+ * and are NEVER citation targets. `startLine`/`endLine` span the node's descendants.
+ * The presence flags are leaf-only and drive the deferred table-extraction stage.
+ */
+export interface SummaryNode {
+  /** Kebab-case slug; stable across re-ingests when the node is semantically the same. */
   key: string;
   title: string;
-  /** 0-indexed inclusive line range in the raw text. */
+  /** Thematic abstract; on a leaf it states the section's main facts and flags tables/images. */
+  summary: string;
+  /** 0-indexed inclusive raw line range (spans all descendant leaves for an internal node). */
   startLine: number;
   endLine: number;
-  /** Thin thematic abstract — what the section is about and why it matters; never verbatim raw. */
-  summary: string;
-  /**
-   * Routing-tier exhaustive facts as markdown: every named entity (in full),
-   * date, identifier, figure, finding, condition, and a whole-block description of
-   * each table in `tables`. The fact-bearing layer that replaces the RDF graph.
-   */
-  details: string;
-  /** Answer-tier structured bulk data; loaded only when the section is selected. */
-  tables: DetailTable[];
+  /** Child nodes (TOC items or leaf sections). Absent/empty on a leaf. */
+  children?: SummaryNode[];
+  /** Leaf-only: the section's raw content holds table-like data (drives deferred extraction). */
+  hasTables?: boolean;
+  /** Leaf-only: short description of what that tabular data is about. */
+  tableHints?: string;
+  /** Leaf-only: the section's raw content contains images. */
+  hasImages?: boolean;
+  /** Leaf-only: short description of what those images depict. */
+  imageHints?: string;
 }
 
 /**
- * One node of a document outline: a chapter grouping a coherent run of sections, or
- * (recursively) sub-chapters. A grouping overlay — sections remain the flat, addressable,
- * citable unit; a chapter references its members by key and is NEVER a citation target.
+ * The L2 summary of a single source: the root {@link SummaryNode} (its `title`,
+ * `summary`, line range are the document's; its `children` are the top-level TOC
+ * items) plus persistence metadata.
  */
-export interface ChapterNode {
-  /** Stable, document-order key; for re-ingest stability only, not cited. */
-  key: string;
-  title: string;
-  summary: string;
-  /** Leaf chapter: the section keys it groups (mutually exclusive with `children`). */
-  sectionKeys?: string[];
-  /** Internal chapter: sub-chapters (recursion; mutually exclusive with `sectionKeys`). */
-  children?: ChapterNode[];
-}
-
-/** The L2 narrative summary of a single source. */
-export interface DocumentSummary {
+export interface DocumentSummary extends SummaryNode {
   uri: string;
   generated: string;
   /** SHA-256 of the source this summary was derived from (see {@link RawMeta}). */
   sourceHash: string;
-  /** Section-data schema version this summary was produced under (see {@link KNOWLEDGE_SCHEMA_VERSION}). */
+  /** Schema version this summary was produced under (see {@link KNOWLEDGE_SCHEMA_VERSION}). */
   schemaVersion: number;
+}
+
+/**
+ * A summarization checkpoint (`summary.tmp.json`): the leaf sections assembled by the
+ * block walk SO FAR, plus where to resume. Dumped after each block so an interrupted run
+ * (crash, error, kill) resumes from the last completed block instead of re-summarizing the
+ * whole document. Tied to `sourceHash` + `schemaVersion` so a stale draft is discarded.
+ */
+export interface SummaryDraft {
+  sourceHash: string;
+  schemaVersion: number;
+  /** Document title learned from the first block. */
   title: string;
-  /** Document-level abstract, derived from the top-level chapter summaries. */
-  summary: string;
-  /** The flat, addressable, citable sections covering the whole document. */
-  sections: SectionSummary[];
-  /** The document outline: top-level chapters grouping the sections (overlay; never cited). */
-  outline: ChapterNode[];
+  /** First block's document-level summary (the base for the tree root). */
+  baseSummary: string;
+  /** Leaf sections assembled so far, in document order. */
+  sections: SummaryNode[];
+  /** The 0-indexed line the next block must start at (the end of the last kept section + 1). */
+  nextStart: number;
+}
+
+/** In-document-order leaf sections of a node tree — the addressable/citable unit. */
+export function summaryLeaves(node: SummaryNode): SummaryNode[] {
+  return !node.children || node.children.length === 0
+    ? [node]
+    : node.children.flatMap(summaryLeaves);
+}
+
+/** Find any node by key (depth-first), or `undefined`. */
+export function findSummaryNode(node: SummaryNode, key: string): SummaryNode | undefined {
+  if (node.key === key) return node;
+  for (const child of node.children ?? []) {
+    const found = findSummaryNode(child, key);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/** Ancestor path root→…→node (inclusive) for `key`, or `[]` when not found. */
+export function summaryPath(root: SummaryNode, key: string): SummaryNode[] {
+  if (root.key === key) return [root];
+  for (const child of root.children ?? []) {
+    const sub = summaryPath(child, key);
+    if (sub.length > 0) return [root, ...sub];
+  }
+  return [];
 }
 
 // ── Section embeddings (Embedder) ──────────────────────────────────────────

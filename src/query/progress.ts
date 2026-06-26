@@ -1,15 +1,10 @@
-import type { DetailTable } from "../knowledge/types.js";
-
-/** A retrieved section: its routing fields (title + summary + details) plus its answer-tier tables. */
+/** A retrieved leaf section's routing fields. The raw content is sliced on demand at
+ * rolling-summarization time (by the section's line range), not carried here. */
 export interface EvidenceSection {
   uri: string;
   sectionKey: string;
   title: string;
   summary: string;
-  /** Exhaustive facts (markdown) — the routing/answer fact source replacing the old raw block. */
-  details: string;
-  /** Structured bulk data for this section; rendered into the answer-tier payload. */
-  tables: DetailTable[];
 }
 
 /** A topic/outlier class the answer's evidence touched, with its covering citations. */

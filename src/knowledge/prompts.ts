@@ -9,13 +9,16 @@ export function fillCorpusPurpose(prompt: string, corpusPurpose?: string): strin
   return prompt.split(CORPUS_PURPOSE_PLACEHOLDER).join(purpose);
 }
 
-/** L2 summarizer prompt: sections a block and, for each section, emits a thin
- * thematic summary plus its exhaustive facts (details) and structured data (tables). */
+/** L2 summarizer prompt: sections a block and, for each section, emits a
+ * fact-stating summary plus flags for table-like / image content. Cheap pass —
+ * exhaustive facts are NOT distilled here; the raw text is the fact source downstream,
+ * and structured tables are extracted later in a deferred stage. */
 export const SUMMARIZER_SYSTEM_PROMPT = `You are the L2 summarizer for an LLM-curated wiki.
 
-Your job: section a raw text source and, for EACH section, produce three things with
-DISTINCT, NON-OVERLAPPING jobs — a thin 'summary', the exhaustive 'details', and the
-structured 'tables'. Never state the same fact in both 'summary' and 'details'.
+Your job: section a raw text source and, for EACH section, produce a 'summary' that
+states the section's MAIN FACTS, plus flags noting whether the section holds table-like
+data or images. You do NOT transcribe tables and you do NOT produce an exhaustive
+fact dump — the raw text remains the fact source for later stages.
 
 SECTIONING:
 
@@ -30,48 +33,31 @@ SECTIONING:
    concise descriptive one). The document 'summary' is a 1–3 sentence abstract — the
    concatenation of section themes, not an independent claim.
 
-'summary' (THIN thematic abstract — the routing tier):
+'summary' (states the section's main facts — the routing tier):
 
-5. 1–3 sentences on what the section is ABOUT and why it matters — the argument, the
-   "so what". Name the central entity for orientation, but do NOT try to be
-   reconstructable from it: every figure/date/relation belongs in 'details', not here.
+5. 1–4 sentences capturing what the section establishes and its salient facts — the
+   central entities, the headline findings, the few figures that matter most, the "so
+   what". Enough that a reader can judge relevance and know what is here; NOT exhaustive
+   — do not attempt to list every entity, date, or number (the raw text holds those).
 6. NO introductory framing ("This section describes…"). Open directly with content.
-   NEVER quote raw verbatim.
+   NEVER quote raw verbatim and NEVER transcribe a table into the summary.
 
-'details' (EXHAUSTIVE facts — the evidence tier, markdown string):
+TABLE / IMAGE FLAGS (presence only — never the contents):
 
-7. State every fact a reader needs to reconstruct the section: every named entity,
-   date, identifier (ticker, ISIN, code), figure/metric, headline finding,
-   recommendation, threshold, and every explicit CONDITION or qualifier (e.g. "if NAV
-   falls below £100M, the fee waiver triggers"). Use prose and bullet lists.
-8. NAME ENTITIES IN FULL and disambiguated: full person name (first + last, plus a
-   disambiguating title) on FIRST mention; full organisation name on first mention (an
-   acronym may follow in parentheses); spell out places and products. Later mentions
-   may shorten. Use a consistent canonical form across the section. If the source only
-   gives a partial name, use what it gives — never invent a fuller one.
-9. For EACH table you emit in 'tables', include in 'details' a whole-block description:
-   the OBJECTS its rows stand for, the COLUMNS it captures with their unit, a one-line
-   reading of what it SHOWS, and any NOTABLE EXTREMES (min/max/outlier values) — refer
-   to the table by its caption. This lets the routing tier judge the table without its
-   rows.
-10. DROP bookkeeping: statistical-test noise (p-values, confidence intervals),
-    hyperparameters, intermediate calculation steps, and boilerplate. Stating a fact is
-    NOT "quoting raw" — copying passages is; do not copy passages.
-
-'tables' (STRUCTURED data — the answer tier):
-
-11. Put ALL structured / repetitive data of the section into 'tables': any source
-    table, and any enumeration of the SAME attributes across several objects (e.g.
-    holdings, quarterly returns, sector weights). Each table is { caption, columns,
-    rows }: a self-describing caption, column headers (with units where uniform), and
-    rows of string cells in column order. There is NO row limit — transcribe the data.
-12. A one-off fact about a single object stays in 'details' as a phrase, NOT a
-    one-row table. Use a table only when ≥2 rows share the columns.
-13. 'tables' is an empty array when the section has no structured data.
+7. Set 'hasTables' true when the section's content contains table-like / structured
+   tabular data: a source table, or an enumeration of the SAME attributes across
+   several objects (e.g. repeated measurements across samples, the same fields listed
+   for many items). When true, give a short 'tableHints' naming what that tabular data
+   is about (e.g. "measurements per sample over time"). Omit both when there is no
+   tabular data.
+8. Set 'hasImages' true when the section contains images, figures, or charts, with a
+   short 'imageHints' describing what they depict. Omit both when there are none.
+9. The flags are PRESENCE signals only — they drive a later structured-extraction
+   stage. Do NOT put table rows or image data into the summary.
 
 corpus purpose (steers level of detail per section): ${CORPUS_PURPOSE_PLACEHOLDER}
 
-On-corpus details get more space; off-corpus or tangential details get a one-line mention.
+On-corpus sections get a fuller summary; off-corpus or tangential ones get a one-liner.
 
 BLOCKS: you may receive only a BLOCK of a longer document — a contiguous slice of
 numbered lines, not necessarily the whole source. Section the lines you are given,
@@ -79,6 +65,25 @@ using their ABSOLUTE line numbers in [startLine, endLine]. When 'previousSection
 supplied, it summarises the section immediately before this block — use it for
 continuity, but do NOT re-output it. The final block's last section may run to the
 document end; an interior block's trailing lines may be re-summarised in a later block.`;
+
+/** Deferred table-extraction prompt: extract structured tables from one section's raw content. */
+export const TABLE_EXTRACT_SYSTEM_PROMPT = `You extract STRUCTURED TABLES from one section
+of a document, given its title, summary, and raw text content.
+
+Return every table-like dataset present in the content as { caption, columns, rows }:
+- 'caption': a self-describing name for what the table holds (the objects its rows stand for).
+- 'columns': column headers, including the unit where uniform (e.g. "Duration (ms)").
+- 'rows': one string cell per column, in column order; stringify numbers and dates.
+
+RULES:
+1. Include source tables AND enumerations of the SAME attributes across several objects
+   (e.g. repeated measurements across samples, the same fields listed for many items).
+   There is NO row limit — transcribe.
+2. A one-off fact about a single object is NOT a table; only emit a table when ≥2 rows
+   share the columns.
+3. Reconstruct tables faithfully from the raw text even when the layout is messy
+   (e.g. extracted PDF). Do not invent values not present in the content.
+4. Return an EMPTY 'tables' array when no reliable structured table is present.`;
 
 /** Document-outline chapter aggregation prompt: group consecutive members into chapters. */
 export const AGGREGATE_CHAPTERS_SYSTEM_PROMPT = `You organise a document's parts into a
@@ -161,8 +166,7 @@ Decide ONE action per candidate, naming it in 'candidateKey':
 RULES — these are load-bearing:
 
 1. Be conservative. Prefer attach over coin whenever meanings overlap. Treat
-   near-duplicates ("Fund performance" vs "Investment fund performance") as the
-   SAME class and attach.
+   near-duplicates ("User authentication" vs "User auth") as the SAME class and attach.
 2. Only ever 'attach' to options whose kind is "topic" (an index topic). To place
    under a grouping, 'coin' with that category's key as 'parentKey'.
 3. Generic names ONLY. "Company founders", not "Acme founders".

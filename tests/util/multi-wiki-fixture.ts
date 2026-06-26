@@ -30,8 +30,6 @@ const SUMMARY: DocumentSummaryOutput = {
       startLine: 0,
       endLine: 0,
       summary: "Acme is a company.",
-      details: "Acme is a company.",
-      tables: [],
     },
     {
       key: "founders",
@@ -39,8 +37,6 @@ const SUMMARY: DocumentSummaryOutput = {
       startLine: 1,
       endLine: 1,
       summary: "Someone founded Acme.",
-      details: "Someone founded Acme.",
-      tables: [],
     },
   ],
 };
@@ -66,6 +62,19 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
   switch (spec.name) {
     case "summarize-document":
       return out(SUMMARY);
+    case "aggregate-chapters":
+      // Group all members under one chapter (only reached when leaves exceed the fan-out).
+      return out({
+        chapters: [
+          {
+            title: "All",
+            summary: "All members.",
+            memberKeys: (spec.input as { members: { key: string }[] }).members.map((m) => m.key),
+          },
+        ],
+      });
+    case "extract-tables":
+      return out({ tables: [] });
     case "extract-document-meta":
       return out(META);
     case "reorganize-topics":
@@ -86,14 +95,10 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       const outliers = (spec.input as { availableOutliers: { key: string }[] }).availableOutliers;
       return out({ topicKeys: [], outlierKeys: outliers.map((o) => o.key) });
     }
-    case "section-select": {
-      const docs = (spec.input as { documents: { sections: { uri: string }[] }[] }).documents;
-      return out({ relevantUris: docs.flatMap((d) => d.sections.map((s) => s.uri)) });
-    }
-    case "summarize-batch": {
-      const sections = (spec.input as { request: string }).request;
-      const refs = [...sections.matchAll(REF_RE)].map((m) => m[1]);
-      return out({ facts: refs.map((r) => ({ statement: "fact", citations: [r] })) });
+    case "rolling-summarize": {
+      const sources = (spec.input as { request: string }).request;
+      const refs = [...sources.matchAll(REF_RE)].map((m) => m[1]);
+      return out({ summaries: refs.map((r) => ({ sectionRef: r, summary: "fact" })) });
     }
     case "compose-answer": {
       const claims = (

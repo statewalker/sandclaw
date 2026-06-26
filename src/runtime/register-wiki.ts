@@ -16,6 +16,8 @@ import {
   registerKnowledgeAdapters,
   reorganizeBuilder,
   summarizeBuilder,
+  summaryLeaves,
+  tableExtractorBuilder,
   topicCleanupBuilder,
 } from "../knowledge/index.js";
 import {
@@ -60,8 +62,9 @@ export interface WikiBuildOptions {
 
 /**
  * Wiki search blocks for the given embedding model/dimensionality: full-text over
- * each section's summary + raw text, with the section's precomputed embedding (read
- * from the Embedder's Arrow sidecar `embeddings.<model>.<dim>.arrow`) as the vector.
+ * each section's title + summary + raw text (the section's line range), with the
+ * section's precomputed embedding (read from the Embedder's Arrow sidecar
+ * `embeddings.<model>.<dim>.arrow`) as the vector.
  */
 export const wikiSearchBlocks: SearchBlocksProvider = async (
   resource: Resource,
@@ -78,11 +81,11 @@ export const wikiSearchBlocks: SearchBlocksProvider = async (
     model && dimensionality != null
       ? await resource.getAdapter(WikiPageEmbeddings)?.getVectors(model, dimensionality)
       : undefined;
-  return summary.sections.map((s): SearchBlock => {
+  return summaryLeaves(summary).map((s): SearchBlock => {
     const rawBlock = lines.slice(s.startLine, s.endLine + 1).join("\n");
     return {
       blockId: s.key,
-      text: `${s.summary}\n${rawBlock}`,
+      text: `${s.title}\n${s.summary}\n${rawBlock}`,
       embedding: vectors?.get(s.key),
     };
   });
@@ -145,6 +148,9 @@ export function createWikiBuilders(opts: WikiBuildOptions = {}): RegisteredBuild
     contentBuilder(),
     summarizeBuilder({ force }),
     metaBuilder({ force }),
+    // Deferred structured-table extraction — parallel to meta/embedder, off the
+    // search critical path; runs only on sections flagged as containing tables.
+    tableExtractorBuilder({ force }),
     embedderBuilder({ force }),
     // Embed each document's topics, then attribute them onto the topic DAG, then
     // automatically clean up scattered near-duplicate index topics.

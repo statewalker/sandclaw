@@ -5,7 +5,7 @@ import {
   ProjectBuilder,
   type RegisteredBuilder,
 } from "@statewalker/workspace.core";
-import { llmOf, wikiConfigOf } from "../llm/index.js";
+import { BuildTracer, llmOf, wikiConfigOf } from "../llm/index.js";
 import { toBatch } from "../util/batch.js";
 import { collectExistingClasses } from "./indexes.js";
 import { ResourceTextContentCache, WikiPageMeta, WikiPageSummary } from "./page-adapters.js";
@@ -17,6 +17,7 @@ import {
   type DocumentOutlier,
   type DocumentTopic,
   KNOWLEDGE_SCHEMA_VERSION,
+  summaryLeaves,
 } from "./types.js";
 
 /**
@@ -88,6 +89,8 @@ export function metaBuilder(opts: { force?: boolean } = {}): RegisteredBuilder {
       const log = loggerOf(project, META_BUILDER_ID);
       const llm = llmOf(project);
       const cfg = wikiConfigOf(project);
+      const tracer = new BuildTracer(log, META_BUILDER_ID);
+      const tracedLlm = tracer.wrap(llm);
       const system = fillCorpusPurpose(META_EXTRACTOR_SYSTEM_PROMPT, cfg.corpusPurpose);
       const existingClasses = await collectExistingClasses(project);
       const source = builder.readUpdates({
@@ -98,6 +101,7 @@ export function metaBuilder(opts: { force?: boolean } = {}): RegisteredBuilder {
         for (const emitted of await Promise.all(batch.map(handleEntry))) yield* emitted;
         if (!(await builder.yieldControl())) return false;
       }
+      tracer.totals();
       return true;
 
       async function handleEntry(u: BuilderUpdate): Promise<EmittedUpdate[]> {
@@ -115,19 +119,17 @@ export function metaBuilder(opts: { force?: boolean } = {}): RegisteredBuilder {
           let produced = false;
           if (resource && summary && (opts.force || !fresh)) {
             log.info("extracting meta", { uri: u.uri });
-            // The routing payload only: title + summary + per-section title/summary/details
-            // (NOT tables — those are answer-tier bulk the classifier does not need).
+            // The routing payload only: document title + summary + per-leaf title/summary.
             const routingSummary = {
               title: summary.title,
               summary: summary.summary,
-              sections: summary.sections.map((s) => ({
+              sections: summaryLeaves(summary).map((s) => ({
                 key: s.key,
                 title: s.title,
                 summary: s.summary,
-                details: s.details,
               })),
             };
-            const { output } = await llm.generateObject({
+            const { output } = await tracedLlm.generateObject({
               name: "extract-document-meta",
               description:
                 "Declare the topic and outlier classes covered by this document. Reuse existing class keys; copy their description verbatim. Mark outliers only when the source itself flags surprise.",

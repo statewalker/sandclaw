@@ -12,7 +12,6 @@ import {
   registerKnowledgeAdapters,
   summarizeBuilder,
   WikiPageMeta,
-  WikiPageSummary,
 } from "../../src/index.js";
 import { registerStubLlm } from "../util/stub-llm.js";
 
@@ -26,8 +25,6 @@ const SUMMARY: DocumentSummaryOutput = {
       startLine: 0,
       endLine: 1,
       summary: "What Acme does.",
-      details: "Acme Corporation makes widgets.",
-      tables: [],
     },
   ],
 };
@@ -116,7 +113,7 @@ describe("meta builder", () => {
     expect(meta?.topics.map((t) => t.key)).toEqual(["company-founders"]);
   });
 
-  it("feeds the meta extractor each section's details (routing payload), not its tables", async () => {
+  it("feeds the meta extractor each leaf's title + summary (routing payload), not details/tables", async () => {
     let metaInput: unknown;
     const gen: LlmApi["generateObject"] = async (spec) => {
       const usage = { inputTokens: 0, outputTokens: 0 };
@@ -140,63 +137,12 @@ describe("meta builder", () => {
     }
     const section = (metaInput as { summary: { sections: Record<string, unknown>[] } }).summary
       .sections[0];
-    expect(section).toMatchObject({ key: "overview", details: "Acme Corporation makes widgets." });
+    expect(section).toMatchObject({
+      key: "overview",
+      title: "Overview",
+      summary: "What Acme does.",
+    });
+    expect(section).not.toHaveProperty("details");
     expect(section).not.toHaveProperty("tables");
-  });
-});
-
-describe("summarizer details/tables", () => {
-  it("persists details + tables and drops malformed rows / empty tables", async () => {
-    const dirty: DocumentSummaryOutput = {
-      title: "Funds",
-      summary: "Fund returns.",
-      sections: [
-        {
-          key: "returns",
-          title: "Returns",
-          startLine: 0,
-          endLine: 1,
-          summary: "Quarterly returns by fund.",
-          details: "Returns range −2% to +7%; see the returns table.",
-          tables: [
-            {
-              caption: "Quarterly returns",
-              columns: ["Fund", "Return"],
-              rows: [
-                ["Innovators Fund One", "6.8%"],
-                ["Broken Row"], // wrong arity → dropped
-              ],
-            },
-            { caption: "Empty", columns: ["X"], rows: [] }, // empty → dropped
-          ],
-        },
-      ],
-    };
-    const gen: LlmApi["generateObject"] = async (spec) => {
-      const usage = { inputTokens: 0, outputTokens: 0 };
-      if (spec.name === "summarize-document") return { output: dirty as unknown as never, usage };
-      throw new Error(`unexpected call ${spec.name}`);
-    };
-    const project = (await newRepository(
-      { "proj/f.md": "Returns line one\nReturns line two." },
-      gen,
-    ).getProject("proj"))!;
-    const builder = project.requireAdapter(ProjectBuilder);
-    builder.registerBuilder(contentBuilder());
-    builder.registerBuilder(summarizeBuilder());
-    for await (const _ of builder.run()) {
-      // drain
-    }
-    const resource = (await project.getProjectResource("f.md"))!;
-    const summary = await resource.requireAdapter(WikiPageSummary).get();
-    const section = summary?.sections[0];
-    expect(section?.details).toContain("Returns range");
-    expect(section?.tables).toEqual([
-      {
-        caption: "Quarterly returns",
-        columns: ["Fund", "Return"],
-        rows: [["Innovators Fund One", "6.8%"]],
-      },
-    ]);
   });
 });
