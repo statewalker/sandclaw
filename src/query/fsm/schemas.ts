@@ -123,38 +123,6 @@ export const topicDescentSchema = z
   })
   .describe("Per-node relevance scores and which children to descend. Selection only.");
 
-// ── SectionFilter (relevance filter over one token-bounded, doc-grouped batch) ─
-export const sectionFilterInputSchema = z.object({
-  question: z.string().describe("The full original prompt."),
-  documents: z
-    .array(
-      z.object({
-        title: z.string().describe("Source document title."),
-        sections: z.array(
-          z.object({
-            uri: z
-              .string()
-              .describe(
-                "The section URI (`<docUri>#<sectionKey>`) — echo this verbatim to keep it.",
-              ),
-            title: z.string(),
-            summary: z.string().optional(),
-          }),
-        ),
-      }),
-    )
-    .describe("Candidate sections grouped by their source document."),
-});
-export const sectionFilterSchema = z
-  .object({
-    relevantUris: z
-      .array(z.string())
-      .describe(
-        "The URIs (verbatim) of sections that could plausibly contain facts answering the prompt. Drop sections unrelated to it; return an empty array when none qualify.",
-      ),
-  })
-  .describe("The relevant section URIs in this batch. Selection only — do not answer the prompt.");
-
 // ── RollingSummarize (one doc-grouped batch of raw sections → per-section summaries) ──
 export const rollingSummarizeInputSchema = z.object({
   /**

@@ -61,16 +61,6 @@ dropped, so do not score 0 for a plausibly-related grouping. For a CATEGORY you 
 here can never contribute. For an index topic (leaf), or a category not worth opening, leave
 \`descendKeys\` empty. Selection only — do not answer the subject.`;
 
-export const SECTION_SELECT_PROMPT = `You filter candidate wiki sections for relevance to a prompt. You
-receive the full original prompt and a batch of candidate sections grouped by their source document
-(document title, then each section's URI, title, and summary). Return the URIs — verbatim — of the
-sections that could plausibly contain facts that help answer the prompt. LEAN INCLUSIVE: keep every
-section whose title/summary indicates it bears on the prompt, INCLUDING supporting detail, context,
-and related specifics — completeness matters, and downstream stages extract only the relevant facts.
-Drop a section ONLY when its title/summary shows it does not bear on the prompt at all (e.g. it is
-merely from a relevant document but about a different matter). Return an empty array when none in this
-batch qualify. Selection only — do not answer the prompt.`;
-
 export const ROLLING_SUMMARIZE_PROMPT = `You extract prompt-relevant information from wiki sections, one section at a time.
 
 The input is ONE XML payload — use each part for its stated role ONLY:
@@ -86,7 +76,11 @@ The input is ONE XML payload — use each part for its stated role ONLY:
 For EACH <section>, decide whether its <content> contains anything relevant to <question>:
 - If it does, emit ONE entry in \`summaries\` with that section's \`sectionRef\` (verbatim) and a
   \`summary\` that captures ALL prompt-relevant information from the <content> — the concrete specifics
-  (full entity names, numbers, dates, relationships, conditions) a later stage needs.
+  (full entity names, numbers, dates, relationships, conditions) a later stage needs. Be EXHAUSTIVE
+  and over-inclusive: capture EVERY contribution that bears on the question, including SMALL, PARTIAL,
+  INDIRECT, or NEGATIVELY-FRAMED ones — e.g. a minor or secondary factor, an absence/omission, something
+  avoided or excluded, an adverse or detracting effect — even when the <content> frames it as slight or
+  secondary. The downstream stage decides what matters; your job is to miss nothing.
 - If the section has NOTHING relevant to the question, SKIP it entirely — emit no entry for it.
 
 RULES — load-bearing:

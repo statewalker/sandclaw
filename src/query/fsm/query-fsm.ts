@@ -16,7 +16,7 @@ export type QueryStateKey =
   | "Query"
   | "IntentDetection"
   | "Retrieve"
-  // | "SelectSections"  // relevance filter DISABLED (retained in handlers.ts for re-activation)
+  | "SelectSections"
   | "RollingSummarize"
   | "Respond"
   | "Verify"
@@ -26,11 +26,12 @@ export type QueryStateKey =
 /**
  * The query pipeline as a flat Finite State Machine.
  *
- * `IntentDetection → Retrieve → RollingSummarize → Respond → Verify → Response`,
+ * `IntentDetection → Retrieve → SelectSections → RollingSummarize → Respond → Verify → Response`,
  * with `NegativeResponse` reachable from `IntentDetection` (off-corpus), `Retrieve`
- * (no candidates), and `RollingSummarize` (no relevant summary kept). The relevance
- * filter (`SelectSections`) is DISABLED — its handler is retained in `handlers.ts`;
- * to re-enable, route `Retrieve→SelectSections→RollingSummarize` and restore its state.
+ * (no candidates), `SelectSections` (nothing relevant survived the filter), and
+ * `RollingSummarize` (no relevant summary kept). `SelectSections` is a single-pass
+ * relevance pre-filter that narrows the retrieved candidates BEFORE the expensive
+ * raw-content rolling summarization.
  *
  * Retrieval runs two front-ends in parallel inside the `Retrieve` handler — the
  * mechanical hybrid (FTS + vector) search and the LLM topic/doc-topic class
@@ -55,9 +56,10 @@ export const QUERY_FSM: FsmStateConfig = {
     ["*", "error", ""],
     ["IntentDetection", "onCorpus", "Retrieve"],
     ["IntentDetection", "offCorpus", "NegativeResponse"],
-    // Relevance filter disabled: retrieved candidates go straight to rolling summarization.
-    ["Retrieve", "gathered", "RollingSummarize"],
+    ["Retrieve", "gathered", "SelectSections"],
     ["Retrieve", "empty", "NegativeResponse"],
+    ["SelectSections", "selected", "RollingSummarize"],
+    ["SelectSections", "empty", "NegativeResponse"],
     ["RollingSummarize", "summarized", "Respond"],
     ["RollingSummarize", "empty", "NegativeResponse"],
     ["Respond", "answered", "Verify"],
@@ -84,9 +86,18 @@ export const QUERY_FSM: FsmStateConfig = {
       },
     },
     {
+      key: "SelectSections",
+      description:
+        "Single-pass relevance pre-filter (cheap model): keep only the retrieved sections whose title/summary bears on the prompt, narrowing the set before rolling summarization.",
+      events: {
+        selected: "At least one candidate section survived the filter.",
+        empty: "No candidate section bears on the prompt.",
+      },
+    },
+    {
       key: "RollingSummarize",
       description:
-        "Conditional rolling summarization over ALL retrieved candidates (cheap model): each section's raw content is summarized against the prompt; non-relevant sections are skipped.",
+        "Conditional rolling summarization over the filtered candidates (cheap model): each section's raw content is summarized against the prompt; non-relevant sections are skipped.",
       events: {
         summarized: "At least one prompt-relevant section summary was kept.",
         empty: "No candidate section carried anything relevant to the prompt.",

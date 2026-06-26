@@ -6,9 +6,9 @@ import {
   ResponseTrigger,
   RetrieveTrigger,
   RollingSummarizeTrigger,
+  SelectSectionsTrigger,
   VerifyTrigger,
 } from "./handlers.js";
-// `SelectSectionsTrigger` (relevance filter) is retained in handlers.ts but unwired — see query-fsm.ts.
 import type { Ctx, QueryHandler, QueryStateKey } from "./query-fsm.js";
 
 /**
@@ -20,6 +20,7 @@ const HANDLERS: Record<QueryStateKey, QueryHandler | undefined> = {
   Query: undefined,
   IntentDetection: IntentDetectionTrigger,
   Retrieve: RetrieveTrigger,
+  SelectSections: SelectSectionsTrigger,
   RollingSummarize: RollingSummarizeTrigger,
   Respond: RespondTrigger,
   Verify: VerifyTrigger,
@@ -31,6 +32,7 @@ const HANDLERS: Record<QueryStateKey, QueryHandler | undefined> = {
 const STAGE_FOR: Partial<Record<QueryStateKey, string>> = {
   IntentDetection: "intent",
   Retrieve: "retrieve",
+  SelectSections: "select-sections",
   RollingSummarize: "rolling-summarize",
   Respond: "respond",
   Verify: "verify",

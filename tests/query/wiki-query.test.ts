@@ -124,11 +124,6 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       ).availableOutliers.map((o) => o.key);
       return out({ topicKeys: [], outlierKeys });
     }
-    case "section-select": {
-      // Keep every candidate section in the batch.
-      const docs = (spec.input as { documents: { sections: { uri: string }[] }[] }).documents;
-      return out({ relevantUris: docs.flatMap((d) => d.sections.map((s) => s.uri)) });
-    }
     case "rolling-summarize": {
       const sources = (spec.input as { request: string }).request;
       foldSections.push(sources);
@@ -239,14 +234,14 @@ describe("WikiQuery — FSM-driven retrieval", () => {
     expect(new Set(keys).size).toBe(keys.length); // no duplicates
   });
 
-  it("fans retrieval out per subject; the relevance filter is disabled", async () => {
+  it("fans retrieval out per subject, then rolling-summarizes the pre-filtered candidates", async () => {
     intent = {
       onCorpus: true,
       subjects: [{ prompt: "Who founded Acme?" }, { prompt: "What is Acme?" }],
     };
     await project.requireAdapter(WikiQuery).ask("Acme + founders").complete();
-    // The topic descent runs once per subject; the relevance filter is disabled, so candidates
-    // go straight to rolling summarization (no section-select call).
+    // The topic descent runs once per subject; the rank-based pre-filter is mechanical (no LLM
+    // call), so candidates flow into rolling summarization without a section-select call.
     expect(calls["topic-descent"]).toBe(2);
     expect(calls["section-select"]).toBeUndefined();
     expect(calls["rolling-summarize"]).toBeGreaterThan(0);

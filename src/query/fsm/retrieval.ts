@@ -108,7 +108,7 @@ export async function hybridSearch(
   log: QueryLog,
   subject: Subject,
   paths?: string[],
-): Promise<{ uri: string; sectionKey: string }[]> {
+): Promise<{ uri: string; sectionKey: string; score: number }[]> {
   const ftsQueries = subject.ftsQueries.length > 0 ? subject.ftsQueries : [subject.prompt];
   const matches = await search.search({
     query: subject.semanticQuery,
@@ -116,14 +116,14 @@ export async function hybridSearch(
     modes: ["fts", "vector"],
     paths,
   });
-  const out: { uri: string; sectionKey: string }[] = [];
+  const out: { uri: string; sectionKey: string; score: number }[] = [];
   // Split the surfaced sections by provenance so the log shows which the full-text
   // ladder found vs which the semantic (vector) query found (a section may be both).
   const ftsSections: string[] = [];
   const vectorSections: string[] = [];
   for (const m of matches) {
     for (const s of m.sections) {
-      out.push({ uri: m.uri, sectionKey: s.sectionKey });
+      out.push({ uri: m.uri, sectionKey: s.sectionKey, score: s.score });
       const id = sectionId(m.uri, s.sectionKey);
       if (s.modes.includes("fts")) ftsSections.push(id);
       if (s.modes.includes("vector")) vectorSections.push(id);
@@ -355,51 +355,5 @@ export async function buildRollingBatches(
     size += d.block.length;
   }
   flushBatch();
-  return batches;
-}
-
-/** A candidate section as offered to the relevance filter (no raw content — title + summary only). */
-export interface FilterSection {
-  /** The section URI (`<docUri>#<sectionKey>`) the filter echoes back when it keeps the section. */
-  uri: string;
-  docUri: string;
-  docTitle: string;
-  title: string;
-  summary: string;
-}
-
-/** One document's slice of a filter batch: its title plus the candidate sections in that batch. */
-export interface FilterDoc {
-  docUri: string;
-  title: string;
-  sections: { uri: string; title: string; summary: string }[];
-}
-
-/**
- * Pack doc-grouped candidate sections into batches whose combined size stays under
- * `charBudget` (a token-window proxy at ~4 chars/token). Sections are consumed in the
- * given order, so order by score/document upstream; a document spanning a batch
- * boundary simply repeats its title in each batch.
- */
-export function packFilterBatches(sections: FilterSection[], charBudget: number): FilterDoc[][] {
-  const batches: FilterDoc[][] = [];
-  let cur = new Map<string, FilterDoc>();
-  let size = 0;
-  const flush = () => {
-    if (cur.size > 0) {
-      batches.push([...cur.values()]);
-      cur = new Map();
-      size = 0;
-    }
-  };
-  for (const s of sections) {
-    const cost = s.uri.length + s.title.length + s.summary.length + 16;
-    if (size > 0 && size + cost > charBudget) flush();
-    const doc = cur.get(s.docUri) ?? { docUri: s.docUri, title: s.docTitle, sections: [] };
-    doc.sections.push({ uri: s.uri, title: s.title, summary: s.summary });
-    cur.set(s.docUri, doc);
-    size += cost;
-  }
-  flush();
   return batches;
 }

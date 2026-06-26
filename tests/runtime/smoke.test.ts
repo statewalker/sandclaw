@@ -102,11 +102,6 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       const outliers = (spec.input as { availableOutliers: { key: string }[] }).availableOutliers;
       return out({ topicKeys: [], outlierKeys: outliers.map((o) => o.key) });
     }
-    case "section-select": {
-      // Keep every candidate section in the batch.
-      const docs = (spec.input as { documents: { sections: { uri: string }[] }[] }).documents;
-      return out({ relevantUris: docs.flatMap((d) => d.sections.map((s) => s.uri)) });
-    }
     case "rolling-summarize": {
       // Carry every marker in the batch into a summary so citations propagate.
       const sources = (spec.input as { request: string }).request;

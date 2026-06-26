@@ -129,10 +129,6 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
     }
     case "outlier-select":
       return out({ topicKeys: [], outlierKeys: [] });
-    case "section-select": {
-      const docs = (spec.input as { documents: { sections: { uri: string }[] }[] }).documents;
-      return out({ relevantUris: docs.flatMap((d) => d.sections.map((s) => s.uri)) });
-    }
     case "rolling-summarize": {
       const sources = (spec.input as { request: string }).request;
       const refs = [...sources.matchAll(REF_RE)].map((m) => m[1]);

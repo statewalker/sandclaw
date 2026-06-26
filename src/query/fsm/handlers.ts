@@ -1,6 +1,5 @@
 import { loggerOf, type Project } from "@statewalker/workspace.core";
 import { WikiTopicIndex } from "../../knowledge/indexes.js";
-import { WikiPageSummary } from "../../knowledge/page-adapters.js";
 import type { DocumentMeta } from "../../knowledge/types.js";
 import { type LlmApi, llmOf, type WikiLlmConfiguration, wikiConfigOf } from "../../llm/index.js";
 import { SearchAdapter } from "../../search/index.js";
@@ -11,21 +10,17 @@ import {
   COMPOSE_PROMPT,
   INTENT_DETECTION_PROMPT,
   ROLLING_SUMMARIZE_PROMPT,
-  SECTION_SELECT_PROMPT,
   TOPIC_SELECT_PROMPT,
 } from "./prompts.js";
-import type { Candidate, GroundedFact, Subject, SubjectGroup } from "./query-context.js";
+import type { Candidate, GroundedFact, Subject } from "./query-context.js";
 import type { QueryHandler } from "./query-fsm.js";
 import {
   aggregateClasses,
   buildDocTopicCandidates,
   buildRollingBatches,
   evidenceFor,
-  type FilterSection,
   filterCitations,
   hybridSearch,
-  orderEvidence,
-  packFilterBatches,
   readClassIndexes,
   sectionId,
   withinScope,
@@ -37,27 +32,15 @@ import {
   intentDetectionSchema,
   rollingSummarizeInputSchema,
   rollingSummarizeSchema,
-  sectionFilterInputSchema,
-  sectionFilterSchema,
   topicSelectInputSchema,
   topicSelectSchema,
 } from "./schemas.js";
 import { topicDescent } from "./topic-descent.js";
 
-/** Char budget per relevance-filter batch (token-window proxy at ~4 chars/token). */
-const FILTER_CHAR_BUDGET = 16_000;
-
 /** Char budget for one rolling-summarization batch's `<sources>` payload (raw content + scaffolding). */
 const ROLLING_CHAR_BUDGET = 20_000;
 /** Max rolling-summarization calls in flight at once. */
 const ROLLING_CONCURRENCY = 5;
-
-/**
- * Retrieval-score ladder used by the (currently disabled) relevance filter: tier 0 = sections
- * found by BOTH front-ends (the high-confidence intersection), tier 1 = the single-front-end
- * remainder. Retained for re-activating `SelectSections`.
- */
-const TIER_SCORES = [2, 1] as const;
 
 /** Render answer claims to prose: each statement followed by its `[[ref]]` citations. Partial-safe
  * (fields may be missing mid-stream); skips empty entries. */
@@ -212,22 +195,35 @@ export const RetrieveTrigger: QueryHandler = async function* (ctx) {
   const log = loggerOf(project, "QueryFsm");
   const metaCache = new Map<string, DocumentMeta | undefined>();
 
-  // Per unique section, track which front-ends surfaced it (→ score) and which
-  // subjects it served (→ summary grouping). Both front-ends ⇒ a stronger signal.
+  // Per unique section, track which front-ends surfaced it (→ score), the best
+  // hybrid-search RRF score it earned (→ rank-based pre-filter), and which subjects
+  // it served (→ summary grouping). Both front-ends ⇒ a stronger signal.
   const signal = new Map<
     string,
-    { uri: string; sectionKey: string; fronts: Set<string>; subjects: Set<number> }
+    {
+      uri: string;
+      sectionKey: string;
+      fronts: Set<string>;
+      searchScore: number;
+      subjects: Set<number>;
+    }
   >();
-  const record = (hits: { uri: string; sectionKey: string }[], front: string, subject: number) => {
+  const record = (
+    hits: { uri: string; sectionKey: string; score?: number }[],
+    front: string,
+    subject: number,
+  ) => {
     for (const h of hits) {
       const id = sectionId(h.uri, h.sectionKey);
       const e = signal.get(id) ?? {
         uri: h.uri,
         sectionKey: h.sectionKey,
         fronts: new Set<string>(),
+        searchScore: 0,
         subjects: new Set<number>(),
       };
       e.fronts.add(front);
+      if (h.score !== undefined) e.searchScore = Math.max(e.searchScore, h.score);
       e.subjects.add(subject);
       signal.set(id, e);
     }
@@ -255,12 +251,16 @@ export const RetrieveTrigger: QueryHandler = async function* (ctx) {
   const candidates: Candidate[] = [];
   entries.forEach((e, i) => {
     const section = resolved[i];
-    if (section) candidates.push({ section, score: e.fronts.size, subjects: [...e.subjects] });
+    if (section)
+      candidates.push({
+        section,
+        score: e.fronts.size,
+        searchScore: e.searchScore,
+        subjects: [...e.subjects],
+      });
   });
 
   ctx.setCandidates(candidates);
-  // The escalation accumulators (tier/evidence/summaries) start from their QueryContext
-  // defaults; Retrieve runs once before the SelectSections → Respond loop, so no reset.
   progress.evidence = candidates.map((c) => c.section);
   // Collect the section keys retrieved per document so the log shows exactly which
   // sections were found, not just a count.
@@ -282,162 +282,44 @@ export const RetrieveTrigger: QueryHandler = async function* (ctx) {
   yield candidates.length > 0 ? "gathered" : "empty";
 };
 
-/**
- * The relevance filter over a candidate set: order by score (both-front-end first),
- * pack document-grouped into token-bounded batches, and run one lightweight-model
- * filter call per batch IN PARALLEL. Returns the surviving candidates (those whose
- * URI a batch echoed back).
- */
-async function filterByRelevance(
-  project: Project,
-  llm: LlmApi,
-  cfg: WikiLlmConfiguration,
-  progress: QueryProgress,
-  question: string,
-  candidates: Candidate[],
-): Promise<Candidate[]> {
-  if (candidates.length === 0) return [];
-  const byId = new Map(candidates.map((c) => [sectionId(c.section.uri, c.section.sectionKey), c]));
-
-  // Document titles for the doc-grouped filter input (one read per document).
-  const docTitle = new Map<string, string>();
-  for (const uri of new Set(candidates.map((c) => c.section.uri))) {
-    const summary = await (await project.getProjectResource(uri))
-      ?.getAdapter(WikiPageSummary)
-      ?.get();
-    docTitle.set(uri, summary?.title ?? uri);
-  }
-
-  // High-signal documents (best section score) first; keep each document contiguous.
-  const docMax = new Map<string, number>();
-  for (const c of candidates) {
-    docMax.set(c.section.uri, Math.max(docMax.get(c.section.uri) ?? 0, c.score));
-  }
-  const ordered = [...candidates].sort(
-    (a, b) =>
-      (docMax.get(b.section.uri) ?? 0) - (docMax.get(a.section.uri) ?? 0) ||
-      a.section.uri.localeCompare(b.section.uri) ||
-      b.score - a.score,
-  );
-  const filterSections: FilterSection[] = ordered.map((c) => ({
-    uri: sectionId(c.section.uri, c.section.sectionKey),
-    docUri: c.section.uri,
-    docTitle: docTitle.get(c.section.uri) ?? c.section.uri,
-    title: c.section.title,
-    summary: c.section.summary,
-  }));
-  const batches = packFilterBatches(filterSections, FILTER_CHAR_BUDGET);
-
-  const log = loggerOf(project, "QueryFsm");
-  const model = cfg.modelFor("queryFast");
-  const startedAt = Date.now();
-  const results = await Promise.all(
-    batches.map((documents, i) =>
-      timedGenerate(
-        llm,
-        log,
-        progress,
-        {
-          name: "section-select",
-          description:
-            "Keep only the candidate sections in this batch that could answer the prompt.",
-          model,
-          system: SECTION_SELECT_PROMPT,
-          input: {
-            question,
-            documents: documents.map((d) => ({ title: d.title, sections: d.sections })),
-          },
-          inputSchema: sectionFilterInputSchema,
-          outputSchema: sectionFilterSchema,
-          strict: true,
-        },
-        { batch: i + 1, of: batches.length },
-      ),
-    ),
-  );
-  logBatchTotals(
-    log,
-    "section-select",
-    model,
-    startedAt,
-    results.map((r) => r.usage),
-  );
-  const selected = new Set(
-    results.flatMap((r) => r.output.relevantUris).filter((uri) => byId.has(uri)),
-  );
-  return candidates.filter((c) => selected.has(sectionId(c.section.uri, c.section.sectionKey)));
-}
+/** Cap on the rank-based pre-filter: keep at most this many top-scored single-front-end sections. */
+const SELECT_TOP_N = 40;
 
 /**
- * Consume the next escalation tier (score 2 first, then score 1), relevance-filter
- * its candidates, group the survivors by subject, and APPEND them to the running
- * evidence union — `ctx.groups` carries only THIS tier's delta for Summarize to
- * fold. Skips empty tiers. Yields `selected` (a tier was consumed) or `empty` (no
- * candidate anywhere). Re-entered from Respond when more evidence is needed.
+ * Mechanical, rank-based relevance pre-filter that narrows the retrieved candidates BEFORE the
+ * expensive raw-content rolling summarization — WITHOUT an LLM summary filter.
+ *
+ * Sections surfaced by BOTH front-ends (hybrid search AND the topic ladder, `score >= 2`) are
+ * kept unconditionally: their dual agreement is a strong signal. The single-front-end remainder is
+ * ranked by its hybrid-search RRF score and the top {@link SELECT_TOP_N} kept. Ranking on the
+ * search score (NOT a model re-reading the summary) is what keeps the answer section: full-text
+ * search indexes the RAW content, so a section whose summary omits the queried entity/figure still
+ * scores — whereas a summary-based LLM filter drops exactly those. Survivors replace
+ * `ctx.candidates`. Yields `selected` when any survive, else `empty`.
  */
 export const SelectSectionsTrigger: QueryHandler = async function* (ctx) {
-  const { project, request: req, progress } = ctx;
-  const llm = llmOf(project);
-  const cfg = wikiConfigOf(project);
-  const { subjects } = ctx.intent;
-  const candidates = ctx.candidates;
-
-  // Advance to the next tier that actually has candidates (no LLM call for empty tiers).
-  let tierCands: Candidate[] = [];
-  while (ctx.tier < TIER_SCORES.length) {
-    const cands = candidates.filter((c) => c.score === TIER_SCORES[ctx.tier]);
-    ctx.advanceTier();
-    if (cands.length > 0) {
-      tierCands = cands;
-      break;
-    }
-  }
-  const tier = ctx.tier;
-
-  if (tierCands.length === 0) {
-    // No further candidates. Keep prior evidence (if any) for a best-effort answer.
-    ctx.setGroups([]);
-    const total = ctx.evidence.length;
-    loggerOf(project, "QueryFsm").info("selected sections", { tier, added: 0, total });
-    yield total > 0 ? "selected" : "empty";
-    return;
-  }
-
-  const survivors = await filterByRelevance(project, llm, cfg, progress, req.question, tierCands);
-
-  // Group THIS tier's survivors by the subject(s) that retrieved them (the delta).
-  const bySubject = new Map<number, EvidenceSection[]>();
-  for (const c of survivors) {
-    for (const s of c.subjects) {
-      const list = bySubject.get(s) ?? [];
-      list.push(c.section);
-      bySubject.set(s, list);
-    }
-  }
-  const groups: SubjectGroup[] = [];
-  for (const [i, sections] of [...bySubject.entries()].sort((a, b) => a[0] - b[0])) {
-    const prompt = subjects[i]?.prompt;
-    if (!prompt || sections.length === 0) continue;
-    groups.push({ prompt, sections: await orderEvidence(project, sections) });
-  }
-  ctx.setGroups(groups);
-
-  // Accumulate the selected union across tiers (drives topics + citation verify);
-  // addEvidence re-orders the union and keeps progress.evidence in sync.
-  await ctx.addEvidence(survivors.map((c) => c.section));
+  const { project } = ctx;
+  const before = ctx.candidates.length;
+  const trusted = ctx.candidates.filter((c) => c.score >= 2);
+  const ranked = ctx.candidates
+    .filter((c) => c.score < 2)
+    .sort((a, b) => b.searchScore - a.searchScore)
+    .slice(0, SELECT_TOP_N);
+  const survivors = [...trusted, ...ranked];
+  ctx.setCandidates(survivors);
   loggerOf(project, "QueryFsm").info("selected sections", {
-    tier,
-    tierCandidates: tierCands.length,
-    added: survivors.length,
-    total: ctx.evidence.length,
-    subjects: groups.length,
+    candidates: before,
+    trusted: trusted.length,
+    rankedKept: ranked.length,
+    kept: survivors.length,
+    keptSections: survivors.map((c) => sectionId(c.section.uri, c.section.sectionKey)),
   });
-  yield "selected";
+  yield survivors.length > 0 ? "selected" : "empty";
 };
 
 /**
- * Conditional rolling summarization: over ALL retrieved candidate sections (the relevance filter
- * is disabled), render each leaf's raw content within its ancestor TOC path, grouped by document
+ * Conditional rolling summarization: over the relevance-filtered candidate sections, render each
+ * leaf's raw content within its ancestor TOC path, grouped by document
  * (each batch repeats the document summary), and in a SEPARATE call per batch (≤ ROLLING_CONCURRENCY
  * in parallel, cheap model) summarize each section AGAINST the prompt. A section with nothing
  * relevant is skipped — no entry, no citation. Each kept summary becomes a single-section grounded
@@ -502,7 +384,11 @@ export const RollingSummarizeTrigger: QueryHandler = async function* (ctx) {
   // The sections that produced a kept summary are the evidence (drives topics + citation verify).
   await ctx.addEvidence(results.flatMap((r) => r.kept));
   const total = ctx.facts.length;
-  log.info("rolling summaries", { kept: total, sections: ctx.evidence.length });
+  log.info("rolling summaries", {
+    kept: total,
+    sections: ctx.evidence.length,
+    keptSections: ctx.evidence.map((e) => sectionId(e.uri, e.sectionKey)),
+  });
   yield total > 0 ? "summarized" : "empty";
 };
 

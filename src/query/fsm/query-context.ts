@@ -46,21 +46,16 @@ export interface GroundedFact {
   citations: string[];
 }
 
-/** One subject's relevant evidence sections, document-ordered, after the section filter. */
-export interface SubjectGroup {
-  /** The subject prompt this group serves (steers its rolling summary). */
-  prompt: string;
-  sections: EvidenceSection[];
-}
-
 /**
  * A retrieved section before the relevance filter: the resolved evidence plus its
  * retrieval signal — `score` (how many front-ends surfaced it: 1, or 2 when both
- * hybrid search AND the topic ladder did) and the subject indices it served.
+ * hybrid search AND the topic ladder did), `searchScore` (the best RRF-fused hybrid-search
+ * score, 0 when only the topic ladder surfaced it), and the subject indices it served.
  */
 export interface Candidate {
   section: EvidenceSection;
   score: number;
+  searchScore: number;
   subjects: number[];
 }
 
@@ -85,12 +80,8 @@ export class QueryContext {
   // ── per-query data (default-initialized; produced by a stage, read by later ones) ──
   #intent: IntentResult = EMPTY_INTENT;
   #candidates: Candidate[] = [];
-  /** Next score-tier index SelectSections will consume (0 = both front-ends, then 1 = the rest). */
-  #tier = 0;
-  /** The selected-section union so far, accumulated across tiers. */
+  /** The evidence-section union (sections that produced a kept rolling summary). */
   #evidence: EvidenceSection[] = [];
-  /** THIS tier's newly-selected sections grouped by subject (set by SelectSections; folded by Summarize). */
-  #groups: SubjectGroup[] = [];
   #facts: GroundedFact[] = [];
   #answer: Answer = EMPTY_ANSWER;
 
@@ -108,21 +99,6 @@ export class QueryContext {
     this.#candidates = candidates;
   }
 
-  get tier(): number {
-    return this.#tier;
-  }
-  /** Advance to the next retrieval tier. */
-  advanceTier(): void {
-    this.#tier += 1;
-  }
-
-  get groups(): SubjectGroup[] {
-    return this.#groups;
-  }
-  setGroups(groups: SubjectGroup[]): void {
-    this.#groups = groups;
-  }
-
   get evidence(): EvidenceSection[] {
     return this.#evidence;
   }
@@ -135,7 +111,7 @@ export class QueryContext {
   get facts(): GroundedFact[] {
     return this.#facts;
   }
-  /** Append this tier's fresh grounded facts to the accumulated list. */
+  /** Append the rolling stage's fresh grounded facts to the accumulated list. */
   addFacts(facts: GroundedFact[]): void {
     this.#facts = [...this.#facts, ...facts];
   }
