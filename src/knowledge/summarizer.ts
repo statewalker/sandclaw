@@ -167,8 +167,11 @@ function spanOf(nodes: SummaryNode[]): { startLine: number; endLine: number } {
 
 /**
  * One bottom-up aggregation round: group ordered member nodes into coherent, contiguous TOC
- * nodes whose `children` ARE the grouped members. Each new node's line range spans its children.
- * Members an LLM fails to place are dropped from a node; a node left with no children is dropped.
+ * nodes whose `children` ARE the grouped members. The LLM only chooses cut points (`memberCount`
+ * per chapter); members are sliced left-to-right in document order, so reordering or interleaving
+ * is structurally impossible. Counts are clamped to never overrun, and any members left after the
+ * last chapter (undershoot) are folded into it — guaranteeing every member lands in exactly one
+ * node, in order. Each new node's line range spans its children.
  */
 async function aggregateLevel(
   llm: LlmApi,
@@ -185,22 +188,28 @@ async function aggregateLevel(
     inputSchema: aggregateChaptersInputSchema,
     outputSchema: aggregateChaptersSchema,
   });
-  const byKey = new Map(members.map((m) => [m.key, m]));
-  const nodes = output.chapters
-    .map((c): SummaryNode | undefined => {
-      const children = c.memberKeys
-        .map((k) => byKey.get(k))
-        .filter((n): n is SummaryNode => n !== undefined);
-      if (children.length === 0) return undefined;
-      return {
-        key: slugify(c.title),
-        title: c.title,
-        summary: c.summary,
-        ...spanOf(children),
-        children,
-      };
-    })
-    .filter((n): n is SummaryNode => n !== undefined);
+  const nodes: SummaryNode[] = [];
+  let cursor = 0;
+  for (const c of output.chapters) {
+    if (cursor >= members.length) break; // overshoot: ignore extra chapters
+    const count = Math.min(Math.max(1, c.memberCount), members.length - cursor);
+    const children = members.slice(cursor, cursor + count);
+    cursor += count;
+    nodes.push({ key: slugify(c.title), title: c.title, summary: c.summary, ...spanOf(children) });
+    (nodes[nodes.length - 1] as SummaryNode).children = children;
+  }
+  // Undershoot: fold any remaining members into the last chapter (preserve order + full coverage).
+  if (cursor < members.length) {
+    const rest = members.slice(cursor);
+    const last = nodes[nodes.length - 1];
+    if (last?.children) {
+      last.children.push(...rest);
+      Object.assign(last, spanOf(last.children));
+    } else {
+      nodes.push({ key: slugify("chapter"), title: "Chapter", summary: "", ...spanOf(rest) });
+      (nodes[nodes.length - 1] as SummaryNode).children = rest;
+    }
+  }
   return dedupeKeys(nodes);
 }
 

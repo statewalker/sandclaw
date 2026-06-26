@@ -93,7 +93,10 @@ is a semantically coherent, CONTIGUOUS run of members (never reorder; never spli
 
 RULES — load-bearing:
 1. Every member MUST belong to exactly one chapter; chapters partition the members in order.
-2. 'memberKeys' lists the grouped members' keys VERBATIM, contiguous in the given order.
+2. 'memberCount' is how many of the remaining members (in the given order) the chapter consumes.
+   The counts apply left-to-right: chapter 1 takes the first 'memberCount' members, chapter 2 the
+   next, and so on until every member is consumed. You only choose where the cuts fall — never
+   reorder or split a member, and make the counts sum to the total number of members.
 3. 'summary' is a 1–2 sentence synthesis of the chapter's members — not a list of them.
 4. Aim for a handful of chapters; group finely-related members together rather than making
    one chapter per member.

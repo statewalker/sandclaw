@@ -194,11 +194,7 @@ describe("buildTree — homogeneous summary node tree", () => {
         const chapters = [];
         for (let i = 0; i < members.length; i += 2) {
           const grp = members.slice(i, i + 2);
-          chapters.push({
-            title: `Ch${i}`,
-            summary: `csum${i}`,
-            memberKeys: grp.map((m) => m.key),
-          });
+          chapters.push({ title: `Ch${i}`, summary: `csum${i}`, memberCount: grp.length });
         }
         return { output: { chapters } as never, usage };
       },
@@ -209,5 +205,42 @@ describe("buildTree — homogeneous summary node tree", () => {
     expect(root.children).toBeDefined();
     // The root's children are TOC nodes that themselves have children (the leaves/sub-nodes).
     expect(root.children?.[0]?.children).toBeDefined();
+  });
+
+  it("groups only contiguous members in document order (run-length, never reorders)", async () => {
+    // The model returns run-length counts only — grouping is positional, so reordering is
+    // structurally impossible regardless of what the model "intends".
+    const llm = {
+      generateObject: async (spec: { input: unknown }) => {
+        const members = (spec.input as { members: unknown[] }).members;
+        const chapters = [];
+        for (let i = 0; i < members.length; i += 2) {
+          chapters.push({
+            title: `Ch${i}`,
+            summary: `c${i}`,
+            memberCount: Math.min(2, members.length - i),
+          });
+        }
+        return { output: { chapters } as never, usage };
+      },
+    } as unknown as LlmApi;
+    const root = await buildTree(llm, cfg(2), "sys", "Doc", "base", sections(5));
+    // DFS: every node's children are strictly ascending by startLine; leaves stay in order.
+    const leaves: number[] = [];
+    const walk = (n: { startLine: number; children?: { startLine: number }[] }) => {
+      const kids = n.children as { startLine: number; children?: never }[] | undefined;
+      if (!kids?.length) {
+        leaves.push(n.startLine);
+        return;
+      }
+      let prev = -1;
+      for (const k of kids) {
+        expect(k.startLine).toBeGreaterThan(prev);
+        prev = k.startLine;
+        walk(k);
+      }
+    };
+    walk(root);
+    expect(leaves).toEqual([0, 1, 2, 3, 4]);
   });
 });

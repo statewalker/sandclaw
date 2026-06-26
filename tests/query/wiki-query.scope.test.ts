@@ -77,7 +77,7 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
           {
             title: "All",
             summary: "All members.",
-            memberKeys: (spec.input as { members: { key: string }[] }).members.map((m) => m.key),
+            memberCount: (spec.input as { members: unknown[] }).members.length,
           },
         ],
       });

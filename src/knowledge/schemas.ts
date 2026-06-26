@@ -148,19 +148,23 @@ export const aggregateChaptersSchema = z
           summary: z
             .string()
             .describe("1–2 sentence chapter summary, synthesised from its members' summaries."),
-          memberKeys: z
-            .array(z.string())
+          memberCount: z
+            .number()
+            .int()
             .min(1)
             .describe(
-              "The member keys (verbatim) this chapter groups — a contiguous run in document order.",
+              "How many of the remaining members, in document order, this chapter consumes. The chapters' counts partition ALL members left-to-right — members are never reordered or split.",
             ),
         }),
       )
+      .min(1)
       .describe(
-        "Chapters grouping ALL supplied members into coherent, contiguous runs (every member in exactly one chapter).",
+        "Chapters partitioning ALL supplied members into contiguous runs, in order: the first chapter takes the first `memberCount` members, the next takes the following `memberCount`, and so on until every member is consumed.",
       ),
   })
-  .describe("One chapter-aggregation round: a coherent grouping of the supplied members.");
+  .describe(
+    "One chapter-aggregation round: a coherent, in-order grouping of the supplied members.",
+  );
 
 // ── Deferred table extraction (per flagged leaf section) ─────────────────────
 
