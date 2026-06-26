@@ -8,6 +8,7 @@ import {
 import { CONTENT_SIGNAL } from "../content/index.js";
 import {
   BuildTracer,
+  buildSessionOf,
   type LlmApi,
   llmOf,
   type WikiLlmConfiguration,
@@ -250,7 +251,7 @@ export function summarizeBuilder(opts: { force?: boolean } = {}): RegisteredBuil
       const log = loggerOf(project, SUMMARIZE_BUILDER_ID);
       const llm = llmOf(project);
       const cfg = wikiConfigOf(project);
-      const tracer = new BuildTracer(log, SUMMARIZE_BUILDER_ID);
+      const tracer = new BuildTracer(log, SUMMARIZE_BUILDER_ID, buildSessionOf(project));
       const tracedLlm = tracer.wrap(llm);
       const system = fillCorpusPurpose(SUMMARIZER_SYSTEM_PROMPT, cfg.corpusPurpose);
       const chapterSystem = fillCorpusPurpose(AGGREGATE_CHAPTERS_SYSTEM_PROMPT, cfg.corpusPurpose);

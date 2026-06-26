@@ -5,7 +5,7 @@ import {
   ProjectBuilder,
   type RegisteredBuilder,
 } from "@statewalker/workspace.core";
-import { BuildTracer, llmOf, wikiConfigOf } from "../llm/index.js";
+import { BuildTracer, buildSessionOf, llmOf, wikiConfigOf } from "../llm/index.js";
 import { toBatch } from "../util/batch.js";
 import { collectExistingClasses } from "./indexes.js";
 import { ResourceTextContentCache, WikiPageMeta, WikiPageSummary } from "./page-adapters.js";
@@ -89,7 +89,7 @@ export function metaBuilder(opts: { force?: boolean } = {}): RegisteredBuilder {
       const log = loggerOf(project, META_BUILDER_ID);
       const llm = llmOf(project);
       const cfg = wikiConfigOf(project);
-      const tracer = new BuildTracer(log, META_BUILDER_ID);
+      const tracer = new BuildTracer(log, META_BUILDER_ID, buildSessionOf(project));
       const tracedLlm = tracer.wrap(llm);
       const system = fillCorpusPurpose(META_EXTRACTOR_SYSTEM_PROMPT, cfg.corpusPurpose);
       const existingClasses = await collectExistingClasses(project);

@@ -30,6 +30,7 @@ import {
   LlmProjectAdapter,
   type LlmProvider,
   llmOf,
+  WikiBuildSession,
   WikiLlmConfiguration,
   wikiConfigOf,
 } from "../llm/index.js";
@@ -120,6 +121,9 @@ export function registerWiki(workspace: Workspace, deps: WikiDeps): void {
     (project) => new WikiLlmConfiguration(project),
   );
   registry.register("project", WikiNature, (project) => new WikiNature(project));
+  // Per-project build-session telemetry (LLM model/token/price + time stats, persisted
+  // under `.project/builds/`, resumable across interrupted builds).
+  registry.register("project", WikiBuildSession, (project) => new WikiBuildSession(project));
   // Wiki adapters.
   registerContentExtraction(workspace, { registry: deps.extractors });
   registerKnowledgeAdapters();

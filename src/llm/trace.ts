@@ -4,6 +4,22 @@ import { costOf, roundUsd, sumCosts } from "./pricing.js";
 
 type BuildLog = ReturnType<typeof loggerOf>;
 
+/** One LLM call's contribution, reported to a {@link BuildRecorder} (e.g. the build session). */
+export interface BuildCall {
+  stage: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  inputUsd: number;
+  outputUsd: number;
+  ms: number;
+}
+
+/** Sink for per-call build stats — implemented by the persisted build session. */
+export interface BuildRecorder {
+  record(call: BuildCall): void;
+}
+
 /**
  * Per-build-stage LLM tracer. Wraps each structured-generation call with model / latency /
  * token / USD-cost logging (mirroring the query side's `timedGenerate`), accumulates the calls,
@@ -17,6 +33,8 @@ export class BuildTracer {
   constructor(
     private readonly log: BuildLog,
     private readonly stage: string,
+    /** Optional sink (the build session) that accumulates + persists per-call stats. */
+    private readonly recorder?: BuildRecorder,
   ) {}
 
   /**
@@ -45,6 +63,15 @@ export class BuildTracer {
     const ms = Date.now() - startedAt;
     const cost = costOf(spec.model, res.usage);
     this.calls.push({ model: spec.model, usage: res.usage });
+    this.recorder?.record({
+      stage: this.stage,
+      model: spec.model,
+      inputTokens: res.usage.inputTokens,
+      outputTokens: res.usage.outputTokens,
+      inputUsd: cost.inputUsd,
+      outputUsd: cost.outputUsd,
+      ms,
+    });
     this.log.info("llm call", {
       stage: this.stage,
       name: spec.name,

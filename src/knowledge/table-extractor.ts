@@ -5,7 +5,7 @@ import {
   ProjectBuilder,
   type RegisteredBuilder,
 } from "@statewalker/workspace.core";
-import { BuildTracer, llmOf, wikiConfigOf } from "../llm/index.js";
+import { BuildTracer, buildSessionOf, llmOf, wikiConfigOf } from "../llm/index.js";
 import { toBatch } from "../util/batch.js";
 import { ResourceTextContentCache, WikiPageSummary, WikiPageTables } from "./page-adapters.js";
 import { TABLE_EXTRACT_SYSTEM_PROMPT } from "./prompts.js";
@@ -51,7 +51,7 @@ export function tableExtractorBuilder(opts: { force?: boolean } = {}): Registere
       const log = loggerOf(project, TABLE_EXTRACT_BUILDER_ID);
       const llm = llmOf(project);
       const cfg = wikiConfigOf(project);
-      const tracer = new BuildTracer(log, TABLE_EXTRACT_BUILDER_ID);
+      const tracer = new BuildTracer(log, TABLE_EXTRACT_BUILDER_ID, buildSessionOf(project));
       const tracedLlm = tracer.wrap(llm);
       const source = builder.readUpdates({
         signal: SUMMARIZED_SIGNAL,

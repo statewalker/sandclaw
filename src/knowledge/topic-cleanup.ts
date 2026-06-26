@@ -7,6 +7,7 @@ import {
 } from "@statewalker/workspace.core";
 import {
   BuildTracer,
+  buildSessionOf,
   type LlmApi,
   llmOf,
   type WikiLlmConfiguration,
@@ -143,7 +144,7 @@ export function topicCleanupBuilder(): RegisteredBuilder {
       const log = loggerOf(project, TOPIC_CLEANUP_BUILDER_ID);
       const llm = llmOf(project);
       const cfg = wikiConfigOf(project);
-      const tracer = new BuildTracer(log, TOPIC_CLEANUP_BUILDER_ID);
+      const tracer = new BuildTracer(log, TOPIC_CLEANUP_BUILDER_ID, buildSessionOf(project));
       const tracedLlm = tracer.wrap(llm);
       const pending: BuilderUpdate[] = [];
       for await (const u of builder.readUpdates({

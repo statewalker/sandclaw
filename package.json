@@ -30,6 +30,7 @@
     "@statewalker/content-extractors": "catalog:",
     "@statewalker/fsm": "catalog:",
     "@statewalker/shared-adapters": "catalog:",
+    "@statewalker/shared-baseclass": "catalog:",
     "@statewalker/shared-commands": "catalog:",
     "@statewalker/indexer-api": "catalog:",
     "@statewalker/indexer-fulltext": "catalog:",

@@ -3,7 +3,13 @@ import type { FilesApi } from "@statewalker/webrun-files";
 import { LoggerAdapter, type LoggerLevel, Workspace } from "@statewalker/workspace.core";
 import { stringify as stringifyYaml } from "yaml";
 import { summaryLeaves, WikiPageMeta, WikiPageSummary } from "../knowledge/index.js";
-import { costOf, roundUsd, type WikiConfigData, wikiConfigOf } from "../llm/index.js";
+import {
+  buildSessionOf,
+  costOf,
+  roundUsd,
+  type WikiConfigData,
+  wikiConfigOf,
+} from "../llm/index.js";
 import type { Answer } from "../query/index.js";
 import { type QueryProgress, WikiQuery } from "../query/index.js";
 import { SearchAdapter } from "../search/index.js";
@@ -303,15 +309,41 @@ export async function runWikiCli(args: string[], deps: CliDeps): Promise<void> {
   switch (command) {
     case "scan": {
       const builder = wireWikiProject(project, { force });
+      const session = buildSessionOf(project);
+      const started = await session.begin();
+      if (started.resumedFrom) {
+        warn(`  resuming build (carried over from session ${started.resumedFrom})`);
+      }
       const builders: { id: string; result: boolean }[] = [];
-      for await (const stage of builder.run()) {
-        if (stage.type === "call") {
-          warn(`  ${stage.builderId}: ${stage.result ? "ok" : "interrupted"}`);
-          builders.push({ id: stage.builderId, result: Boolean(stage.result) });
+      try {
+        for await (const stage of builder.run()) {
+          if (stage.type === "call") {
+            warn(`  ${stage.builderId}: ${stage.result ? "ok" : "interrupted"}`);
+            builders.push({ id: stage.builderId, result: Boolean(stage.result) });
+          }
         }
+      } finally {
+        // Always finalize the session — even on an error/interrupt the stats so far persist.
+        await session.finish();
+      }
+      const stats = session.current;
+      if (stats) {
+        warn(
+          `build stats — ${stats.totals.calls} LLM call(s), ` +
+            `${stats.totals.inputTokens} in / ${stats.totals.outputTokens} out tokens, ` +
+            `$${roundUsd(stats.totals.totalUsd)} total, ${Math.round(stats.elapsedMs / 1000)}s`,
+        );
       }
       warn("scan complete");
-      emit({ command: "scan", project: projectKey, status: "complete", builders });
+      emit({
+        command: "scan",
+        project: projectKey,
+        status: "complete",
+        builders,
+        build: stats
+          ? { id: stats.id, elapsedMs: stats.elapsedMs, totals: stats.totals }
+          : undefined,
+      });
       break;
     }
     case "status": {

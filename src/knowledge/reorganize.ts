@@ -9,6 +9,7 @@ import {
 } from "@statewalker/workspace.core";
 import {
   BuildTracer,
+  buildSessionOf,
   type LlmApi,
   llmOf,
   type WikiLlmConfiguration,
@@ -348,7 +349,7 @@ export function reorganizeBuilder(): RegisteredBuilder {
       const log = loggerOf(project, REORGANIZE_BUILDER_ID);
       const llm = llmOf(project);
       const cfg = wikiConfigOf(project);
-      const tracer = new BuildTracer(log, REORGANIZE_BUILDER_ID);
+      const tracer = new BuildTracer(log, REORGANIZE_BUILDER_ID, buildSessionOf(project));
       const tracedLlm = tracer.wrap(llm);
       const pending: BuilderUpdate[] = [];
       const touched = new Set<string>();
