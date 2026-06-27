@@ -78,12 +78,12 @@ describe("normalizeMeta", () => {
 
   it("keeps a topic whose model omitted `brief`/`sectionKeys`, defaulting the missing fields", () => {
     const out = normalizeMeta({
-      topics: [{ key: "investment-funds", name: "Investment funds", description: "d" }],
+      topics: [{ key: "release-planning", name: "Release planning", description: "d" }],
     });
     expect(out.topics).toEqual([
       {
-        key: "investment-funds",
-        name: "Investment funds",
+        key: "release-planning",
+        name: "Release planning",
         description: "d",
         sectionKeys: [],
         brief: "",

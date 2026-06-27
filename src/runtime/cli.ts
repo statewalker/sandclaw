@@ -85,6 +85,8 @@ function extractFormat(args: string[]): { format?: OutputFormat; args: string[] 
 export type SearchMode = "fts" | "vector" | "hybrid";
 const SEARCH_MODES: readonly SearchMode[] = ["fts", "vector", "hybrid"];
 const SEARCH_DETAILS: readonly SearchDetail[] = ["short", "normal", "full"];
+/** Default cap on the number of sections a `search` returns; overridable via `--top-k`. */
+const DEFAULT_SEARCH_TOP_K = 20;
 
 /**
  * Pull a single-valued `--name <v>` / `--name=<v>` flag (any alias in `names`) out of
@@ -107,6 +109,29 @@ function extractFlag(args: string[], names: string[]): { value?: string; args: s
     }
   }
   return { value, args: rest };
+}
+
+/**
+ * Like {@link extractFlag} but collects EVERY occurrence (e.g. repeated `--fts <q>`),
+ * returning the values in order plus the remaining args.
+ */
+function extractFlagAll(args: string[], names: string[]): { values: string[]; args: string[] } {
+  const values: string[] = [];
+  const rest: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === undefined) continue;
+    const inline = a.match(/^(--[\w-]+)=(.*)$/);
+    if (inline && inline[1] !== undefined && names.includes(inline[1])) {
+      values.push(inline[2] ?? "");
+    } else if (names.includes(a)) {
+      const v = args[++i];
+      if (v !== undefined) values.push(v);
+    } else {
+      rest.push(a);
+    }
+  }
+  return { values, args: rest };
 }
 
 /** Minimal sink the CLI writes its data channel to (e.g. `process.stdout`). */
@@ -143,7 +168,8 @@ export interface CliDeps {
 
 const USAGE =
   "usage: wiki <root> <scan|status|query|search|restart|invalidate> <project> [question|query|builder|stage…|force] " +
-  "[--mode <fts|vector|hybrid>] [--detail <short|normal|full>] [--top-k <n>] " +
+  "[--mode <fts|vector|hybrid>] [--detail <short|normal|full>] [--top-k <n> (default 20)] " +
+  "[--vector <q>] [--fts <q> …] " +
   "[--format <none|json|yaml>] [--log-level <fatal|error|warn|info|debug|trace>]";
 
 /**
@@ -237,7 +263,12 @@ export async function runWikiCli(args: string[], deps: CliDeps): Promise<void> {
   const { format: flagFormat, args: afterFormat } = extractFormat(afterLevel);
   const { value: detailRaw, args: afterDetail } = extractFlag(afterFormat, ["--detail", "-d"]);
   const { value: modeRaw, args: afterMode } = extractFlag(afterDetail, ["--mode", "-m"]);
-  const { value: topKRaw, args: positional } = extractFlag(afterMode, ["--top-k", "-k"]);
+  const { value: topKRaw, args: afterTopK } = extractFlag(afterMode, ["--top-k", "-k"]);
+  // `search` only: optionally split the two retrieval legs. `--vector <q>` overrides the
+  // semantic query; repeated `--fts <q>` override the full-text query ladder. Each side
+  // falls back to the positional query when its flag is absent (the single-query default).
+  const { value: vectorRaw, args: afterVector } = extractFlag(afterTopK, ["--vector"]);
+  const { values: ftsRaw, args: positional } = extractFlagAll(afterVector, ["--fts"]);
   const detail: SearchDetail = SEARCH_DETAILS.includes(detailRaw as SearchDetail)
     ? (detailRaw as SearchDetail)
     : "normal";
@@ -245,7 +276,9 @@ export async function runWikiCli(args: string[], deps: CliDeps): Promise<void> {
     ? (modeRaw as SearchMode)
     : "hybrid";
   const topK =
-    topKRaw !== undefined && Number.isFinite(Number(topKRaw)) ? Number(topKRaw) : undefined;
+    topKRaw !== undefined && Number.isFinite(Number(topKRaw))
+      ? Number(topKRaw)
+      : DEFAULT_SEARCH_TOP_K;
   const [command, projectKey, ...rest] = positional;
 
   const workspace = new Workspace().setFileSystem(deps.filesApi);
@@ -382,9 +415,14 @@ export async function runWikiCli(args: string[], deps: CliDeps): Promise<void> {
     }
     case "search": {
       const query = rest.join(" ");
-      if (!query) {
+      // Resolve the two legs: each falls back to the positional query when its flag is
+      // absent. So `search "q"` searches both legs with `q` (the single-query default),
+      // while `search "q" --vector "hyp answer" --fts kw1 --fts kw2` splits them.
+      const vectorQuery = vectorRaw ?? query;
+      const ftsQueries = ftsRaw.length > 0 ? ftsRaw : query ? [query] : [];
+      if (!vectorQuery && ftsQueries.length === 0) {
         warn(
-          "usage: wiki <root> search <project> <query…> [--mode fts|vector|hybrid] [--detail short|normal|full] [--top-k <n>]",
+          "usage: wiki <root> search <project> <query…> [--mode fts|vector|hybrid] [--detail short|normal|full] [--top-k <n> (default 20)] [--vector <q>] [--fts <q> …]",
         );
         emit({ command: "search", project: projectKey, error: "no query" });
         break;
@@ -392,9 +430,16 @@ export async function runWikiCli(args: string[], deps: CliDeps): Promise<void> {
       const search = project.requireAdapter(SearchAdapter);
       // `hybrid` fuses full-text + vector; the adapter silently drops vector mode for a
       // text-only project (no embedding model), so a vector/hybrid request still works.
-      const modes: ("fts" | "vector")[] =
-        searchMode === "hybrid" ? ["fts", "vector"] : [searchMode];
-      const matches = await search.search({ query, modes, ...(topK ? { topK } : {}) });
+      // Drop a leg whose query resolved empty (e.g. `--fts` given but no vector query).
+      const modes = (searchMode === "hybrid" ? ["fts", "vector"] : [searchMode]).filter((m) =>
+        m === "vector" ? vectorQuery.length > 0 : ftsQueries.length > 0,
+      ) as ("fts" | "vector")[];
+      if (modes.length === 0) {
+        warn(`search mode '${searchMode}' has no query for its leg(s)`);
+        emit({ command: "search", project: projectKey, error: "no query for mode" });
+        break;
+      }
+      const matches = await search.search({ query: vectorQuery, ftsQueries, modes, topK });
 
       // For normal/full, resolve each matched document's section titles (and summaries +
       // topics for full) once from its page summary/meta artifacts. `short` needs neither.
@@ -418,11 +463,25 @@ export async function runWikiCli(args: string[], deps: CliDeps): Promise<void> {
       }
 
       const documents = buildSearchDocuments(matches, detail, info);
+      // Show the effective per-leg queries; collapse to one label when both legs share it.
+      const split = vectorRaw !== undefined || ftsRaw.length > 0;
+      const label = split
+        ? `vector='${vectorQuery}' fts=[${ftsQueries.map((q) => `'${q}'`).join(", ")}]`
+        : `'${query}'`;
       warn(
-        `search '${query}' (mode=${searchMode}, detail=${detail}): ${documents.length} document(s)`,
+        `search ${label} (mode=${modes.join("+")}, detail=${detail}): ${documents.length} document(s)`,
       );
       for (const line of renderSearchDocuments(documents, detail)) warn(line);
-      emit({ command: "search", project: projectKey, query, mode: searchMode, detail, documents });
+      emit({
+        command: "search",
+        project: projectKey,
+        query,
+        vectorQuery,
+        ftsQueries,
+        mode: searchMode,
+        detail,
+        documents,
+      });
       break;
     }
     case "restart": {

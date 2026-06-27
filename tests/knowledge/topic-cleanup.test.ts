@@ -119,48 +119,48 @@ describe("automatic topic cleanup (near-duplicate merge)", () => {
   beforeEach(async () => {
     h = await setup();
     // Two distinct keys whose names embed to the SAME vector → near-duplicates.
-    h.t.vecByName.set("Fund A", new Float32Array([1, 0]));
-    h.t.vecByName.set("Fund B", new Float32Array([1, 0]));
+    h.t.vecByName.set("Topic A", new Float32Array([1, 0]));
+    h.t.vecByName.set("Topic B", new Float32Array([1, 0]));
   });
 
   it("merges two same-class index topics under one canonical, unioning refs + recording an alias", async () => {
-    h.t.topicsByUri.set("a.md", [{ key: "fund-a", name: "Fund A", description: "d" }]);
-    h.t.topicsByUri.set("b.md", [{ key: "fund-b", name: "Fund B", description: "d" }]);
+    h.t.topicsByUri.set("a.md", [{ key: "topic-a", name: "Topic A", description: "d" }]);
+    h.t.topicsByUri.set("b.md", [{ key: "topic-b", name: "Topic B", description: "d" }]);
     h.t.setMerge(() => ({
       merges: [
-        { canonicalKey: "fund-a", name: "Fund", description: "d", absorbedKeys: ["fund-b"] },
+        { canonicalKey: "topic-a", name: "Topic", description: "d", absorbedKeys: ["topic-b"] },
       ],
     }));
     await h.write("proj/a.md", "a");
     await h.write("proj/b.md", "b");
     await h.run();
 
-    expect(await h.leafKeys()).toEqual(["fund-a"]);
-    expect(await h.refsOf("fund-a")).toEqual(["a.md#fund-a", "b.md#fund-b"]);
-    const survivor = (await h.index()).nodes["fund-a"];
-    expect(survivor && !isCategory(survivor) && survivor.aliases).toContain("fund-b");
+    expect(await h.leafKeys()).toEqual(["topic-a"]);
+    expect(await h.refsOf("topic-a")).toEqual(["a.md#topic-a", "b.md#topic-b"]);
+    const survivor = (await h.index()).nodes["topic-a"];
+    expect(survivor && !isCategory(survivor) && survivor.aliases).toContain("topic-b");
   });
 
   it("routes a re-ingested absorbed key to the survivor via the alias (no duplicate)", async () => {
-    h.t.topicsByUri.set("a.md", [{ key: "fund-a", name: "Fund A", description: "d" }]);
-    h.t.topicsByUri.set("b.md", [{ key: "fund-b", name: "Fund B", description: "d" }]);
+    h.t.topicsByUri.set("a.md", [{ key: "topic-a", name: "Topic A", description: "d" }]);
+    h.t.topicsByUri.set("b.md", [{ key: "topic-b", name: "Topic B", description: "d" }]);
     h.t.setMerge(() => ({
       merges: [
-        { canonicalKey: "fund-a", name: "Fund", description: "d", absorbedKeys: ["fund-b"] },
+        { canonicalKey: "topic-a", name: "Topic", description: "d", absorbedKeys: ["topic-b"] },
       ],
     }));
     await h.write("proj/a.md", "a");
     await h.write("proj/b.md", "b");
     await h.run();
 
-    // A NEW document re-declares the absorbed key fund-b.
-    h.t.topicsByUri.set("c.md", [{ key: "fund-b", name: "Fund B", description: "d" }]);
+    // A NEW document re-declares the absorbed key topic-b.
+    h.t.topicsByUri.set("c.md", [{ key: "topic-b", name: "Topic B", description: "d" }]);
     await h.write("proj/c.md", "c");
     await h.run();
 
-    // It folds into the survivor via the alias; no fund-b leaf is recreated.
-    expect(await h.leafKeys()).toEqual(["fund-a"]);
-    expect(await h.refsOf("fund-a")).toContain("c.md#fund-b");
+    // It folds into the survivor via the alias; no topic-b leaf is recreated.
+    expect(await h.leafKeys()).toEqual(["topic-a"]);
+    expect(await h.refsOf("topic-a")).toContain("c.md#topic-b");
   });
 });
 

@@ -177,27 +177,27 @@ describe("topic attribution onto the index DAG", () => {
 
   it("attaches a near-duplicate candidate to an existing index topic via the LLM", async () => {
     h.t.topicsByUri.set("a.md", [
-      { key: "fund", name: "Fund performance", description: "returns" },
+      { key: "release", name: "Release planning", description: "d" },
     ]);
     await h.write("proj/a.md", "alpha");
     await h.run();
 
     h.t.topicsByUri.set("b.md", [
-      { key: "inv-fund", name: "Investment fund performance", description: "returns" },
+      { key: "sw-release", name: "Software release planning", description: "d" },
     ]);
     h.t.setAttribute((input) => ({
       actions: input.candidates.map((c) => ({
         kind: "attach" as const,
         candidateKey: c.key,
-        nodeKeys: ["fund"],
+        nodeKeys: ["release"],
       })),
     }));
     await h.write("proj/b.md", "bravo");
     await h.run();
 
     expect(h.t.calls).toContain("attribute-topics");
-    expect(await h.leafKeys()).toEqual(["fund"]);
-    expect(await h.refsOf("fund")).toEqual(["a.md#fund", "b.md#inv-fund"]);
+    expect(await h.leafKeys()).toEqual(["release"]);
+    expect(await h.refsOf("release")).toEqual(["a.md#release", "b.md#sw-release"]);
   });
 
   it("attaches a span-multiple candidate to several index topics", async () => {

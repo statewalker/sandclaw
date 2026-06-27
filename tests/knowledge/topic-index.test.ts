@@ -50,29 +50,29 @@ describe("WikiTopicIndex — DAG read surface + lazy migration", () => {
   it("leaves() yields the index topics; get() resolves aliases; roots()/children() traverse", async () => {
     const dag: TopicIndex = {
       generated: "now",
-      roots: ["cat-finance"],
+      roots: ["cat-product"],
       nodes: {
-        "cat-finance": {
+        "cat-product": {
           kind: "category",
-          key: "cat-finance",
-          name: "Finance",
-          description: "money",
-          childKeys: ["fund-performance", "irr"],
+          key: "cat-product",
+          name: "Product",
+          description: "grouping",
+          childKeys: ["release-planning", "roadmap"],
         },
-        "fund-performance": {
+        "release-planning": {
           kind: "topic",
-          key: "fund-performance",
-          name: "Fund performance",
-          description: "returns",
-          references: [{ uri: "a.md#fund-performance" }],
-          aliases: ["investment-fund-performance"],
+          key: "release-planning",
+          name: "Release planning",
+          description: "d",
+          references: [{ uri: "a.md#release-planning" }],
+          aliases: ["software-release-planning"],
         },
-        irr: {
+        roadmap: {
           kind: "topic",
-          key: "irr",
-          name: "IRR",
-          description: "rate",
-          references: [{ uri: "b.md#irr" }],
+          key: "roadmap",
+          name: "Roadmap",
+          description: "d",
+          references: [{ uri: "b.md#roadmap" }],
         },
       },
     };
@@ -81,16 +81,16 @@ describe("WikiTopicIndex — DAG read surface + lazy migration", () => {
     // leaves() = exactly the index topics (sorted), not the category.
     const leafKeys: string[] = [];
     for await (const leaf of index.leaves()) leafKeys.push(leaf.key);
-    expect(leafKeys).toEqual(["fund-performance", "irr"]);
+    expect(leafKeys).toEqual(["release-planning", "roadmap"]);
 
     // get() resolves an absorbed alias to the surviving node.
-    expect((await index.get("investment-fund-performance"))?.key).toBe("fund-performance");
+    expect((await index.get("software-release-planning"))?.key).toBe("release-planning");
 
     // roots() then children() traverse down to the leaves.
     const roots = await index.roots();
-    expect(roots.map((r) => r.key)).toEqual(["cat-finance"]);
+    expect(roots.map((r) => r.key)).toEqual(["cat-product"]);
     expect(roots[0] && isCategory(roots[0])).toBe(true);
-    const children = await index.children("cat-finance");
-    expect(children.map((c) => c.key).sort()).toEqual(["fund-performance", "irr"]);
+    const children = await index.children("cat-product");
+    expect(children.map((c) => c.key).sort()).toEqual(["release-planning", "roadmap"]);
   });
 });

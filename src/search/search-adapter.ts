@@ -86,7 +86,11 @@ export interface DocumentMatch {
 
 interface AdapterOptions extends Record<string, unknown>, SearchDeps {}
 
-const DEFAULT_TOP_K = 20;
+/** Depth of the RRF-fused result returned to callers. */
+const DEFAULT_TOP_K = 100;
+/** Pre-fusion retrieval depth per sub-index (FTS / vector) feeding RRF — wider than the
+ * fused cap so each modality contributes a deep candidate list before truncation. */
+const SUB_INDEX_TOP_K = 500;
 
 function toDocumentPath(uri: string): DocumentPath {
   return `/${uri.replace(/^\/+/, "")}`;
@@ -300,11 +304,13 @@ export class SearchAdapter extends ProjectAdapter {
       const ftsQueries = query.ftsQueries?.length ? query.ftsQueries : [query.query];
       ftsAccess.setQuery(request, {
         queries: ftsQueries,
+        topK: SUB_INDEX_TOP_K,
       } satisfies FulltextQuery);
     }
     if (modes.includes("vector")) {
       vecAccess.setQuery(request, {
         embeddings: [await this.embedQuery(query.query)],
+        topK: SUB_INDEX_TOP_K,
       } satisfies VectorQuery);
     }
 
