@@ -19,6 +19,7 @@ import {
   wikiConfigOf,
   wireWikiProject,
 } from "../../src/index.js";
+import { stubHypothesize, stubScore } from "../util/abductive-stubs.js";
 import { makeStubLlm, seedWikiConfig } from "../util/stub-llm.js";
 
 const DIM = 2;
@@ -87,6 +88,10 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
         onCorpus: true,
         subjects: [{ prompt: (spec.input as { question: string }).question }],
       });
+    case "hypothesize":
+      return out(stubHypothesize(spec.input as Parameters<typeof stubHypothesize>[0]));
+    case "score":
+      return out(stubScore());
     case "topic-descent": {
       // Keep every frontier node (the corpus is tiny); grounding narrows later.
       const nodes = (spec.input as { nodes: { key: string; children: { key: string }[] }[] }).nodes;

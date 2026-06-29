@@ -24,6 +24,7 @@ import {
   wikiConfigOf,
 } from "../../src/index.js";
 import { topicDescent } from "../../src/query/fsm/topic-descent.js";
+import { stubHypothesize, stubScore } from "../util/abductive-stubs.js";
 import { makeStubLlm } from "../util/stub-llm.js";
 
 /** `query/fsm/topic-descent.ts` `DESCENT_BATCH` — kept in sync with the source. */
@@ -112,6 +113,10 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       );
       return out({ onCorpus: true, subjects: [{ prompt: "founders" }] });
     }
+    case "hypothesize":
+      return out(stubHypothesize(spec.input as Parameters<typeof stubHypothesize>[0]));
+    case "score":
+      return out(stubScore());
     case "topic-descent": {
       const nodes = (spec.input as { nodes: { key: string; children: { key: string }[] }[] }).nodes;
       if (maxBatch && nodes.length > maxBatch) throw new Error("context_length_exceeded");

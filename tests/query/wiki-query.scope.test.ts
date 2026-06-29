@@ -20,6 +20,7 @@ import {
   WikiPageSummary,
   WikiQuery,
 } from "../../src/index.js";
+import { stubHypothesize, stubScore } from "../util/abductive-stubs.js";
 import { registerStubLlm } from "../util/stub-llm.js";
 
 const DIM = 2;
@@ -87,6 +88,10 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       return out(META);
     case "intent-detection":
       return out({ onCorpus: true, subjects: [{ prompt: "Who founded Acme?" }] });
+    case "hypothesize":
+      return out(stubHypothesize(spec.input as Parameters<typeof stubHypothesize>[0]));
+    case "score":
+      return out(stubScore());
     case "topic-descent": {
       const nodes = (spec.input as { nodes: { key: string; children: { key: string }[] }[] }).nodes;
       return out({

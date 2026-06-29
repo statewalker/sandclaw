@@ -1,6 +1,6 @@
 import type { Project } from "@statewalker/workspace.core";
 import type { Answer, EvidenceSection, QueryProgress } from "../progress.js";
-import { orderEvidence } from "./retrieval.js";
+import { orderEvidence, sectionId } from "./retrieval.js";
 
 /**
  * Typed per-query state for the query FSM.
@@ -30,14 +30,49 @@ export interface Subject {
   ftsQueries: string[];
 }
 
-/** IntentDetection output: on/off-corpus, the decomposed subjects, and the request language. */
+/**
+ * A hard constraint the answer must satisfy, extracted by `IntentDetection`.
+ *
+ * `entity` / `scope` constraints carry a token set checked MECHANICALLY against the
+ * candidate's raw section text (the deterministic coverage gate — a constraint is
+ * covered iff any of its tokens appears in the raw content). The `predicate`
+ * constraint is an analytic judgement (e.g. "most costly") that does NOT gate — it
+ * only ranks survivors via the LLM (advisory).
+ */
+export type HardConstraint =
+  | { kind: "entity" | "scope"; tokens: string[] }
+  | { kind: "predicate"; text: string };
+
+/** IntentDetection output: on/off-corpus, the decomposed subjects, the hard constraints, and the request language. */
 export interface IntentResult {
   onCorpus: boolean;
   subjects: Subject[];
+  /** The prompt's hard constraints — feed both `Hypothesize` projection and the `Score` gate. */
+  constraints: HardConstraint[];
   /** Why the prompt was judged off-corpus (when `onCorpus` is false). */
   offCorpusReason?: string;
   /** English name of the language the prompt is written in; the answer is composed in it. */
   language: string;
+}
+
+/**
+ * A rival candidate ANSWER plus its projected probe. `Hypothesize` emits one per
+ * pass; `Retrieve` is parameterised by its `searchCriteria` (D11 — the hypothesis
+ * subsumes the subject as the search unit). `constraints` is the per-hypothesis
+ * checklist carried from `IntentDetection`, possibly enriched with PROJECT synonyms.
+ */
+export interface Hypothesis {
+  /** A rival candidate answer to the prompt. */
+  claim: string;
+  /** PROJECT: the predicted source vocabulary if this candidate were true. */
+  searchCriteria: {
+    /** Literalised hard-constraint tokens + predicted answer words for full-text search. */
+    ftsQueries: string[];
+    /** HyDE of THIS candidate, embedded for semantic search. */
+    semanticQuery: string;
+  };
+  /** Coverage checklist (entity/scope token sets + predicate), incl. PROJECT synonyms. */
+  constraints: HardConstraint[];
 }
 
 /** A grounded fact: a single-document statement plus the verbatim section refs it rests on. */
@@ -47,19 +82,24 @@ export interface GroundedFact {
 }
 
 /**
- * A retrieved section before the relevance filter: the resolved evidence plus its
- * retrieval signal — `score` (how many front-ends surfaced it: 1, or 2 when both
- * hybrid search AND the topic ladder did), `searchScore` (the best RRF-fused hybrid-search
- * score, 0 when only the topic ladder surfaced it), and the subject indices it served.
+ * A retrieved section before the rank-based pre-filter: the resolved evidence plus
+ * its retrieval signal — `score` (how many front-ends surfaced it: 1, or 2 when both
+ * hybrid search AND the topic ladder did) and `searchScore` (the best RRF-fused
+ * hybrid-search score, 0 when only the topic ladder surfaced it). Retrieval is driven
+ * by the current hypothesis's `searchCriteria` (D11), so no per-subject membership.
  */
 export interface Candidate {
   section: EvidenceSection;
   score: number;
   searchScore: number;
-  subjects: number[];
 }
 
-const EMPTY_INTENT: IntentResult = { onCorpus: false, subjects: [], language: "English" };
+const EMPTY_INTENT: IntentResult = {
+  onCorpus: false,
+  subjects: [],
+  constraints: [],
+  language: "English",
+};
 const EMPTY_ANSWER: Answer = {
   text: "",
   citations: [],
@@ -69,6 +109,19 @@ const EMPTY_ANSWER: Answer = {
   outliers: [],
   evidenceCount: 0,
 };
+
+/** Default iteration budget — the small bound on abductive loop passes (D7). */
+export const DEFAULT_ITERATION_BUDGET = 4;
+
+/**
+ * One pooled section: the resolved evidence + the raw section text the `Score` gate
+ * checks token coverage against, accumulated across loop iterations.
+ */
+export interface PooledSection {
+  section: EvidenceSection;
+  /** The section's RAW content (line-sliced), the coverage gate's only source of truth. */
+  raw: string;
+}
 
 export class QueryContext {
   constructor(
@@ -85,6 +138,20 @@ export class QueryContext {
   #facts: GroundedFact[] = [];
   #answer: Answer = EMPTY_ANSWER;
 
+  // ── abductive-loop state (D5/D8) ──
+  #hypothesis: Hypothesis | undefined;
+  /** Evidence pool keyed by `${uri}#${sectionKey}` (= sectionId), persisting across iterations. */
+  #pool = new Map<string, PooledSection>();
+  #iteration = 0;
+  /** Rival claims already pursued — so `Hypothesize` advances on re-entry. */
+  #consumedRivals: string[] = [];
+  /** Perimeter-expansion axes already spent on `narrow` re-entry of the current hypothesis. */
+  #consumedAxes = new Set<string>();
+  /** Whether the most recent `Retrieve` added a section new to the pool (doom-loop novelty). */
+  #addedNewThisIteration = false;
+  /** Unmet hard constraints reported by the last `Score` (drives the best-partial caveat). */
+  #unmet: HardConstraint[] = [];
+
   get intent(): IntentResult {
     return this.#intent;
   }
@@ -97,6 +164,87 @@ export class QueryContext {
   }
   setCandidates(candidates: Candidate[]): void {
     this.#candidates = candidates;
+  }
+
+  /** The claim of the hypothesis the most recent `Retrieve` ran for (re-entry detection). */
+  #lastRetrievedClaim: string | undefined;
+
+  // ── hypothesis + iteration bookkeeping ──
+  get hypothesis(): Hypothesis | undefined {
+    return this.#hypothesis;
+  }
+  /** Adopt a fresh hypothesis (a new rival): set it, mark it consumed, reset its perimeter axes. */
+  setHypothesis(h: Hypothesis): void {
+    this.#hypothesis = h;
+    this.#consumedRivals.push(h.claim);
+    this.#consumedAxes = new Set<string>();
+  }
+  get consumedRivals(): readonly string[] {
+    return this.#consumedRivals;
+  }
+
+  get iteration(): number {
+    return this.#iteration;
+  }
+  /** Open a new loop iteration; clears the per-iteration novelty flag. Returns the new count. */
+  nextIteration(): number {
+    this.#iteration += 1;
+    this.#addedNewThisIteration = false;
+    return this.#iteration;
+  }
+
+  /**
+   * Whether `Retrieve` is being re-entered for the SAME hypothesis (a `narrow` loop-back,
+   * which must widen the perimeter) versus the first retrieval of a fresh hypothesis. Records
+   * the current hypothesis as retrieved-for as a side effect.
+   */
+  beginRetrieveForCurrentHypothesis(): boolean {
+    const claim = this.#hypothesis?.claim;
+    const reentry = claim !== undefined && claim === this.#lastRetrievedClaim;
+    this.#lastRetrievedClaim = claim;
+    return reentry;
+  }
+
+  /** Whether the current hypothesis still has an unspent perimeter axis to widen along. */
+  hasUnspentAxis(axes: readonly string[]): boolean {
+    return axes.some((a) => !this.#consumedAxes.has(a));
+  }
+  /** Claim the next unspent perimeter axis (in priority order); mark it consumed. */
+  consumeNextAxis(axes: readonly string[]): string | undefined {
+    const axis = axes.find((a) => !this.#consumedAxes.has(a));
+    if (axis) this.#consumedAxes.add(axis);
+    return axis;
+  }
+
+  // ── evidence pool (D8) ──
+  /** Add a section to the pool if `${uri}#${sectionKey}` is new; returns whether it was new. */
+  poolAdd(section: EvidenceSection, raw: string): boolean {
+    const id = sectionId(section.uri, section.sectionKey);
+    if (this.#pool.has(id)) return false;
+    this.#pool.set(id, { section, raw });
+    this.#addedNewThisIteration = true;
+    return true;
+  }
+  /** Whether `${uri}#${sectionKey}` is already pooled (skip-resummarize check). */
+  poolHas(uri: string, sectionKey: string): boolean {
+    return this.#pool.has(sectionId(uri, sectionKey));
+  }
+  get pool(): PooledSection[] {
+    return [...this.#pool.values()];
+  }
+  get poolEmpty(): boolean {
+    return this.#pool.size === 0;
+  }
+  /** Whether this iteration's `Retrieve` added at least one section new to the pool. */
+  get addedNewThisIteration(): boolean {
+    return this.#addedNewThisIteration;
+  }
+
+  get unmet(): HardConstraint[] {
+    return this.#unmet;
+  }
+  setUnmet(unmet: HardConstraint[]): void {
+    this.#unmet = unmet;
   }
 
   get evidence(): EvidenceSection[] {

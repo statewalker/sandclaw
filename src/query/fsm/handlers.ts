@@ -1,4 +1,5 @@
 import { loggerOf, type Project } from "@statewalker/workspace.core";
+import type { z } from "zod";
 import { WikiTopicIndex } from "../../knowledge/indexes.js";
 import type { DocumentMeta } from "../../knowledge/types.js";
 import { type LlmApi, llmOf, type WikiLlmConfiguration, wikiConfigOf } from "../../llm/index.js";
@@ -8,11 +9,20 @@ import type { EvidenceSection, QueryProgress } from "../progress.js";
 import { logBatchTotals, timedGenerate } from "./llm-call.js";
 import {
   COMPOSE_PROMPT,
+  HYPOTHESIZE_PROMPT,
   INTENT_DETECTION_PROMPT,
   ROLLING_SUMMARIZE_PROMPT,
+  SCORE_PROMPT,
   TOPIC_SELECT_PROMPT,
 } from "./prompts.js";
-import type { Candidate, GroundedFact, Subject } from "./query-context.js";
+import {
+  type Candidate,
+  DEFAULT_ITERATION_BUDGET,
+  type GroundedFact,
+  type HardConstraint,
+  type Hypothesis,
+  type Subject,
+} from "./query-context.js";
 import type { QueryHandler } from "./query-fsm.js";
 import {
   aggregateClasses,
@@ -21,6 +31,7 @@ import {
   evidenceFor,
   filterCitations,
   hybridSearch,
+  rawSectionText,
   readClassIndexes,
   sectionId,
   withinScope,
@@ -28,14 +39,44 @@ import {
 import {
   composeInputSchema,
   composeSchema,
+  type hardConstraintSchema,
+  hypothesizeInputSchema,
+  hypothesizeSchema,
   intentDetectionInputSchema,
   intentDetectionSchema,
   rollingSummarizeInputSchema,
   rollingSummarizeSchema,
+  scoreInputSchema,
+  scoreSchema,
   topicSelectInputSchema,
   topicSelectSchema,
 } from "./schemas.js";
 import { topicDescent } from "./topic-descent.js";
+
+/** Perimeter-expansion axes for the `narrow` re-entry, in priority order (D4). */
+const PERIMETER_AXES = ["vocabulary", "scope", "genre"] as const;
+
+/** A `z`-flat hard constraint (kind + tokens + text) reconstructed into the narrowed union. */
+function toHardConstraint(c: z.infer<typeof hardConstraintSchema>): HardConstraint {
+  return c.kind === "predicate"
+    ? { kind: "predicate", text: c.text }
+    : { kind: c.kind, tokens: c.tokens };
+}
+
+/** The entity/scope constraints (the mechanical gate's checklist); predicate is advisory-only. */
+function gatedConstraints(
+  constraints: HardConstraint[],
+): Array<{ kind: "entity" | "scope"; tokens: string[] }> {
+  return constraints.filter(
+    (c): c is { kind: "entity" | "scope"; tokens: string[] } => c.kind !== "predicate",
+  );
+}
+
+/** Whether one section's raw text covers a token-set constraint: any token present (case-insensitive). */
+function sectionCovers(raw: string, tokens: string[]): boolean {
+  const hay = raw.toLowerCase();
+  return tokens.some((t) => t.trim() !== "" && hay.includes(t.toLowerCase()));
+}
 
 /** Char budget for one rolling-summarization batch's `<sources>` payload (raw content + scaffolding). */
 const ROLLING_CHAR_BUDGET = 20_000;
@@ -109,11 +150,79 @@ export const IntentDetectionTrigger: QueryHandler = async function* (ctx) {
   ctx.setIntent({
     onCorpus: output.onCorpus,
     subjects: output.onCorpus ? subjects : [],
+    // Hard constraints feed both `Hypothesize` projection and the `Score` coverage gate.
+    constraints: (output.constraints ?? []).map(toHardConstraint),
     offCorpusReason: output.offCorpusReason ?? undefined,
     // The answer is composed in the request's language; English when undetectable.
     language: output.language?.trim() || "English",
   });
   yield output.onCorpus ? "onCorpus" : "offCorpus";
+};
+
+/**
+ * The abductive head (GEN, cheap tier, runs on EVERY pass starting #1, D9). Generate the
+ * single most-promising rival candidate answer and PROJECT its probe: `ftsQueries`
+ * (literalised hard-constraint tokens + predicted answer vocabulary), a HyDE `semanticQuery`,
+ * and synonym variants folded into the gate's token sets. On re-entry (`contradicted`) the
+ * consumed-rivals list steers the model to a DIFFERENT candidate. Mechanically injects any
+ * omitted entity/scope token into `ftsQueries`. Sets `ctx.hypothesis`; yields `hypothesized`.
+ */
+export const HypothesizeTrigger: QueryHandler = async function* (ctx) {
+  const { project, request: req, progress } = ctx;
+  const llm = llmOf(project);
+  const cfg = wikiConfigOf(project);
+  const log = loggerOf(project, "QueryFsm");
+  const constraints = ctx.intent.constraints;
+  const flatConstraints = constraints.map((c) =>
+    c.kind === "predicate"
+      ? { kind: c.kind, tokens: [], text: c.text }
+      : { kind: c.kind, tokens: c.tokens, text: "" },
+  );
+
+  const { output } = await timedGenerate(llm, log, progress, {
+    name: "hypothesize",
+    description:
+      "Project the single most-promising rival candidate answer into a searchCriteria probe. Does NOT answer the prompt.",
+    model: cfg.modelFor("queryFast"),
+    system: HYPOTHESIZE_PROMPT,
+    input: {
+      question: req.question,
+      constraints: flatConstraints,
+      consumedRivals: [...ctx.consumedRivals],
+    },
+    inputSchema: hypothesizeInputSchema,
+    outputSchema: hypothesizeSchema,
+    strict: true,
+  });
+
+  // Mechanically guarantee every entity/scope token is in the probe (recall floor — D5/§5.1):
+  // the model may omit a constraint token, but the gate searches for exactly those tokens.
+  const ftsQueries = [...output.ftsQueries];
+  for (const c of gatedConstraints(constraints)) {
+    for (const t of c.tokens) if (!ftsQueries.includes(t)) ftsQueries.push(t);
+  }
+  // Fold PROJECT synonyms into the gate's token sets so coverage matches alternate phrasings.
+  const synonyms = output.synonyms ?? [];
+  const enriched: HardConstraint[] = constraints.map((c) =>
+    c.kind === "predicate" ? c : { kind: c.kind, tokens: [...c.tokens, ...synonyms] },
+  );
+
+  const hypothesis: Hypothesis = {
+    claim: output.claim,
+    searchCriteria: {
+      ftsQueries,
+      semanticQuery: output.semanticQuery?.trim() ? output.semanticQuery : output.claim,
+    },
+    constraints: enriched,
+  };
+  ctx.setHypothesis(hypothesis);
+  log.info("hypothesized", {
+    iteration: ctx.iteration,
+    claim: hypothesis.claim,
+    ftsQueries: hypothesis.searchCriteria.ftsQueries,
+    rivals: ctx.consumedRivals.length,
+  });
+  yield "hypothesized";
 };
 
 /**
@@ -181,38 +290,53 @@ async function classLadder(
 }
 
 /**
- * Per subject (handler-internal fan-out, parallel), run hybrid search and the class
- * ladder; merge their candidate sections into one evidence pool deduped by
- * `(uri, sectionKey)`. Sets `ctx.candidates`; yields `gathered` | `empty`.
+ * The probe (PROBE) — driven by the CURRENT hypothesis's `searchCriteria` (D11), not a
+ * static per-subject fan-out. Opens a loop iteration, runs hybrid search + the class ladder
+ * for the hypothesis's one `searchCriteria`, and resolves the union into `ctx.candidates`.
+ * On a `narrow` re-entry (same hypothesis) the perimeter is expanded along the next unmet
+ * axis. Per-iteration empties no longer terminate (D10): always yields `retrieved` and lets
+ * `Score`'s controller decide. Candidates are pooled (skip-resummarize) by `RollingSummarize`.
  */
 export const RetrieveTrigger: QueryHandler = async function* (ctx) {
   const { project, progress } = ctx;
   const llm = llmOf(project);
   const cfg = wikiConfigOf(project);
-  const { subjects } = ctx.intent;
   const paths = ctx.request.paths;
   const search = project.getAdapter(SearchAdapter);
   const log = loggerOf(project, "QueryFsm");
   const metaCache = new Map<string, DocumentMeta | undefined>();
+  const hypothesis = ctx.hypothesis;
+  if (!hypothesis) throw new Error("Retrieve reached without a hypothesis");
 
-  // Per unique section, track which front-ends surfaced it (→ score), the best
-  // hybrid-search RRF score it earned (→ rank-based pre-filter), and which subjects
-  // it served (→ summary grouping). Both front-ends ⇒ a stronger signal.
+  ctx.nextIteration();
+  // Perimeter expansion on a `narrow` re-entry: widen the FTS probe along the next unspent
+  // axis (vocabulary → scope → genre). The widening is a recall move; the gate is unchanged.
+  const reentry = ctx.beginRetrieveForCurrentHypothesis();
+  const ftsQueries = [...hypothesis.searchCriteria.ftsQueries];
+  if (reentry) {
+    const axis = ctx.consumeNextAxis(PERIMETER_AXES);
+    if (axis === "scope" || axis === "vocabulary") {
+      // Literalize every gated-constraint token + synonym into the probe (broadest recall).
+      for (const c of gatedConstraints(hypothesis.constraints))
+        for (const t of c.tokens) if (!ftsQueries.includes(t)) ftsQueries.push(t);
+    }
+    log.info("perimeter expanded", { axis, iteration: ctx.iteration });
+  }
+
+  // One retrieval "subject" = the current hypothesis's projected probe (D11).
+  const subject: Subject = {
+    prompt: hypothesis.claim,
+    semanticQuery: hypothesis.searchCriteria.semanticQuery,
+    ftsQueries: ftsQueries.length > 0 ? ftsQueries : [hypothesis.claim],
+  };
+
+  // Per unique section, track which front-ends surfaced it (→ score) and the best hybrid-search
+  // RRF score it earned (→ rank-based pre-filter). Both front-ends ⇒ a stronger signal.
   const signal = new Map<
     string,
-    {
-      uri: string;
-      sectionKey: string;
-      fronts: Set<string>;
-      searchScore: number;
-      subjects: Set<number>;
-    }
+    { uri: string; sectionKey: string; fronts: Set<string>; searchScore: number }
   >();
-  const record = (
-    hits: { uri: string; sectionKey: string; score?: number }[],
-    front: string,
-    subject: number,
-  ) => {
+  const record = (hits: { uri: string; sectionKey: string; score?: number }[], front: string) => {
     for (const h of hits) {
       const id = sectionId(h.uri, h.sectionKey);
       const e = signal.get(id) ?? {
@@ -220,50 +344,34 @@ export const RetrieveTrigger: QueryHandler = async function* (ctx) {
         sectionKey: h.sectionKey,
         fronts: new Set<string>(),
         searchScore: 0,
-        subjects: new Set<number>(),
       };
       e.fronts.add(front);
       if (h.score !== undefined) e.searchScore = Math.max(e.searchScore, h.score);
-      e.subjects.add(subject);
       signal.set(id, e);
     }
   };
-  await Promise.all(
-    subjects.map(async (subject, i) => {
-      const [searchHits, ladderHits] = await Promise.all([
-        search ? hybridSearch(search, log, subject, paths) : Promise.resolve([]),
-        classLadder(project, llm, cfg, progress, subject.prompt, metaCache),
-      ]);
-      record(searchHits, "search", i);
-      // The topic ladder descends to whole documents; keep only in-scope sections so
-      // the scope restricts both front-ends, not just hybrid search.
-      record(
-        ladderHits.filter((h) => withinScope(h.uri, paths)),
-        "ladder",
-        i,
-      );
-    }),
+  const [searchHits, ladderHits] = await Promise.all([
+    search ? hybridSearch(search, log, subject, paths) : Promise.resolve([]),
+    classLadder(project, llm, cfg, progress, subject.prompt, metaCache),
+  ]);
+  record(searchHits, "search");
+  // The topic ladder descends to whole documents; keep only in-scope sections so the scope
+  // restricts both front-ends, not just hybrid search.
+  record(
+    ladderHits.filter((h) => withinScope(h.uri, paths)),
+    "ladder",
   );
 
-  // Resolve evidence once per unique section; attach score + subject membership.
+  // Resolve evidence once per unique section; attach the retrieval signal.
   const entries = [...signal.values()];
   const resolved = await Promise.all(entries.map((e) => evidenceFor(project, e.uri, e.sectionKey)));
   const candidates: Candidate[] = [];
   entries.forEach((e, i) => {
     const section = resolved[i];
-    if (section)
-      candidates.push({
-        section,
-        score: e.fronts.size,
-        searchScore: e.searchScore,
-        subjects: [...e.subjects],
-      });
+    if (section) candidates.push({ section, score: e.fronts.size, searchScore: e.searchScore });
   });
 
   ctx.setCandidates(candidates);
-  progress.evidence = candidates.map((c) => c.section);
-  // Collect the section keys retrieved per document so the log shows exactly which
-  // sections were found, not just a count.
   const perDoc = new Map<string, string[]>();
   for (const c of candidates) {
     const keys = perDoc.get(c.section.uri) ?? [];
@@ -271,15 +379,15 @@ export const RetrieveTrigger: QueryHandler = async function* (ctx) {
     perDoc.set(c.section.uri, keys);
   }
   log.info("retrieved evidence", {
-    subjects: subjects.length,
+    iteration: ctx.iteration,
+    claim: hypothesis.claim,
     sections: candidates.length,
     documents: perDoc.size,
-    // One entry per document: `["<n>× <uri>", ...sectionKeys]`, most-covered document first.
     sectionsPerDoc: [...perDoc.entries()]
       .sort((a, b) => b[1].length - a[1].length)
       .map(([uri, keys]) => [`${keys.length}× ${uri}`, ...keys]),
   });
-  yield candidates.length > 0 ? "gathered" : "empty";
+  yield "retrieved";
 };
 
 /** Cap on the rank-based pre-filter: keep at most this many top-scored single-front-end sections. */
@@ -295,7 +403,8 @@ const SELECT_TOP_N = 40;
  * search score (NOT a model re-reading the summary) is what keeps the answer section: full-text
  * search indexes the RAW content, so a section whose summary omits the queried entity/figure still
  * scores — whereas a summary-based LLM filter drops exactly those. Survivors replace
- * `ctx.candidates`. Yields `selected` when any survive, else `empty`.
+ * `ctx.candidates`. Always yields `selected` (a zero-survivor iteration is a zero-coverage input
+ * to `Score`'s controller, not a terminal `empty` — D10).
  */
 export const SelectSectionsTrigger: QueryHandler = async function* (ctx) {
   const { project } = ctx;
@@ -314,7 +423,7 @@ export const SelectSectionsTrigger: QueryHandler = async function* (ctx) {
     kept: survivors.length,
     keptSections: survivors.map((c) => sectionId(c.section.uri, c.section.sectionKey)),
   });
-  yield survivors.length > 0 ? "selected" : "empty";
+  yield "selected";
 };
 
 /**
@@ -324,7 +433,9 @@ export const SelectSectionsTrigger: QueryHandler = async function* (ctx) {
  * in parallel, cheap model) summarize each section AGAINST the prompt. A section with nothing
  * relevant is skipped — no entry, no citation. Each kept summary becomes a single-section grounded
  * "fact" ({ statement: summary, citations: [sectionRef] }); the sections that produced one form the
- * evidence. Yields `summarized` when at least one summary was kept, else `empty`.
+ * evidence and are added to the cross-iteration pool. Sections ALREADY pooled (from a prior
+ * iteration) are skipped — never re-summarized (D8). Always yields `summarized` (a zero-kept
+ * iteration is a zero-coverage input to `Score`, not a terminal `empty` — D10).
  */
 export const RollingSummarizeTrigger: QueryHandler = async function* (ctx) {
   const { project, request: req, progress } = ctx;
@@ -332,7 +443,10 @@ export const RollingSummarizeTrigger: QueryHandler = async function* (ctx) {
   const cfg = wikiConfigOf(project);
   const log = loggerOf(project, "QueryFsm");
 
-  const candidateSections = ctx.candidates.map((c) => c.section);
+  // Skip sections already in the pool — they were summarized in a prior iteration (D8).
+  const candidateSections = ctx.candidates
+    .map((c) => c.section)
+    .filter((s) => !ctx.poolHas(s.uri, s.sectionKey));
   const batches = await buildRollingBatches(project, candidateSections, ROLLING_CHAR_BUDGET);
   log.info("rolling summarize batches", {
     candidates: candidateSections.length,
@@ -382,21 +496,135 @@ export const RollingSummarizeTrigger: QueryHandler = async function* (ctx) {
 
   ctx.addFacts(results.flatMap((r) => r.facts));
   // The sections that produced a kept summary are the evidence (drives topics + citation verify).
-  await ctx.addEvidence(results.flatMap((r) => r.kept));
-  const total = ctx.facts.length;
+  const kept = results.flatMap((r) => r.kept);
+  await ctx.addEvidence(kept);
+  // Pool each newly-summarized section with its RAW text — the cross-iteration memory the
+  // `Score` gate checks coverage against and the best-partial path selects over (D8).
+  const raws = await Promise.all(kept.map((s) => rawSectionText(project, s.uri, s.sectionKey)));
+  kept.forEach((s, i) => {
+    ctx.poolAdd(s, raws[i] ?? "");
+  });
   log.info("rolling summaries", {
-    kept: total,
+    kept: ctx.facts.length,
+    poolSize: ctx.pool.length,
     sections: ctx.evidence.length,
     keptSections: ctx.evidence.map((e) => sectionId(e.uri, e.sectionKey)),
   });
-  yield total > 0 ? "summarized" : "empty";
+  yield "summarized";
+};
+
+/**
+ * The coverage GATE with the folded loop controller (D7/D9). Coverage is decided MECHANICALLY:
+ * each entity/scope hard constraint is covered iff its token set appears in some pooled section's
+ * RAW text; FULL coverage means a SINGLE pooled section covers ALL gated constraints (so a
+ * near-miss spread across two documents does not pass). The analytic predicate never gates — it
+ * is an advisory LLM rank among survivors (here folded into the narrow/contradicted classification).
+ *
+ * Coverage-FIRST ordering (the short-circuit is load-bearing): (1) compute coverage; (2) full
+ * coverage → `covered`, even when the budget is already spent; (3) else budget spent / doom-loop
+ * (no NEW pool section this iteration) / no unspent axis-or-rival → `exhausted` (`exhaustedEmpty`
+ * when the pool is empty); (4) else classify the failure via the LLM (advisory) → `narrow` or
+ * `contradicted` (a `narrow` with no unspent axis degrades to `exhausted`). Records the unmet
+ * constraints on the context for the best-partial caveat.
+ */
+export const ScoreTrigger: QueryHandler = async function* (ctx) {
+  const { project, request: req, progress } = ctx;
+  const log = loggerOf(project, "QueryFsm");
+  const hypothesis = ctx.hypothesis;
+  if (!hypothesis) throw new Error("Score reached without a hypothesis");
+
+  const gated = gatedConstraints(hypothesis.constraints);
+  const pool = ctx.pool;
+
+  // (1) Mechanical coverage. A constraint is covered if ANY pooled section covers it (for the
+  // unmet/caveat report); FULL coverage requires a SINGLE section to cover EVERY gated constraint.
+  const fullyCovering = pool.find((p) => gated.every((c) => sectionCovers(p.raw, c.tokens)));
+  const unmet: HardConstraint[] = gated.filter(
+    (c) => !pool.some((p) => sectionCovers(p.raw, c.tokens)),
+  );
+  ctx.setUnmet(unmet);
+
+  // (2) Coverage success short-circuits exhaustion — a successful final iteration is not exhaustion.
+  if (gated.length > 0 && fullyCovering) {
+    log.info("score covered", {
+      iteration: ctx.iteration,
+      coveringSection: sectionId(fullyCovering.section.uri, fullyCovering.section.sectionKey),
+    });
+    yield "covered";
+    return;
+  }
+  // A prompt with no gated constraints cannot gate on coverage: any evidence is "covered",
+  // an empty pool is exhausted-empty.
+  if (gated.length === 0) {
+    if (!ctx.poolEmpty) {
+      yield "covered";
+      return;
+    }
+  }
+
+  // (3) Exhaustion controller (mechanical). Budget spent / doom-loop / no unspent axis.
+  const budgetSpent = ctx.iteration >= DEFAULT_ITERATION_BUDGET;
+  const doomLoop = !ctx.addedNewThisIteration;
+  if (budgetSpent || doomLoop) {
+    const event = ctx.poolEmpty ? "exhaustedEmpty" : "exhausted";
+    log.info("score exhausted", {
+      iteration: ctx.iteration,
+      reason: budgetSpent ? "budget" : "doom-loop",
+      poolEmpty: ctx.poolEmpty,
+      unmet: unmet.map((c) => (c.kind === "predicate" ? c.text : c.tokens.join("|"))),
+    });
+    yield event;
+    return;
+  }
+
+  // (4) Advisory failure classification → deterministic loop-back. The predicate, if any, is
+  // surfaced to the LLM here so it informs the (advisory) narrow/contradicted call.
+  const llm = llmOf(project);
+  const cfg = wikiConfigOf(project);
+  const flatUnmet = unmet.map((c) =>
+    c.kind === "predicate"
+      ? { kind: c.kind, tokens: [], text: c.text }
+      : { kind: c.kind, tokens: c.tokens, text: "" },
+  );
+  const { output } = await timedGenerate(llm, log, progress, {
+    name: "score",
+    description:
+      "Advisory narrow-vs-contradicted classification of a failed retrieval iteration. Coverage is decided mechanically elsewhere.",
+    model: cfg.modelFor("queryFast"),
+    system: SCORE_PROMPT,
+    input: {
+      question: req.question,
+      claim: hypothesis.claim,
+      unmetConstraints: flatUnmet,
+      evidence: ctx.facts.map((f) => f.statement),
+    },
+    inputSchema: scoreInputSchema,
+    outputSchema: scoreSchema,
+    strict: true,
+  });
+
+  if (output.failureMode === "contradicted") {
+    log.info("score contradicted", { iteration: ctx.iteration, claim: hypothesis.claim });
+    yield "contradicted";
+    return;
+  }
+  // `narrow`: widen the SAME hypothesis — but only if an axis remains; else exhausted.
+  if (!ctx.hasUnspentAxis(PERIMETER_AXES)) {
+    log.info("score narrow with no axis left → exhausted", { iteration: ctx.iteration });
+    yield ctx.poolEmpty ? "exhaustedEmpty" : "exhausted";
+    return;
+  }
+  log.info("score narrow", { iteration: ctx.iteration, claim: hypothesis.claim });
+  yield "narrow";
 };
 
 /**
  * Compose the grounded, cited answer from the rolling section summaries (strong model). Keeps only
- * grounded claims; when the model reports the evidence is incomplete it attaches a caveat naming
- * what's missing (no escalation — the relevance filter and its retrieval tiers are disabled).
- * Citations are filtered mechanically at `Verify`. Yields `answered`.
+ * grounded claims. On the best-partial path (`Score` exhausted over a non-empty pool with unmet
+ * constraints) it composes the best grounded answer the pool supports and attaches an explicit
+ * caveat NAMING the unmet hard constraint(s) — without asserting them satisfied. On the full-coverage
+ * path (`ctx.unmet` empty) it emits no coverage caveat. Citations are filtered mechanically at
+ * `Verify`. Yields `answered`.
  */
 export const RespondTrigger: QueryHandler = async function* (ctx) {
   const { project, request: req, progress } = ctx;
@@ -405,6 +633,10 @@ export const RespondTrigger: QueryHandler = async function* (ctx) {
   const log = loggerOf(project, "QueryFsm");
   const facts = ctx.facts;
   const evidence = ctx.evidence;
+  // Human-readable labels for the hard constraints no retrieved evidence satisfied (best-partial).
+  const unmetLabels = ctx.unmet.map((c) =>
+    c.kind === "predicate" ? c.text : c.tokens.join(" / "),
+  );
 
   const { output: composed } = await timedGenerate(llm, log, progress, {
     name: "compose-answer",
@@ -417,6 +649,7 @@ export const RespondTrigger: QueryHandler = async function* (ctx) {
       question: req.question,
       language: ctx.intent.language,
       facts: facts.map((f) => ({ statement: f.statement, citations: f.citations })),
+      unmetConstraints: unmetLabels,
     },
     inputSchema: composeInputSchema,
     outputSchema: composeSchema,
@@ -434,6 +667,10 @@ export const RespondTrigger: QueryHandler = async function* (ctx) {
   const dropped = composed.claims.length - grounded.length;
   const caveats: string[] = [];
   if (dropped > 0) caveats.push(`${dropped} ungrounded claim(s) omitted.`);
+  // Best-partial caveat: name the hard constraint(s) no retrieved evidence satisfied (D7 / §9.1).
+  if (unmetLabels.length > 0) {
+    caveats.push(`No retrieved evidence satisfied: ${unmetLabels.join("; ")}.`);
+  }
   if (!composed.sufficient && composed.missing) {
     caveats.push(`Information may be incomplete: ${composed.missing}`);
   }
@@ -470,8 +707,8 @@ export const ResponseTrigger: QueryHandler = async function* (ctx) {
 
 /**
  * Terminal graceful failure: publish a no-evidence (on-corpus) or off-corpus
- * answer. Reached from `IntentDetection` (offCorpus) or `Retrieve` (empty).
- * Yields `done`.
+ * answer. Reached from `IntentDetection` (offCorpus) or `Score` (exhaustedEmpty —
+ * exhausted with a zero-evidence-ever pool). Yields `done`.
  */
 export const NegativeResponseTrigger: QueryHandler = async function* (ctx) {
   const intent = ctx.intent;

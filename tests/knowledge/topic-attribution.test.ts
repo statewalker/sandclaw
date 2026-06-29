@@ -176,9 +176,7 @@ describe("topic attribution onto the index DAG", () => {
   });
 
   it("attaches a near-duplicate candidate to an existing index topic via the LLM", async () => {
-    h.t.topicsByUri.set("a.md", [
-      { key: "release", name: "Release planning", description: "d" },
-    ]);
+    h.t.topicsByUri.set("a.md", [{ key: "release", name: "Release planning", description: "d" }]);
     await h.write("proj/a.md", "alpha");
     await h.run();
 

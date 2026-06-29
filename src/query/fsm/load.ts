@@ -1,11 +1,13 @@
 import { loggerOf } from "@statewalker/workspace.core";
 import {
+  HypothesizeTrigger,
   IntentDetectionTrigger,
   NegativeResponseTrigger,
   RespondTrigger,
   ResponseTrigger,
   RetrieveTrigger,
   RollingSummarizeTrigger,
+  ScoreTrigger,
   SelectSectionsTrigger,
   VerifyTrigger,
 } from "./handlers.js";
@@ -19,9 +21,11 @@ import type { Ctx, QueryHandler, QueryStateKey } from "./query-fsm.js";
 const HANDLERS: Record<QueryStateKey, QueryHandler | undefined> = {
   Query: undefined,
   IntentDetection: IntentDetectionTrigger,
+  Hypothesize: HypothesizeTrigger,
   Retrieve: RetrieveTrigger,
   SelectSections: SelectSectionsTrigger,
   RollingSummarize: RollingSummarizeTrigger,
+  Score: ScoreTrigger,
   Respond: RespondTrigger,
   Verify: VerifyTrigger,
   Response: ResponseTrigger,
@@ -31,9 +35,11 @@ const HANDLERS: Record<QueryStateKey, QueryHandler | undefined> = {
 /** Map FSM states to the observable `QueryProgress` stage names. Terminals publish directly. */
 const STAGE_FOR: Partial<Record<QueryStateKey, string>> = {
   IntentDetection: "intent",
+  Hypothesize: "hypothesize",
   Retrieve: "retrieve",
   SelectSections: "select-sections",
   RollingSummarize: "rolling-summarize",
+  Score: "score",
   Respond: "respond",
   Verify: "verify",
 };

@@ -7,6 +7,26 @@ const availableClassSchema = z.object({
   description: z.string().optional(),
 });
 
+// ── HardConstraint (shared by IntentDetection + Hypothesize) ─────────────────
+// Strict-compatible flat shape: `tokens` carries the literal set for entity/scope
+// (empty for predicate); `text` carries the analytic predicate (empty otherwise).
+// The narrowed `HardConstraint` union (query-context.ts) is reconstructed in the handler.
+export const hardConstraintSchema = z.object({
+  kind: z
+    .enum(["entity", "scope", "predicate"])
+    .describe(
+      "entity = a named thing (organisation/person/place/product); scope = a horizon/range/period qualifier; predicate = an analytic judgement (superlative/comparison) that is NOT a literal token.",
+    ),
+  tokens: z
+    .array(z.string())
+    .describe(
+      "For `entity`/`scope`: the literal tokens (incl. synonyms/variants) whose presence in raw text satisfies the constraint. Empty for `predicate`.",
+    ),
+  text: z
+    .string()
+    .describe("For `predicate`: the analytic judgement in words. Empty for entity/scope."),
+});
+
 // ── IntentDetection ──────────────────────────────────────────────────────────
 export const intentDetectionInputSchema = z.object({
   question: z.string(),
@@ -50,6 +70,11 @@ export const intentDetectionSchema = z
       .describe(
         "The distinct subjects the prompt decomposes into. Each carries a natural-language `prompt` (topic routing), a `semanticQuery` hypothetical answer (vector search), and `ftsQueries` keywords (full-text search). Use one subject for a single-subject prompt.",
       ),
+    constraints: z
+      .array(hardConstraintSchema)
+      .describe(
+        "The prompt's HARD CONSTRAINTS the answer must satisfy: named entities and scope/horizon qualifiers (each as a `tokens` set, mechanically gated against raw text) plus any analytic `predicate` (advisory ranking only). Empty when the prompt carries none.",
+      ),
     language: z
       .string()
       .describe(
@@ -57,7 +82,7 @@ export const intentDetectionSchema = z
       ),
   })
   .describe(
-    "On/off-corpus classification, subject decomposition, and request language. Does NOT answer the prompt.",
+    "On/off-corpus classification, subject decomposition, hard-constraint extraction, and request language. Does NOT answer the prompt.",
   );
 
 // ── TopicSelect (per subject) ────────────────────────────────────────────────
@@ -151,6 +176,62 @@ export const rollingSummarizeSchema = z.object({
     ),
 });
 
+// ── Hypothesize (project the next rival candidate answer + its probe) ─────────
+export const hypothesizeInputSchema = z.object({
+  question: z.string(),
+  /** The prompt's hard constraints the candidate answer must be searchable for. */
+  constraints: z.array(hardConstraintSchema),
+  /** Rival candidate answers already pursued and rejected — generate a DIFFERENT one. */
+  consumedRivals: z.array(z.string()),
+});
+export const hypothesizeSchema = z
+  .object({
+    claim: z
+      .string()
+      .describe(
+        "The single MOST-PROMISING rival candidate ANSWER to the prompt — a concrete proposed answer, not a restatement of the question. When `consumedRivals` is non-empty, propose a DIFFERENT candidate than those already tried.",
+      ),
+    ftsQueries: z
+      .array(z.string())
+      .min(1)
+      .describe(
+        "PROJECT — the literal full-text KEYWORDS the source would carry if this candidate were true: the hard-constraint tokens (entity + scope) PLUS the predicted distinctive vocabulary of the answer. Individual terms, not phrases. Keep named entities/scope tokens VERBATIM.",
+      ),
+    semanticQuery: z
+      .string()
+      .describe(
+        "A HYPOTHETICAL ANSWER passage (HyDE) written as if it were the ideal corpus excerpt confirming THIS candidate (1–3 sentences), embedded for semantic retrieval. PRESERVE named entities verbatim.",
+      ),
+    synonyms: z
+      .array(z.string())
+      .describe(
+        "Extra surface variants/synonyms for the hard-constraint tokens (so the mechanical coverage gate matches alternate phrasings). Empty if none.",
+      ),
+  })
+  .describe(
+    "One rival candidate answer plus its projected probe (PROJECT): full-text keywords, a HyDE semantic query, and synonym variants for the coverage gate.",
+  );
+
+// ── Score (advisory failure classification; coverage is mechanical, not here) ──
+export const scoreInputSchema = z.object({
+  question: z.string(),
+  /** The current rival candidate answer under test. */
+  claim: z.string(),
+  /** The hard constraints NOT covered mechanically in the pooled raw evidence. */
+  unmetConstraints: z.array(hardConstraintSchema),
+  /** The pooled evidence summaries the classification reasons over. */
+  evidence: z.array(z.string()),
+});
+export const scoreSchema = z
+  .object({
+    failureMode: z
+      .enum(["narrow", "contradicted"])
+      .describe(
+        "ADVISORY routing only (never a correctness gate). `contradicted` = the pooled evidence positively REFUTES the candidate answer → reject it and try the next rival. `narrow` = the candidate remains plausible but the evidence does not yet confirm the unmet constraint → keep the hypothesis and widen the search.",
+      ),
+  })
+  .describe("Advisory narrow-vs-contradicted classification feeding a deterministic loop-back.");
+
 // ── Respond ──────────────────────────────────────────────────────────────────
 export const composeInputSchema = z.object({
   question: z.string(),
@@ -163,6 +244,12 @@ export const composeInputSchema = z.object({
       citations: z.array(z.string()),
     }),
   ),
+  /**
+   * Hard constraints NO retrieved evidence satisfied (best-partial path). Empty on the
+   * full-coverage path. When non-empty, compose MUST attach a caveat naming them and MUST
+   * NOT assert them as satisfied.
+   */
+  unmetConstraints: z.array(z.string()),
 });
 // Strict-compatible (OpenAI strict structured outputs): every field required, `missing` nullable.
 // The answer is a list of CLAIMS, each carrying its own citations — grounding is structural: the

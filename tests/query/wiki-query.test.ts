@@ -21,6 +21,7 @@ import {
   WikiPageSummary,
   WikiQuery,
 } from "../../src/index.js";
+import { stubHypothesize, stubScore } from "../util/abductive-stubs.js";
 import { registerStubLlm } from "../util/stub-llm.js";
 
 const DIM = 2;
@@ -80,8 +81,6 @@ let calls: Record<string, number>;
 let foldSections: string[];
 /** The `language` the compose stage was asked to answer in (captured from its input). */
 let composeLanguage: string | undefined;
-/** Compose reports "sufficient" only after this many compose calls (0 = always sufficient). */
-let sufficientAfter: number;
 
 const generateObject: LlmApi["generateObject"] = async (spec) => {
   const usage = { inputTokens: 0, outputTokens: 0 };
@@ -106,6 +105,10 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       return out(META);
     case "intent-detection":
       return out(intent);
+    case "hypothesize":
+      return out(stubHypothesize(spec.input as Parameters<typeof stubHypothesize>[0]));
+    case "score":
+      return out(stubScore());
     case "topic-descent": {
       const nodes = (spec.input as { nodes: { key: string; children: { key: string }[] }[] }).nodes;
       const keys = nodes.map((n) => n.key);
@@ -140,8 +143,7 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
         statement: "fact",
         citations: m.citations,
       }));
-      const sufficient = (calls["compose-answer"] ?? 0) > sufficientAfter;
-      return out({ claims, suggestions: [], sufficient, missing: sufficient ? null : "more" });
+      return out({ claims, suggestions: [], sufficient: true, missing: null });
     }
     default:
       throw new Error(`unexpected call ${spec.name}`);
@@ -201,7 +203,6 @@ describe("WikiQuery — FSM-driven retrieval", () => {
     calls = {};
     foldSections = [];
     composeLanguage = undefined;
-    sufficientAfter = 0;
     project = await buildProject();
   });
 
@@ -234,15 +235,19 @@ describe("WikiQuery — FSM-driven retrieval", () => {
     expect(new Set(keys).size).toBe(keys.length); // no duplicates
   });
 
-  it("fans retrieval out per subject, then rolling-summarizes the pre-filtered candidates", async () => {
+  it("drives retrieval by the current hypothesis (one search unit, not a per-subject fan-out), then rolling-summarizes the pre-filtered candidates", async () => {
     intent = {
       onCorpus: true,
       subjects: [{ prompt: "Who founded Acme?" }, { prompt: "What is Acme?" }],
     };
     await project.requireAdapter(WikiQuery).ask("Acme + founders").complete();
-    // The topic descent runs once per subject; the rank-based pre-filter is mechanical (no LLM
-    // call), so candidates flow into rolling summarization without a section-select call.
-    expect(calls["topic-descent"]).toBe(2);
+    // D11: the hypothesis subsumes the subjects as the search unit — retrieval runs ONE
+    // hypothesis-driven probe per iteration, not one per subject. With full coverage on pass 1
+    // the loop runs a single iteration, so the topic descent runs once (not twice). The
+    // rank-based pre-filter is mechanical (no LLM call), so candidates flow into rolling
+    // summarization without a section-select call.
+    expect(calls.hypothesize).toBe(1);
+    expect(calls["topic-descent"]).toBe(1);
     expect(calls["section-select"]).toBeUndefined();
     expect(calls["rolling-summarize"]).toBeGreaterThan(0);
   });

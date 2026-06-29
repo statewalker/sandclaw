@@ -15,29 +15,38 @@ export type QueryHandler = StageHandler<QueryContext>;
 export type QueryStateKey =
   | "Query"
   | "IntentDetection"
+  | "Hypothesize"
   | "Retrieve"
   | "SelectSections"
   | "RollingSummarize"
+  | "Score"
   | "Respond"
   | "Verify"
   | "Response"
   | "NegativeResponse";
 
 /**
- * The query pipeline as a flat Finite State Machine.
+ * The query pipeline as an abductive, hypothesis-driven retrieval LOOP.
  *
- * `IntentDetection → Retrieve → SelectSections → RollingSummarize → Respond → Verify → Response`,
- * with `NegativeResponse` reachable from `IntentDetection` (off-corpus), `Retrieve`
- * (no candidates), `SelectSections` (nothing relevant survived the filter), and
- * `RollingSummarize` (no relevant summary kept). `SelectSections` is a single-pass
- * relevance pre-filter that narrows the retrieved candidates BEFORE the expensive
- * raw-content rolling summarization.
+ * `IntentDetection → Hypothesize → Retrieve → SelectSections → RollingSummarize → Score`,
+ * where `Score` (a mechanical coverage GATE with a folded controller) routes one of four
+ * outcomes: `covered → Respond` (success), `narrow → Retrieve` (same hypothesis, widened
+ * perimeter), `contradicted → Hypothesize` (next rival), and on exhaustion either
+ * `exhausted → Respond` (best-partial over the non-empty pool) or
+ * `exhaustedEmpty → NegativeResponse` (zero evidence ever). `IntentDetection → offCorpus`
+ * is the other path to `NegativeResponse`.
  *
- * Retrieval runs two front-ends in parallel inside the `Retrieve` handler — the
- * mechanical hybrid (FTS + vector) search and the LLM topic/doc-topic class
- * ladder — merged into one evidence pool; the per-subject fan-out is
- * handler-internal so the topology is fixed regardless of subject count. There
- * is a single pipeline, so no pluggable `Route`/`Pipelines` composite.
+ * `Hypothesize` (GEN) projects the single most-promising rival candidate answer into a
+ * `searchCriteria` probe BEFORE retrieving (abductive-always, D9). `Retrieve` is
+ * parameterised by the CURRENT hypothesis's `searchCriteria` (D11), runs its two
+ * front-ends (hybrid FTS+vector search + the topic/doc-topic class ladder) internally,
+ * and accumulates sections into a cross-iteration evidence pool. `Score` (GATE) checks
+ * hard-constraint coverage MECHANICALLY against pooled raw text; the analytic predicate
+ * is an advisory LLM rank, never a gate (D6).
+ *
+ * Per-iteration empties no longer terminate: a `Retrieve`/`SelectSections`/`RollingSummarize`
+ * iteration that finds nothing is a zero-coverage input flowing forward into `Score`'s
+ * controller (D10) — so those states emit a single forward event regardless of count.
  *
  * A wildcard `["*", "error", ""]` transition terminates from ANY state: when a
  * stage throws, `guarded` (in `load.ts`) records the failure on `QueryProgress`
@@ -45,23 +54,27 @@ export type QueryStateKey =
  * (no imperative engine `terminate` call).
  *
  * Validated by `@statewalker/fsm-validator` (0 errors / 0 warnings) — see
- * `tests/fsm/query-fsm.validate.test.ts`.
+ * `tests/fsm/query-fsm.validate.test.ts`. (`covered`/`exhausted` both target `Respond`,
+ * an M4 "review" advisory — semantically intended: both compose an answer.)
  */
 export const QUERY_FSM: FsmStateConfig = {
   key: "Query",
   description:
-    "Answer a question against the project's LLM-curated wiki via an FSM-driven retrieval pipeline.",
+    "Answer a question against the project's LLM-curated wiki via an abductive hypothesis-driven retrieval loop.",
   transitions: [
     ["", "*", "IntentDetection"],
     ["*", "error", ""],
-    ["IntentDetection", "onCorpus", "Retrieve"],
+    ["IntentDetection", "onCorpus", "Hypothesize"],
     ["IntentDetection", "offCorpus", "NegativeResponse"],
-    ["Retrieve", "gathered", "SelectSections"],
-    ["Retrieve", "empty", "NegativeResponse"],
+    ["Hypothesize", "hypothesized", "Retrieve"],
+    ["Retrieve", "retrieved", "SelectSections"],
     ["SelectSections", "selected", "RollingSummarize"],
-    ["SelectSections", "empty", "NegativeResponse"],
-    ["RollingSummarize", "summarized", "Respond"],
-    ["RollingSummarize", "empty", "NegativeResponse"],
+    ["RollingSummarize", "summarized", "Score"],
+    ["Score", "covered", "Respond"],
+    ["Score", "narrow", "Retrieve"],
+    ["Score", "contradicted", "Hypothesize"],
+    ["Score", "exhausted", "Respond"],
+    ["Score", "exhaustedEmpty", "NegativeResponse"],
     ["Respond", "answered", "Verify"],
     ["Verify", "verified", "Response"],
     ["Response", "done", ""],
@@ -70,37 +83,57 @@ export const QUERY_FSM: FsmStateConfig = {
   states: [
     {
       key: "IntentDetection",
-      description: "Classify on/off-corpus and decompose the prompt into distinct search subjects.",
+      description:
+        "Classify on/off-corpus, decompose the prompt into subjects, and extract the hard-constraint set.",
       events: {
         onCorpus: "The prompt concerns the vault's domain.",
         offCorpus: "The prompt is out of scope.",
       },
     },
     {
+      key: "Hypothesize",
+      description:
+        "Generate the single most-promising rival candidate answer and project it into a searchCriteria probe (cheap model). Re-entered to produce the next rival on rejection.",
+      events: {
+        hypothesized: "A hypothesis with searchCriteria was projected.",
+      },
+    },
+    {
       key: "Retrieve",
       description:
-        "Per subject, run hybrid search and the topic/doc-topic class ladder; merge into one evidence pool.",
+        "Drive hybrid search and the topic/doc-topic class ladder by the current hypothesis's searchCriteria; accumulate new sections into the cross-iteration evidence pool.",
       events: {
-        gathered: "At least one evidence section was retrieved.",
-        empty: "No relevant evidence anywhere.",
+        retrieved:
+          "The iteration's retrieval completed (zero or more sections; empties flow to Score).",
       },
     },
     {
       key: "SelectSections",
       description:
-        "Single-pass relevance pre-filter (cheap model): keep only the retrieved sections whose title/summary bears on the prompt, narrowing the set before rolling summarization.",
+        "Mechanical rank-based pre-filter narrowing the retrieved candidates before rolling summarization.",
       events: {
-        selected: "At least one candidate section survived the filter.",
-        empty: "No candidate section bears on the prompt.",
+        selected: "The pre-filter completed (zero or more survivors; empties flow to Score).",
       },
     },
     {
       key: "RollingSummarize",
       description:
-        "Conditional rolling summarization over the filtered candidates (cheap model): each section's raw content is summarized against the prompt; non-relevant sections are skipped.",
+        "Conditional rolling summarization over the filtered candidates (cheap model): each NEW section's raw content is summarized against the prompt; already-pooled and non-relevant sections are skipped.",
       events: {
-        summarized: "At least one prompt-relevant section summary was kept.",
-        empty: "No candidate section carried anything relevant to the prompt.",
+        summarized: "Summarization completed (zero or more kept summaries; empties flow to Score).",
+      },
+    },
+    {
+      key: "Score",
+      description:
+        "Mechanical coverage GATE with the folded loop controller (cheap model for advisory classification only): coverage-first ordering emits covered / exhausted / exhaustedEmpty / narrow / contradicted.",
+      events: {
+        covered: "Every hard constraint is covered by a pooled section → compose cleanly.",
+        narrow:
+          "Hypothesis plausible but search too narrow → re-retrieve with an expanded perimeter.",
+        contradicted: "Evidence refutes the hypothesis → reject and generate the next rival.",
+        exhausted: "Budget/doom-loop/no-axis-or-rival with a non-empty pool → best-partial answer.",
+        exhaustedEmpty: "Exhausted with an empty evidence pool → negative response.",
       },
     },
     {

@@ -140,6 +140,28 @@ export async function hybridSearch(
   return out;
 }
 
+/**
+ * The RAW text of one section: the page's content sliced by the leaf's line range —
+ * the same slice {@link buildRollingBatches} renders as `<content>`. This is the
+ * coverage gate's only source of truth (the section summary may omit the queried
+ * token; the raw content does not). Returns "" when the page/section is unresolvable.
+ */
+export async function rawSectionText(
+  project: Project,
+  uri: string,
+  sectionKey: string,
+): Promise<string> {
+  const resource = await project.getProjectResource(uri);
+  const summary = await resource?.requireAdapter(WikiPageSummary).get();
+  const leaf = summary ? summaryLeaves(summary).find((s) => s.key === sectionKey) : undefined;
+  if (!leaf) return "";
+  const raw = (await resource?.requireAdapter(ResourceTextContentCache).getTextContent()) ?? "";
+  return raw
+    .split("\n")
+    .slice(leaf.startLine, leaf.endLine + 1)
+    .join("\n");
+}
+
 /** Build an evidence section from a page's summary tree: a leaf's routing fields (title + summary). */
 export async function evidenceFor(
   project: Project,

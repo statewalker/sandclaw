@@ -38,9 +38,51 @@ identifiers/codes, numbers) VERBATIM across all three — never paraphrase or tr
 
 A single-subject prompt yields exactly one subject. Do NOT answer the prompt.
 
+Also extract the prompt's HARD CONSTRAINTS — the conditions any correct answer must satisfy — into
+\`constraints\`, each tagged by \`kind\`:
+- \`entity\`: a named thing the answer is about (organisation, person, place, product, identifier). Put
+  its literal surface tokens (and obvious variants) in \`tokens\`; leave \`text\` empty.
+- \`scope\`: a horizon / range / period / qualifier that bounds the answer (e.g. "within the first
+  year", a date window, a region). Put its literal tokens in \`tokens\`; leave \`text\` empty.
+- \`predicate\`: an ANALYTIC judgement that is not a literal token — a superlative or comparison (e.g.
+  "the most costly", "the largest"). Put it in \`text\`; leave \`tokens\` empty.
+Extract only constraints actually present; return an empty array when the prompt carries none. These
+constraints drive both answer-shape projection and the coverage gate downstream — keep entity and
+scope tokens VERBATIM (English), and prefer a few precise tokens over many loose ones.
+
 Also DETECT the language the user wrote the prompt in and return its English name in \`language\` (e.g.
 "English", "French", "Japanese") — the final answer will be written in it. Use "English" when the
 language cannot be determined. Write \`offCorpusReason\`, when set, in that same language.`;
+
+export const HYPOTHESIZE_PROMPT = `You run the ABDUCTIVE head of a wiki retrieval loop. Given the
+user's question and its hard constraints, propose the single MOST-PROMISING rival candidate ANSWER —
+a concrete proposed answer to the question, never a restatement of it — then PROJECT what the source
+would literally say if that candidate were true.
+
+PROJECT produces the probe:
+- \`ftsQueries\`: the literal full-text KEYWORDS a confirming source would carry — the hard-constraint
+  tokens (every entity and scope token, VERBATIM) PLUS the distinctive vocabulary of your candidate
+  answer. Individual terms, not phrases; omit stop-words.
+- \`semanticQuery\`: a short HYPOTHETICAL ANSWER passage (1–3 sentences) written as if it were the ideal
+  corpus excerpt confirming your candidate — embedded for semantic retrieval. PRESERVE named entities.
+- \`synonyms\`: extra surface variants of the hard-constraint tokens so the mechanical coverage gate
+  matches alternate phrasings (e.g. "within the first year" → "first 12 months", "12-month"). Empty
+  if none.
+
+When \`consumedRivals\` is non-empty, those candidate answers were already tried and rejected — propose
+a genuinely DIFFERENT candidate, not a paraphrase. Project the answer's vocabulary; do NOT answer the
+prompt yourself.`;
+
+export const SCORE_PROMPT = `You classify a failed retrieval iteration for a wiki abductive loop. You
+receive the question, the current candidate ANSWER under test, the hard constraints NOT yet covered in
+the pooled evidence, and the pooled evidence summaries. Coverage itself is decided MECHANICALLY
+elsewhere — your job is ONLY advisory routing between two loop-backs:
+- \`contradicted\`: the pooled evidence positively REFUTES the candidate answer (states something
+  incompatible with it). The hypothesis is wrong → it will be rejected and the next rival tried.
+- \`narrow\`: the candidate remains PLAUSIBLE but the evidence does not yet confirm the unmet
+  constraint(s). The hypothesis is kept and the search is widened.
+Prefer \`narrow\` unless the evidence genuinely contradicts the claim. This is advisory only — a wrong
+call self-corrects on the next pass. Do not answer the question.`;
 
 export const TOPIC_SELECT_PROMPT = `You select the topic and outlier classes worth searching for a
 subject. You receive the subject and the corpus's topic + outlier classes, each as
@@ -118,4 +160,9 @@ RULES — load-bearing:
 
 Then judge sufficiency: set \`sufficient\` true if the facts fully and confidently answer the question;
 set it false when information the question needs is absent, and name the missing piece in \`missing\`
-(this triggers a wider evidence search; use null when sufficient).`;
+(this triggers a wider evidence search; use null when sufficient).
+
+BEST-PARTIAL PATH: when \`unmetConstraints\` is non-empty, the loop exhausted without any evidence
+satisfying those hard constraints. Compose the best grounded answer the facts DO support, but you MUST
+NOT assert any unmet constraint as satisfied, and you MUST set \`sufficient\` false with \`missing\`
+naming those unmet constraint(s). Every claim must still be cited from the supplied facts.`;
