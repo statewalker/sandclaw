@@ -54,11 +54,6 @@ export const intentDetectionSchema = z
             .describe(
               "Standalone, vault-aligned reformulation of this subject as a natural-language statement — drives topic-class routing over the corpus index. Written in ENGLISH (the corpus language) regardless of the user's language. PRESERVE named entities and specific terms verbatim.",
             ),
-          semanticQuery: z
-            .string()
-            .describe(
-              "A HYPOTHETICAL ANSWER to this subject — a short factual passage (1–3 sentences) written as if it were an ideal corpus excerpt answering it, NOT a restatement of the question. Embedded for SEMANTIC (vector) retrieval: a fake answer lands nearer real answers than the bare question. Written in ENGLISH (the corpus language) regardless of the user's language. Invented specifics are embedding bait only. PRESERVE named entities verbatim.",
-            ),
           ftsQueries: z
             .array(z.string())
             .min(1)
@@ -68,7 +63,7 @@ export const intentDetectionSchema = z
         }),
       )
       .describe(
-        "The distinct subjects the prompt decomposes into. Each carries a natural-language `prompt` (topic routing), a `semanticQuery` hypothetical answer (vector search), and `ftsQueries` keywords (full-text search). Use one subject for a single-subject prompt.",
+        "The distinct subjects the prompt decomposes into. Each carries a natural-language `prompt` (topic routing) and `ftsQueries` keywords (full-text search). Use one subject for a single-subject prompt.",
       ),
     constraints: z
       .array(hardConstraintSchema)
@@ -195,12 +190,7 @@ export const hypothesizeSchema = z
       .array(z.string())
       .min(1)
       .describe(
-        "PROJECT — the literal full-text KEYWORDS the source would carry if this candidate were true: the hard-constraint tokens (entity + scope) PLUS the predicted distinctive vocabulary of the answer. Individual terms, not phrases. Keep named entities/scope tokens VERBATIM.",
-      ),
-    semanticQuery: z
-      .string()
-      .describe(
-        "A HYPOTHETICAL ANSWER passage (HyDE) written as if it were the ideal corpus excerpt confirming THIS candidate (1–3 sentences), embedded for semantic retrieval. PRESERVE named entities verbatim.",
+        "PROJECT — the literal full-text KEYWORDS the source would carry if this candidate were true: the hard-constraint tokens (entity + scope) PLUS the predicted distinctive vocabulary of the answer. Individual terms, not phrases, in ENGLISH (the corpus language). These terms drive full-text search AND, space-joined, the semantic (vector) query — so both legs search the same vocabulary. Keep named entities/scope tokens VERBATIM.",
       ),
     synonyms: z
       .array(z.string())
@@ -209,7 +199,7 @@ export const hypothesizeSchema = z
       ),
   })
   .describe(
-    "One rival candidate answer plus its projected probe (PROJECT): full-text keywords, a HyDE semantic query, and synonym variants for the coverage gate.",
+    "One rival candidate answer plus its projected probe (PROJECT): English full-text keywords (also embedded, concatenated, for the vector leg) and synonym variants for the coverage gate.",
   );
 
 // ── Score (advisory failure classification; coverage is mechanical, not here) ──

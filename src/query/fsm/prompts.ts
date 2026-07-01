@@ -16,25 +16,21 @@ greeting or small talk, a creative-writing or coding task, arithmetic, or a ques
 plainly unrelated to the corpus with no searchable corpus term. Then give a one-line offCorpusReason
 and return no subjects.
 
-When on-corpus, decompose the prompt into its distinct SUBJECTS. For each subject produce THREE things:
+When on-corpus, decompose the prompt into its distinct SUBJECTS. For each subject produce TWO things:
 - \`prompt\`: a standalone, natural-language reformulation of the subject. It drives topic-class
   routing over the corpus index. Align the wording with the corpus where natural, but keep named
   entities intact.
-- \`semanticQuery\`: a HYPOTHETICAL ANSWER to the subject — a short, factual passage written as if it
-  were an ideal excerpt from a corpus document that answers it. Do NOT echo the question; assert a
-  plausible answer in the corpus's register (1–3 sentences). This is embedded for SEMANTIC (vector)
-  retrieval, where a fake answer lands nearer the real answers than the bare question does. Any
-  specifics you invent are embedding bait only — never shown or trusted downstream.
 - \`ftsQueries\`: the distinctive KEYWORDS for full-text search — individual content terms and named
   entities drawn from the subject, NOT phrases or sentences. List the salient terms (proper nouns,
   organisations, people, places, identifiers/codes, numbers, and the few defining nouns), each as its
   OWN entry; a block matching more entries ranks higher. Give 1–6 entries; omit stop-words and generic
-  filler.
-Write \`prompt\`, \`semanticQuery\`, and \`ftsQueries\` in ENGLISH — the corpus and its index are
-English, so translate the subject's wording into English even when the user wrote in another language.
-(The detected \`language\` below governs ONLY the final answer, never these retrieval queries.)
-PRESERVE every specific term and named entity (proper nouns, organisations, people, places,
-identifiers/codes, numbers) VERBATIM across all three — never paraphrase or translate the entities away.
+  filler. The same terms are embedded (concatenated) for the semantic (vector) leg, so both legs search
+  the same vocabulary.
+Write \`prompt\` and \`ftsQueries\` in ENGLISH — the corpus and its index are English, so translate the
+subject's wording into English even when the user wrote in another language. (The detected \`language\`
+below governs ONLY the final answer, never these retrieval queries.) PRESERVE every specific term and
+named entity (proper nouns, organisations, people, places, identifiers/codes, numbers) VERBATIM — never
+paraphrase or translate the entities away.
 
 A single-subject prompt yields exactly one subject. Do NOT answer the prompt.
 
@@ -62,9 +58,9 @@ would literally say if that candidate were true.
 PROJECT produces the probe:
 - \`ftsQueries\`: the literal full-text KEYWORDS a confirming source would carry — the hard-constraint
   tokens (every entity and scope token, VERBATIM) PLUS the distinctive vocabulary of your candidate
-  answer. Individual terms, not phrases; omit stop-words.
-- \`semanticQuery\`: a short HYPOTHETICAL ANSWER passage (1–3 sentences) written as if it were the ideal
-  corpus excerpt confirming your candidate — embedded for semantic retrieval. PRESERVE named entities.
+  answer. Individual terms, not phrases; omit stop-words. Write them in ENGLISH (the corpus language).
+  These terms drive the full-text leg AND, concatenated, the semantic (vector) leg — so both legs
+  search the same vocabulary.
 - \`synonyms\`: extra surface variants of the hard-constraint tokens so the mechanical coverage gate
   matches alternate phrasings (e.g. "within the first year" → "first 12 months", "12-month"). Empty
   if none.

@@ -4,8 +4,9 @@
  *
  * `hypothesize` echoes the question as the candidate claim and projects the prompt's
  * hard-constraint tokens (plus the question) into `ftsQueries` — enough for retrieval to
- * behave exactly as the old linear first pass. `score` returns `narrow` (advisory only;
- * the mechanical gate decides covered/exhausted, so this is rarely reached in fixtures).
+ * behave exactly as the old linear first pass (those terms drive both the full-text and the
+ * concatenated vector leg). `score` returns `narrow` (advisory only; the mechanical gate
+ * decides covered/exhausted, so this is rarely reached in fixtures).
  */
 
 interface HypothesizeInput {
@@ -20,7 +21,6 @@ export function stubHypothesize(input: HypothesizeInput) {
   return {
     claim: input.question,
     ftsQueries: [...tokens, input.question],
-    semanticQuery: input.question,
     synonyms: [] as string[],
   };
 }

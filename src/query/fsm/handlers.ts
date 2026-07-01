@@ -136,15 +136,14 @@ export const IntentDetectionTrigger: QueryHandler = async function* (ctx) {
     strict: true,
   });
 
-  // Normalize each subject: fall back to its prompt for an omitted semanticQuery or empty
-  // keyword list. Recall-first: an on-corpus prompt with no subjects becomes the whole question.
+  // Normalize each subject: fall back to its prompt for an empty keyword list. Recall-first:
+  // an on-corpus prompt with no subjects becomes the whole question.
   const subjects: Subject[] = (
     output.onCorpus && output.subjects.length === 0
-      ? [{ prompt: req.question, semanticQuery: req.question, ftsQueries: [req.question] }]
+      ? [{ prompt: req.question, ftsQueries: [req.question] }]
       : output.subjects
   ).map((s) => ({
     prompt: s.prompt,
-    semanticQuery: s.semanticQuery?.trim() ? s.semanticQuery : s.prompt,
     ftsQueries: s.ftsQueries?.length ? s.ftsQueries : [s.prompt],
   }));
   ctx.setIntent({
@@ -161,11 +160,12 @@ export const IntentDetectionTrigger: QueryHandler = async function* (ctx) {
 
 /**
  * The abductive head (GEN, cheap tier, runs on EVERY pass starting #1, D9). Generate the
- * single most-promising rival candidate answer and PROJECT its probe: `ftsQueries`
- * (literalised hard-constraint tokens + predicted answer vocabulary), a HyDE `semanticQuery`,
- * and synonym variants folded into the gate's token sets. On re-entry (`contradicted`) the
- * consumed-rivals list steers the model to a DIFFERENT candidate. Mechanically injects any
- * omitted entity/scope token into `ftsQueries`. Sets `ctx.hypothesis`; yields `hypothesized`.
+ * single most-promising rival candidate answer and PROJECT its probe: the English `ftsQueries`
+ * (literalised hard-constraint tokens + predicted answer vocabulary — driving both the full-text
+ * leg and, concatenated, the vector leg) and synonym variants folded into the gate's token sets.
+ * On re-entry (`contradicted`) the consumed-rivals list steers the model to a DIFFERENT candidate.
+ * Mechanically injects any omitted entity/scope token into `ftsQueries`. Sets `ctx.hypothesis`;
+ * yields `hypothesized`.
  */
 export const HypothesizeTrigger: QueryHandler = async function* (ctx) {
   const { project, request: req, progress } = ctx;
@@ -211,7 +211,6 @@ export const HypothesizeTrigger: QueryHandler = async function* (ctx) {
     claim: output.claim,
     searchCriteria: {
       ftsQueries,
-      semanticQuery: output.semanticQuery?.trim() ? output.semanticQuery : output.claim,
     },
     constraints: enriched,
   };
@@ -326,7 +325,6 @@ export const RetrieveTrigger: QueryHandler = async function* (ctx) {
   // One retrieval "subject" = the current hypothesis's projected probe (D11).
   const subject: Subject = {
     prompt: hypothesis.claim,
-    semanticQuery: hypothesis.searchCriteria.semanticQuery,
     ftsQueries: ftsQueries.length > 0 ? ftsQueries : [hypothesis.claim],
   };
 
@@ -391,7 +389,7 @@ export const RetrieveTrigger: QueryHandler = async function* (ctx) {
 };
 
 /** Cap on the rank-based pre-filter: keep at most this many top-scored single-front-end sections. */
-const SELECT_TOP_N = 40;
+const SELECT_TOP_N = 20;
 
 /**
  * Mechanical, rank-based relevance pre-filter that narrows the retrieved candidates BEFORE the

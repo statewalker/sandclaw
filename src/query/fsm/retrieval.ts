@@ -97,11 +97,14 @@ export function withinScope(uri: string, paths?: string[]): boolean {
 }
 
 /**
- * Mechanical hybrid search for one subject → candidate sections. The subject's
- * `ftsQueries` keywords drive full-text retrieval; its `semanticQuery` (a
- * hypothetical answer, HyDE) is embedded for the semantic side. Logs the exact
- * queries used and the hits they yielded (alongside the topic-descent log) so the
- * retrieval that found each fragment is visible.
+ * Mechanical hybrid search for one subject → candidate sections. BOTH legs run the SAME
+ * single query — the subject's English `ftsQueries` space-joined into one string: the
+ * full-text leg searches it as one multi-term query (ranked by how much of the term set a
+ * section matches), and the vector leg embeds it. One combined query (rather than one FTS
+ * sub-query per term, RRF-fused) keeps recall focused on sections matching the whole probe
+ * instead of flooding it with any section carrying a single common term — the same behaviour
+ * as the CLI `search`. Logs the query used and the hits each leg yielded (alongside the
+ * topic-descent log) so the retrieval that found each fragment is visible.
  */
 export async function hybridSearch(
   search: SearchAdapter,
@@ -109,10 +112,17 @@ export async function hybridSearch(
   subject: Subject,
   paths?: string[],
 ): Promise<{ uri: string; sectionKey: string; score: number }[]> {
-  const ftsQueries = subject.ftsQueries.length > 0 ? subject.ftsQueries : [subject.prompt];
+  const terms = subject.ftsQueries.length > 0 ? subject.ftsQueries : [subject.prompt];
+  // Both legs search ONE combined query — the space-joined terms. Passing the terms as
+  // SEPARATE `ftsQueries` instead runs one full-text sub-query per term and RRF-fuses them,
+  // which floods recall with every section matching any single common term ("fund",
+  // "performance", "portfolio") and buries the sections matching the whole probe. A single
+  // combined query ranks a section by how much of the term set it matches — the same
+  // behaviour as the CLI `search`, and symmetric with the vector leg's embedding of it.
+  const combinedQuery = terms.join(" ");
   const matches = await search.search({
-    query: subject.semanticQuery,
-    ftsQueries,
+    query: combinedQuery,
+    ftsQueries: [combinedQuery],
     modes: ["fts", "vector"],
     paths,
   });
@@ -130,8 +140,8 @@ export async function hybridSearch(
     }
   }
   log.info("hybrid search", {
-    semanticQuery: subject.semanticQuery,
-    ftsQueries,
+    combinedQuery,
+    terms,
     documents: matches.length,
     sections: out.length,
     ftsSections,

@@ -24,9 +24,7 @@ export interface QueryRequest {
 export interface Subject {
   /** Standalone, vault-aligned reformulation of this subject; drives topic-class routing. */
   prompt: string;
-  /** Hypothetical answer to the subject (HyDE); embedded for semantic (vector) search. */
-  semanticQuery: string;
-  /** Distinctive keywords for full-text search (content terms + named entities, not phrases). */
+  /** Distinctive English keywords for full-text search AND the (concatenated) vector query. */
   ftsQueries: string[];
 }
 
@@ -66,10 +64,11 @@ export interface Hypothesis {
   claim: string;
   /** PROJECT: the predicted source vocabulary if this candidate were true. */
   searchCriteria: {
-    /** Literalised hard-constraint tokens + predicted answer words for full-text search. */
+    /**
+     * Literalised hard-constraint tokens + predicted answer words (ENGLISH). Drives full-text
+     * search AND, space-joined, the vector query — both legs search the same terms.
+     */
     ftsQueries: string[];
-    /** HyDE of THIS candidate, embedded for semantic search. */
-    semanticQuery: string;
   };
   /** Coverage checklist (entity/scope token sets + predicate), incl. PROJECT synonyms. */
   constraints: HardConstraint[];

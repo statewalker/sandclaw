@@ -111,7 +111,6 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       return out({
         claim: `Candidate answer ${n + 1}: Acme's most costly first-year item`,
         ftsQueries: ["Acme", "cost", "costly"],
-        semanticQuery: "Acme's most costly item within the first year is the data centre buildout.",
         synonyms: [],
       });
     }
