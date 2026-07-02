@@ -147,6 +147,8 @@ async function buildProject() {
     embed,
     embedModel: "fixture",
     dimensionality: DIM,
+    // Scope test exercises the full retrieval path (hybrid + ladder scope filtering); run full-only.
+    queryMode: "full-only",
   });
   registerSearch(repository, {
     embed: async (_project, text) => embed(text),

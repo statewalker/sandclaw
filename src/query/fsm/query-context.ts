@@ -41,12 +41,17 @@ export type HardConstraint =
   | { kind: "entity" | "scope"; tokens: string[] }
   | { kind: "predicate"; text: string };
 
+/** The retrieval shape classified by `IntentDetection`. `synthesis` fast-forwards past the lean path. */
+export type QueryKind = "lookup" | "synthesis";
+
 /** IntentDetection output: on/off-corpus, the decomposed subjects, the hard constraints, and the request language. */
 export interface IntentResult {
   onCorpus: boolean;
   subjects: Subject[];
   /** The prompt's hard constraints — feed both `Hypothesize` projection and the `Score` gate. */
   constraints: HardConstraint[];
+  /** Retrieval shape — `synthesis` fast-forwards to the abductive loop; `lookup` runs the lean path. */
+  queryKind: QueryKind;
   /** Why the prompt was judged off-corpus (when `onCorpus` is false). */
   offCorpusReason?: string;
   /** English name of the language the prompt is written in; the answer is composed in it. */
@@ -97,6 +102,7 @@ const EMPTY_INTENT: IntentResult = {
   onCorpus: false,
   subjects: [],
   constraints: [],
+  queryKind: "lookup",
   language: "English",
 };
 const EMPTY_ANSWER: Answer = {
@@ -150,6 +156,14 @@ export class QueryContext {
   #addedNewThisIteration = false;
   /** Unmet hard constraints reported by the last `Score` (drives the best-partial caveat). */
   #unmet: HardConstraint[] = [];
+
+  // ── lean-first routing ──
+  /** Whether the lean single-pass path is active. Set by `IntentDetection` when it routes to the
+   * lean path; cleared on escalation so the shared `RollingSummarize` state routes to `Score`,
+   * not `LeanRespond`. */
+  #leanActive = false;
+  /** Whether the lean pass escalated into the abductive loop (observability: predicted-vs-actual). */
+  #escalated = false;
 
   get intent(): IntentResult {
     return this.#intent;
@@ -244,6 +258,26 @@ export class QueryContext {
   }
   setUnmet(unmet: HardConstraint[]): void {
     this.#unmet = unmet;
+  }
+
+  // ── lean-first routing ──
+  /** Whether the lean single-pass path is currently active (drives `RollingSummarize` routing). */
+  get leanActive(): boolean {
+    return this.#leanActive;
+  }
+  /** Enter the lean single-pass path. */
+  enterLean(): void {
+    this.#leanActive = true;
+  }
+  /** Leave the lean path for the abductive loop (empty pool or an insufficient lean answer). */
+  escalate(): void {
+    this.#leanActive = false;
+    this.#escalated = true;
+    this.progress.escalated = true;
+  }
+  /** Whether the lean pass escalated into the abductive loop (observability). */
+  get escalated(): boolean {
+    return this.#escalated;
   }
 
   get evidence(): EvidenceSection[] {

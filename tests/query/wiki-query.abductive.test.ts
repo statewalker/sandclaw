@@ -169,6 +169,8 @@ async function buildProject() {
     embed,
     embedModel: "fixture",
     dimensionality: DIM,
+    // The abductive-loop regression asserts hypothesis on every first pass; run full-only.
+    queryMode: "full-only",
   });
   registerSearch(repository, {
     embed: async (_project, text) => embed(text),

@@ -15,6 +15,8 @@ export type QueryHandler = StageHandler<QueryContext>;
 export type QueryStateKey =
   | "Query"
   | "IntentDetection"
+  | "LeanRetrieve"
+  | "LeanRespond"
   | "Hypothesize"
   | "Retrieve"
   | "SelectSections"
@@ -26,9 +28,18 @@ export type QueryStateKey =
   | "NegativeResponse";
 
 /**
- * The query pipeline as an abductive, hypothesis-driven retrieval LOOP.
+ * The query pipeline as a lean-first path with an abductive retrieval LOOP behind it.
  *
- * `IntentDetection → Hypothesize → Retrieve → SelectSections → RollingSummarize → Score`,
+ * Under `lean-first` (default), `IntentDetection` routes an on-corpus `lookup` query into the LEAN
+ * single-pass path `LeanRetrieve → SelectSections → RollingSummarize → LeanRespond` (hybrid search
+ * only, cheap compose). `LeanRespond` delivers the answer when `sufficient`, else escalates to
+ * `Hypothesize` (warm-started from the pool); an empty lean pool short-circuits straight to
+ * `Hypothesize`. A `synthesis` query (or `full-only` mode) skips the lean path and enters the loop
+ * directly. `SelectSections` and `RollingSummarize` are SHARED by both paths (the lean pass emits
+ * `summarizedLean` → `LeanRespond`; the full path emits `summarized` → `Score`).
+ *
+ * The abductive loop is
+ * `Hypothesize → Retrieve → SelectSections → RollingSummarize → Score`,
  * where `Score` (a mechanical coverage GATE with a folded controller) routes one of four
  * outcomes: `covered → Respond` (success), `narrow → Retrieve` (same hypothesis, widened
  * perimeter), `contradicted → Hypothesize` (next rival), and on exhaustion either
@@ -64,11 +75,22 @@ export const QUERY_FSM: FsmStateConfig = {
   transitions: [
     ["", "*", "IntentDetection"],
     ["*", "error", ""],
-    ["IntentDetection", "onCorpus", "Hypothesize"],
+    // Lean-first (default): a `lookup` query runs the lean single-pass path; a `synthesis` query (or
+    // `full-only` mode) fast-forwards to the abductive loop; off-corpus goes to NegativeResponse.
+    ["IntentDetection", "lean", "LeanRetrieve"],
+    ["IntentDetection", "abductive", "Hypothesize"],
     ["IntentDetection", "offCorpus", "NegativeResponse"],
+    ["LeanRetrieve", "retrieved", "SelectSections"],
+    // Empty lean pool: skip the compose, escalate straight into the abductive loop.
+    ["LeanRetrieve", "empty", "Hypothesize"],
+    ["LeanRespond", "sufficient", "Verify"],
+    // Insufficient lean answer: escalate into the abductive loop (warm-started from the pool).
+    ["LeanRespond", "insufficient", "Hypothesize"],
     ["Hypothesize", "hypothesized", "Retrieve"],
     ["Retrieve", "retrieved", "SelectSections"],
     ["SelectSections", "selected", "RollingSummarize"],
+    // Shared `RollingSummarize`: on the lean pass it routes to `LeanRespond`; on the full path to `Score`.
+    ["RollingSummarize", "summarizedLean", "LeanRespond"],
     ["RollingSummarize", "summarized", "Score"],
     ["Score", "covered", "Respond"],
     ["Score", "narrow", "Retrieve"],
@@ -84,10 +106,29 @@ export const QUERY_FSM: FsmStateConfig = {
     {
       key: "IntentDetection",
       description:
-        "Classify on/off-corpus, decompose the prompt into subjects, and extract the hard-constraint set.",
+        "Classify on/off-corpus, decompose the prompt into subjects, extract the hard-constraint set, and classify the query kind (lookup vs synthesis) to route lean-first vs abductive.",
       events: {
-        onCorpus: "The prompt concerns the vault's domain.",
+        lean: "On-corpus lookup query under lean-first → run the lean single-pass path.",
+        abductive: "Synthesis query (or full-only mode) → enter the abductive loop directly.",
         offCorpus: "The prompt is out of scope.",
+      },
+    },
+    {
+      key: "LeanRetrieve",
+      description:
+        "Lean retrieval: hybrid search only (no topic descent), seeded mechanically from the intent subjects. Pools sections for the shared SelectSections/RollingSummarize states.",
+      events: {
+        retrieved: "The lean hybrid search returned one or more candidate sections.",
+        empty: "The lean hybrid search found nothing → escalate straight to Hypothesize.",
+      },
+    },
+    {
+      key: "LeanRespond",
+      description:
+        "Compose the lean answer on the cheap tier and judge sufficiency: sufficient → deliver; insufficient → escalate into the abductive loop, warm-started from the pool.",
+      events: {
+        sufficient: "The lean answer suffices → verify and publish.",
+        insufficient: "The lean answer is insufficient → escalate to Hypothesize.",
       },
     },
     {
@@ -121,6 +162,7 @@ export const QUERY_FSM: FsmStateConfig = {
         "Conditional rolling summarization over the filtered candidates (cheap model): each NEW section's raw content is summarized against the prompt; already-pooled and non-relevant sections are skipped.",
       events: {
         summarized: "Summarization completed (zero or more kept summaries; empties flow to Score).",
+        summarizedLean: "Lean-pass summarization completed → compose the lean answer.",
       },
     },
     {

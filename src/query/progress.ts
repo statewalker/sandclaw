@@ -61,6 +61,10 @@ export class QueryProgress {
   /** Wall-clock start of the run, and total elapsed (set on finish/fail). */
   readonly startedAt = Date.now();
   totalMs = 0;
+  /** The predicted query kind from IntentDetection (lean-first routing observability). */
+  queryKind?: "lookup" | "synthesis";
+  /** Whether the lean pass escalated into the abductive loop (predicted-vs-actual observability). */
+  escalated = false;
   answer?: Answer;
   error?: unknown;
   private resolvers: ((a: Answer) => void)[] = [];

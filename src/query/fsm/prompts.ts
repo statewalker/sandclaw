@@ -46,6 +46,14 @@ Extract only constraints actually present; return an empty array when the prompt
 constraints drive both answer-shape projection and the coverage gate downstream — keep entity and
 scope tokens VERBATIM (English), and prefer a few precise tokens over many loose ones.
 
+Also classify the prompt's retrieval shape in \`queryKind\`. DEFAULT to \`lookup\` — a direct
+fact/definition/attribute retrieval that one search pass can answer. Emit \`synthesis\` ONLY when the
+prompt is UNMISTAKABLY multi-hop, comparative, or aggregative: it compares two or more things, asks a
+causal/"why"/"how did X lead to Y" question spanning sources, aggregates across many items, or names
+several distinct subjects that must be combined. Be PRECISION-BIASED toward \`synthesis\`: when in any
+doubt, choose \`lookup\` — a lookup that turns out to need more depth is widened automatically
+downstream, whereas a mislabelled \`synthesis\` forces a simple question down the expensive path.
+
 Also DETECT the language the user wrote the prompt in and return its English name in \`language\` (e.g.
 "English", "French", "Japanese") — the final answer will be written in it. Use "English" when the
 language cannot be determined. Write \`offCorpusReason\`, when set, in that same language.`;

@@ -21,10 +21,21 @@ export interface StageModelNames {
 /** A wiki text-generation stage (any `StageModelNames` key except `default`). */
 export type ModelStage = keyof Omit<StageModelNames, "default">;
 
+/**
+ * Query routing mode. `lean-first` (default) runs a cheap single-pass lean path
+ * (hybrid search → summarize → cheap compose) and escalates into the abductive
+ * loop only when the lean answer is insufficient or a query is classified
+ * `synthesis`. `full-only` reproduces the always-abductive pipeline (hypothesis on
+ * every first pass) for A/B comparison and rollback.
+ */
+export type QueryMode = "lean-first" | "full-only";
+
 /** The per-project wiki configuration, as persisted in `.project/nature.wiki.json`. */
 export interface WikiConfigData {
   /** Stage → model-reference URI for text-generation stages. */
   models: StageModelNames;
+  /** Query routing mode (defaults to `lean-first`). */
+  queryMode?: QueryMode;
   /** Embedding model reference URI (also part of the per-doc embeddings filename + index
    * config). Omitted for a **text-only** wiki: no vectors are produced and search/query
    * fall back to full-text only. */
@@ -108,6 +119,11 @@ export class WikiLlmConfiguration extends ProjectAdapter {
   /** Model reference for a text-generation stage, falling back to `default`. */
   modelFor(stage: ModelStage): string {
     return this.data.models[stage] ?? this.data.models.default;
+  }
+
+  /** Query routing mode, defaulting to `lean-first`. */
+  get queryMode(): QueryMode {
+    return this.data.queryMode ?? "lean-first";
   }
 
   get embedModel(): string | undefined {

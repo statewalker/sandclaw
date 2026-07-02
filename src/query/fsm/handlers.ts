@@ -146,16 +146,87 @@ export const IntentDetectionTrigger: QueryHandler = async function* (ctx) {
     prompt: s.prompt,
     ftsQueries: s.ftsQueries?.length ? s.ftsQueries : [s.prompt],
   }));
+  // Default to `lookup` when the model omits/garbles the field (precision-biased toward the lean path).
+  const queryKind = output.queryKind === "synthesis" ? "synthesis" : "lookup";
+  progress.queryKind = queryKind;
   ctx.setIntent({
     onCorpus: output.onCorpus,
     subjects: output.onCorpus ? subjects : [],
     // Hard constraints feed both `Hypothesize` projection and the `Score` coverage gate.
     constraints: (output.constraints ?? []).map(toHardConstraint),
+    queryKind,
     offCorpusReason: output.offCorpusReason ?? undefined,
     // The answer is composed in the request's language; English when undetectable.
     language: output.language?.trim() || "English",
   });
-  yield output.onCorpus ? "onCorpus" : "offCorpus";
+
+  if (!output.onCorpus) {
+    yield "offCorpus";
+    return;
+  }
+  // Route: lean single-pass only for a `lookup` query under `lean-first`; otherwise (a `synthesis`
+  // query, or `full-only` mode) fast-forward to the abductive loop.
+  const lean = cfg.queryMode === "lean-first" && queryKind === "lookup";
+  log.info("intent routed", {
+    queryMode: cfg.queryMode,
+    queryKind,
+    path: lean ? "lean" : "abductive",
+  });
+  if (lean) {
+    ctx.enterLean();
+    yield "lean";
+  } else {
+    yield "abductive";
+  }
+};
+
+/**
+ * The lean retrieval front-end: hybrid search ONLY (no topic descent / class ladder), seeded
+ * mechanically from the intent's subjects (their `ftsQueries` + prompt), unioned and deduped by
+ * section. Resolves candidates into `ctx.candidates` for the shared `SelectSections` / `RollingSummarize`
+ * states with `score = 1` (single front-end). An empty result escalates straight to `Hypothesize`
+ * (the abductive loop's topic descent may still find evidence hybrid search missed); otherwise yields
+ * `retrieved`.
+ */
+export const LeanRetrieveTrigger: QueryHandler = async function* (ctx) {
+  const { project } = ctx;
+  const log = loggerOf(project, "QueryFsm");
+  const paths = ctx.request.paths;
+  const search = project.getAdapter(SearchAdapter);
+  const subjects = ctx.intent.subjects;
+
+  // Per unique section, keep the best hybrid-search RRF score (→ the rank-based pre-filter).
+  const signal = new Map<string, { uri: string; sectionKey: string; searchScore: number }>();
+  const record = (hits: { uri: string; sectionKey: string; score?: number }[]) => {
+    for (const h of hits) {
+      const id = sectionId(h.uri, h.sectionKey);
+      const e = signal.get(id) ?? { uri: h.uri, sectionKey: h.sectionKey, searchScore: 0 };
+      if (h.score !== undefined) e.searchScore = Math.max(e.searchScore, h.score);
+      signal.set(id, e);
+    }
+  };
+  if (search) {
+    // hybridSearch honours `paths` internally (scope), so no post-filter is needed.
+    const perSubject = await Promise.all(subjects.map((s) => hybridSearch(search, log, s, paths)));
+    for (const hits of perSubject) record(hits);
+  }
+
+  const entries = [...signal.values()];
+  const resolved = await Promise.all(entries.map((e) => evidenceFor(project, e.uri, e.sectionKey)));
+  const candidates: Candidate[] = [];
+  entries.forEach((e, i) => {
+    const section = resolved[i];
+    if (section) candidates.push({ section, score: 1, searchScore: e.searchScore });
+  });
+  ctx.setCandidates(candidates);
+  log.info("lean retrieved", { subjects: subjects.length, sections: candidates.length });
+
+  if (candidates.length === 0) {
+    ctx.escalate();
+    yield "empty";
+    return;
+  }
+  yield "retrieved";
 };
 
 /**
@@ -508,7 +579,8 @@ export const RollingSummarizeTrigger: QueryHandler = async function* (ctx) {
     sections: ctx.evidence.length,
     keptSections: ctx.evidence.map((e) => sectionId(e.uri, e.sectionKey)),
   });
-  yield "summarized";
+  // Shared state: on the lean pass route to LeanRespond; on the full path to the Score gate.
+  yield ctx.leanActive ? "summarizedLean" : "summarized";
 };
 
 /**
@@ -630,7 +702,6 @@ export const RespondTrigger: QueryHandler = async function* (ctx) {
   const cfg = wikiConfigOf(project);
   const log = loggerOf(project, "QueryFsm");
   const facts = ctx.facts;
-  const evidence = ctx.evidence;
   // Human-readable labels for the hard constraints no retrieved evidence satisfied (best-partial).
   const unmetLabels = ctx.unmet.map((c) =>
     c.kind === "predicate" ? c.text : c.tokens.join(" / "),
@@ -660,7 +731,21 @@ export const RespondTrigger: QueryHandler = async function* (ctx) {
     },
   });
 
-  // Keep only grounded claims (each carries ≥1 citation); render them to the answer text.
+  await finalizeComposedAnswer(ctx, composed, unmetLabels);
+  yield "answered";
+};
+
+/**
+ * Assemble the composed output into the published `Answer`: keep only grounded claims (each carries
+ * ≥1 citation), render them to text, attach caveats (dropped-ungrounded, best-partial unmet
+ * constraints, and an incompleteness note), aggregate the evidence's topic/outlier classes, and set
+ * `ctx.answer`. Shared by the strong-tier `Respond` and the cheap-tier `LeanRespond`.
+ */
+async function finalizeComposedAnswer(
+  ctx: Parameters<QueryHandler>[0],
+  composed: z.infer<typeof composeSchema>,
+  unmetLabels: string[],
+): Promise<void> {
   const grounded = composed.claims.filter((c) => c.citations.length > 0);
   const dropped = composed.claims.length - grounded.length;
   const caveats: string[] = [];
@@ -674,8 +759,8 @@ export const RespondTrigger: QueryHandler = async function* (ctx) {
   }
   // Flush the full grounded render (the streamed preview omitted the final claim).
   const text = renderClaims(grounded);
-  progress.setPartialText(text);
-  const { topics, outliers } = await aggregateClasses(project, evidence);
+  ctx.progress.setPartialText(text);
+  const { topics, outliers } = await aggregateClasses(ctx.project, ctx.evidence);
   ctx.setAnswer({
     text,
     citations: [...new Set(grounded.flatMap((c) => c.citations))],
@@ -683,9 +768,53 @@ export const RespondTrigger: QueryHandler = async function* (ctx) {
     suggestions: composed.suggestions,
     topics,
     outliers,
-    evidenceCount: evidence.length,
+    evidenceCount: ctx.evidence.length,
   });
-  yield "answered";
+}
+
+/**
+ * The lean single-pass compose (D3): compose the answer from the rolling summaries on the CHEAP tier
+ * and judge sufficiency. A `sufficient` answer is delivered directly (→ `Verify`); an insufficient
+ * one escalates into the abductive loop (→ `Hypothesize`), warm-started from the accumulated pool —
+ * the composed draft is discarded and the strong-tier `Respond` recomposes at the end. No best-partial
+ * caveat here: the lean path has no coverage gate, so no unmet constraints.
+ */
+export const LeanRespondTrigger: QueryHandler = async function* (ctx) {
+  const { project, request: req, progress } = ctx;
+  const llm = llmOf(project);
+  const cfg = wikiConfigOf(project);
+  const log = loggerOf(project, "QueryFsm");
+
+  const { output: composed } = await timedGenerate(llm, log, progress, {
+    name: "compose-answer",
+    description:
+      "Compose the lean answer from the rolling section summaries and judge whether the evidence sufficed.",
+    // Cheap tier — the strong model is reserved for the escalated final compose.
+    model: cfg.modelFor("queryFast"),
+    system: COMPOSE_PROMPT,
+    input: {
+      question: req.question,
+      language: ctx.intent.language,
+      facts: ctx.facts.map((f) => ({ statement: f.statement, citations: f.citations })),
+      unmetConstraints: [],
+    },
+    inputSchema: composeInputSchema,
+    outputSchema: composeSchema,
+    strict: true,
+  });
+
+  if (!composed.sufficient) {
+    ctx.escalate();
+    log.info("lean insufficient → escalate", { missing: composed.missing ?? undefined });
+    yield "insufficient";
+    return;
+  }
+  await finalizeComposedAnswer(ctx, composed, []);
+  log.info("lean sufficient", {
+    queryKind: ctx.intent.queryKind,
+    citations: ctx.answer.citations.length,
+  });
+  yield "sufficient";
 };
 
 /** Mechanical citation filter: drop citations not resolving to retrieved evidence. Yields `verified`. */

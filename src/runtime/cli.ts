@@ -244,6 +244,9 @@ function reportStats(progress: QueryProgress, warn: (m: string) => void): void {
   );
   warn(`  llm call time (cumulative): ${totCallMs} ms`);
   warn(`  total elapsed: ${progress.totalMs} ms`);
+  if (progress.queryKind) {
+    warn(`  routing: queryKind=${progress.queryKind}, lean escalated=${progress.escalated}`);
+  }
 }
 
 /**

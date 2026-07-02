@@ -17,6 +17,7 @@ export { costOf, type LlmCallCost, roundUsd, sumCosts } from "./pricing.js";
 export { type BuildCall, type BuildRecorder, BuildTracer } from "./trace.js";
 export {
   type ModelStage,
+  type QueryMode,
   type StageModelNames,
   WIKI_NATURE_FILE,
   type WikiConfigData,

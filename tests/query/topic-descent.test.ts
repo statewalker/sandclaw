@@ -205,12 +205,17 @@ async function buildBase(config: WikiConfigData, searchStub?: SearchStub): Promi
   return project;
 }
 
+// These fusion tests exercise the full abductive retrieval path (hypothesis + topic descent); run full-only.
 const EMBED_CONFIG: WikiConfigData = {
   models: { default: "stub-model" },
   embedModel: "fixture",
   dimensionality: DIM,
+  queryMode: "full-only",
 };
-const TEXT_ONLY_CONFIG: WikiConfigData = { models: { default: "stub-model" } };
+const TEXT_ONLY_CONFIG: WikiConfigData = {
+  models: { default: "stub-model" },
+  queryMode: "full-only",
+};
 
 /** A leaf node referencing the document's `company-founders` topic (→ section `founders`). */
 function leaf(key: string): TopicNode {

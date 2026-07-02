@@ -2,6 +2,8 @@ import { loggerOf } from "@statewalker/workspace.core";
 import {
   HypothesizeTrigger,
   IntentDetectionTrigger,
+  LeanRespondTrigger,
+  LeanRetrieveTrigger,
   NegativeResponseTrigger,
   RespondTrigger,
   ResponseTrigger,
@@ -21,6 +23,8 @@ import type { Ctx, QueryHandler, QueryStateKey } from "./query-fsm.js";
 const HANDLERS: Record<QueryStateKey, QueryHandler | undefined> = {
   Query: undefined,
   IntentDetection: IntentDetectionTrigger,
+  LeanRetrieve: LeanRetrieveTrigger,
+  LeanRespond: LeanRespondTrigger,
   Hypothesize: HypothesizeTrigger,
   Retrieve: RetrieveTrigger,
   SelectSections: SelectSectionsTrigger,
@@ -35,6 +39,8 @@ const HANDLERS: Record<QueryStateKey, QueryHandler | undefined> = {
 /** Map FSM states to the observable `QueryProgress` stage names. Terminals publish directly. */
 const STAGE_FOR: Partial<Record<QueryStateKey, string>> = {
   IntentDetection: "intent",
+  LeanRetrieve: "lean-retrieve",
+  LeanRespond: "lean-respond",
   Hypothesize: "hypothesize",
   Retrieve: "retrieve",
   SelectSections: "select-sections",

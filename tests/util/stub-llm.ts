@@ -2,6 +2,7 @@ import type { Project, Workspace } from "@statewalker/workspace.core";
 import {
   type LlmApi,
   LlmProjectAdapter,
+  type QueryMode,
   type StageModelNames,
   type WikiConfigData,
   WikiLlmConfiguration,
@@ -14,12 +15,14 @@ function stubConfig(opts: {
   embedModel?: string;
   dimensionality?: number;
   corpusPurpose?: string;
+  queryMode?: QueryMode;
 }): WikiConfigData {
   return {
     models: opts.models ?? { default: "stub-model" },
     embedModel: opts.embedModel ?? "fixture",
     dimensionality: opts.dimensionality ?? 2,
     corpusPurpose: opts.corpusPurpose,
+    queryMode: opts.queryMode,
   };
 }
 
@@ -32,6 +35,8 @@ export interface StubLlmOptions {
   embedModel?: string;
   dimensionality?: number;
   corpusPurpose?: string;
+  /** Query routing mode (defaults to the production `lean-first` when omitted). */
+  queryMode?: QueryMode;
 }
 
 /** Build a stub `LlmApi` from a `generateObject` fn + an optional embed fixture. */

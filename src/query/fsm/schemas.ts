@@ -70,6 +70,11 @@ export const intentDetectionSchema = z
       .describe(
         "The prompt's HARD CONSTRAINTS the answer must satisfy: named entities and scope/horizon qualifiers (each as a `tokens` set, mechanically gated against raw text) plus any analytic `predicate` (advisory ranking only). Empty when the prompt carries none.",
       ),
+    queryKind: z
+      .enum(["lookup", "synthesis"])
+      .describe(
+        "The retrieval shape. `lookup` = a direct fact/definition/attribute retrieval answerable from one search pass (the DEFAULT — choose it whenever unsure). `synthesis` = an UNMISTAKABLY multi-hop, comparative, or aggregative question that must combine evidence across several sources (e.g. 'compare X and Y', 'what caused Z', 'trace how …', or naming several distinct subjects). Bias strongly toward `lookup`: only emit `synthesis` when the multi-source reasoning is unmistakable.",
+      ),
     language: z
       .string()
       .describe(
