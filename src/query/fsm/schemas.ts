@@ -274,6 +274,6 @@ export const composeSchema = z.object({
     .string()
     .nullable()
     .describe(
-      "When not sufficient, a short description of the information still needed; null otherwise.",
+      "When not sufficient, a complete USER-FACING sentence, written in the same `language` as the claims, that explicitly states what the supplied facts do NOT answer — e.g. 'Les documents disponibles ne précisent pas le résultat net de la société de gestion.' It leads the delivered answer, so name the missing entity/figure/period concretely; do NOT substitute an adjacent fact. Null only when fully sufficient.",
     ),
 });

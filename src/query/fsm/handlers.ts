@@ -737,9 +737,10 @@ export const RespondTrigger: QueryHandler = async function* (ctx) {
 
 /**
  * Assemble the composed output into the published `Answer`: keep only grounded claims (each carries
- * ≥1 citation), render them to text, attach caveats (dropped-ungrounded, best-partial unmet
- * constraints, and an incompleteness note), aggregate the evidence's topic/outlier classes, and set
- * `ctx.answer`. Shared by the strong-tier `Respond` and the cheap-tier `LeanRespond`.
+ * ≥1 citation), render them to text LED by an explicit insufficiency statement (`missing`) when the
+ * evidence did not answer the prompt, attach caveats (dropped-ungrounded, best-partial unmet
+ * constraints), aggregate the evidence's topic/outlier classes, and set `ctx.answer`. Shared by the
+ * strong-tier `Respond` and the cheap-tier `LeanRespond`.
  */
 async function finalizeComposedAnswer(
   ctx: Parameters<QueryHandler>[0],
@@ -754,11 +755,13 @@ async function finalizeComposedAnswer(
   if (unmetLabels.length > 0) {
     caveats.push(`No retrieved evidence satisfied: ${unmetLabels.join("; ")}.`);
   }
-  if (!composed.sufficient && composed.missing) {
-    caveats.push(`Information may be incomplete: ${composed.missing}`);
-  }
-  // Flush the full grounded render (the streamed preview omitted the final claim).
-  const text = renderClaims(grounded);
+  // Insufficiency LEADS the answer (not a trailing caveat): when the evidence does not answer the
+  // prompt (or a part of it), `missing` carries the explicit user-facing statement in the request's
+  // language. Uncited claims are dropped, so this cannot ride in `claims` — it must lead the text.
+  const lead = !composed.sufficient && composed.missing?.trim() ? composed.missing.trim() : "";
+  // Flush the full grounded render (the streamed preview omitted the final claim), led by any
+  // insufficiency statement so the reader sees the gap first, then the grounded detail.
+  const text = [lead, renderClaims(grounded)].filter((s) => s !== "").join("\n\n");
   ctx.progress.setPartialText(text);
   const { topics, outliers } = await aggregateClasses(ctx.project, ctx.evidence);
   ctx.setAnswer({

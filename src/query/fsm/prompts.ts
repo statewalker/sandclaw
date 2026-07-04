@@ -143,28 +143,36 @@ list where each claim has a \`statement\` (a sentence or bullet; markdown such a
 prefix is fine) and a \`citations\` array.
 
 RULES — load-bearing:
-1. COMPLETE, WITHIN THE QUESTION'S FRAME. First fix the specific ASPECT the question asks about. Then
-   be EXHAUSTIVE inside that frame: include every supplied fact that falls within it, down to the
-   fine-grained sub-details (e.g. for "where does company X operate", name each specific country or
-   region the facts give — do not collapse them). Prefer a complete, detailed answer over a terse one.
-   But EXCLUDE every fact outside that frame, even when it concerns the same subject (e.g. that
-   company's founders or finances are out of frame for a question about its geography). The test for a
-   claim is whether it answers the ASPECT asked — not whether it merely mentions the subject. Add no
-   preamble, padding, or unprompted conclusions.
-2. LANGUAGE. Write every claim's \`statement\` in the language named in \`language\` (the language the
-   user asked in). Do NOT translate proper nouns, citations/refs, or technical terms that have no
-   accepted form in that language.
-3. NO INVENTION. Every claim's content MUST come from the supplied facts — do not add, infer beyond,
-   generalise past, or embellish them, and never use outside or "common-sense" knowledge. If a fact
-   you'd need is not present, do NOT supply it from your own knowledge.
-4. EVERY CLAIM CITED. Each claim's \`citations\` MUST contain one or more refs drawn VERBATIM from the
-   \`citations\` of the facts it rests on (a claim MAY combine facts from different documents, each still
-   cited). If you cannot cite a statement from the supplied facts, OMIT it — never emit a claim with an
-   empty \`citations\` array, and never invent or alter refs.
-
-Then judge sufficiency: set \`sufficient\` true if the facts fully and confidently answer the question;
-set it false when information the question needs is absent, and name the missing piece in \`missing\`
-(this triggers a wider evidence search; use null when sufficient).
+1. ANSWER FIRST (bottom line up front). The FIRST claim MUST answer, directly and unambiguously, every
+   main sub-question the prompt asks — in one or two sentences, the concrete answer stated plainly. For
+   a multi-part question, that first claim resolves EACH part explicitly. The following claims add the
+   figures, detail, and context. Never open with background or make the reader hunt for the answer.
+2. ONLY THE EXACT ENTITY / SCOPE / PERIOD ASKED. A fact answers the question only if it concerns the
+   SAME entity, scope, and period the question names. A fact about a related but DIFFERENT subject —
+   a portfolio holding instead of the management company, a different fund, a different date or period
+   than requested — does NOT answer the question. Never present such a fact as the answer. If the
+   supplied facts only cover an adjacent subject, treat the question (or that part) as UNANSWERED (rule 6).
+3. COMPLETE, WITHIN THE QUESTION'S FRAME. After the lead, be EXHAUSTIVE inside the asked frame: include
+   every supplied fact that falls within it, down to fine-grained sub-details (e.g. for "where does
+   company X operate", name each specific country the facts give — do not collapse them). But EXCLUDE
+   every fact outside that frame, even about the same subject. The test for a claim is whether it
+   answers the ASPECT asked — not whether it merely mentions the subject. Add no preamble or padding.
+4. LANGUAGE. Write every claim's \`statement\` — and the \`missing\` sentence — in the language named in
+   \`language\` (the language the user asked in). Do NOT translate proper nouns, citations/refs, or
+   technical terms with no accepted form in that language.
+5. NO INVENTION, EVERY CLAIM CITED. Every claim's content MUST come from the supplied facts — do not add,
+   infer beyond, generalise past, or embellish them, and never use outside knowledge. Each claim's
+   \`citations\` MUST contain refs drawn VERBATIM from the facts it rests on (a claim MAY combine facts
+   from different documents, each still cited). If you cannot cite a statement, OMIT it — never emit a
+   claim with an empty \`citations\` array, and never invent or alter refs.
+6. STATE INSUFFICIENCY EXPLICITLY — never fabricate a substitute. If the facts do not answer the
+   question, or answer only PART of it, or only cover a different entity/scope/period than asked, you
+   MUST say so plainly: set \`sufficient\` false and write in \`missing\` a complete user-facing sentence
+   naming exactly what is not answered (e.g. "Les documents disponibles ne précisent pas la dette à
+   long terme de la société de gestion."). This sentence LEADS the delivered answer. Do NOT substitute
+   an adjacent or loosely-related fact to fill the gap. When only part is answerable, answer that part
+   (rule 1) AND name the missing part in \`missing\`. Set \`sufficient\` true and \`missing\` null ONLY when
+   the facts fully and confidently answer every part of the question.
 
 BEST-PARTIAL PATH: when \`unmetConstraints\` is non-empty, the loop exhausted without any evidence
 satisfying those hard constraints. Compose the best grounded answer the facts DO support, but you MUST

@@ -80,6 +80,8 @@ let intent: Intent;
 let queryMode: QueryMode | undefined;
 /** Whether the lean (queryFast) compose judges its answer sufficient (false → escalation). */
 let leanSufficient: boolean;
+/** When set, the escalated (queryStrong) compose reports insufficient with this `missing` sentence. */
+let fullMissing: string | null;
 let calls: Record<string, number>;
 /** The model ref each `compose-answer` call used, in order (queryFast = lean, queryStrong = full). */
 let composeModels: string[];
@@ -123,8 +125,11 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
       const claims = (
         spec.input as { facts: { statement: string; citations: string[] }[] }
       ).facts.map((m) => ({ statement: "fact", citations: m.citations }));
-      // The lean (queryFast) compose's sufficiency is per-test; the escalated (queryStrong) compose
-      // is always sufficient so the abductive loop terminates.
+      // The lean (queryFast) compose's sufficiency is per-test. The escalated (queryStrong) compose is
+      // sufficient by default (loop terminates), unless `fullMissing` forces an insufficient final answer.
+      if (spec.model === MODELS.queryStrong && fullMissing) {
+        return out({ claims, suggestions: [], sufficient: false, missing: fullMissing });
+      }
       const sufficient = spec.model === MODELS.queryFast ? leanSufficient : true;
       return out({
         claims,
@@ -191,6 +196,7 @@ describe("WikiQuery — lean-first path", () => {
     };
     queryMode = undefined; // default lean-first
     leanSufficient = true;
+    fullMissing = null;
     calls = {};
     composeModels = [];
   });
@@ -221,6 +227,17 @@ describe("WikiQuery — lean-first path", () => {
     // Lean compose (cheap) then escalated final compose (strong) — never the strong tier twice.
     expect(composeModels).toEqual([MODELS.queryFast, MODELS.queryStrong]);
     expect(progress.escalated).toBe(true); // observability: predicted-vs-actual
+  });
+
+  it("leads the answer with the explicit insufficiency statement when the evidence does not answer", async () => {
+    // Force the final compose to report insufficient with a user-facing `missing` sentence.
+    leanSufficient = false;
+    fullMissing = "Les documents ne précisent pas la dette de la société.";
+    const project = await buildProject();
+    const answer = await project.requireAdapter(WikiQuery).ask("Quelle est la dette ?").complete();
+
+    // The insufficiency sentence is the FIRST line of the answer (not a trailing caveat).
+    expect(answer.text.startsWith(fullMissing)).toBe(true);
   });
 
   it("short-circuits an empty lean pool straight to the abductive loop without a lean compose", async () => {
