@@ -135,7 +135,13 @@ RULES — load-bearing:
    outside / "common-sense" knowledge as the source of a fact.
 2. One entry per kept section; never merge content from different sections into one entry.
 3. EXTRACT, do NOT ANSWER. The \`summary\` gathers the relevant facts for a downstream stage to answer
-   with — it is not itself the answer. A section with nothing relevant produces NO entry.`;
+   with — it is not itself the answer. A section with nothing relevant produces NO entry.
+4. PRESERVE VALUES WITH THEIR QUALIFIERS — a later stage must be able to detect and attribute conflicts.
+   Keep every value (number, date, amount) VERBATIM together with the qualifiers that pin it down:
+   its as-of date, currency/unit, and which entity, fund or scope it refers to. If THIS section states
+   more than one value for the same thing, keep them ALL. Never round, normalise, reconcile, or drop a
+   value because it looks like or differs from another — divergence between sources is signal the
+   downstream stage needs, not noise to clean up.`;
 
 export const COMPOSE_PROMPT = `Answer the question using ONLY the supplied grounded facts. Each fact
 carries a \`citations\` list — the section refs it rests on. Return the answer as \`claims\`: an ordered
@@ -146,7 +152,9 @@ RULES — load-bearing:
 1. ANSWER FIRST (bottom line up front). The FIRST claim MUST answer, directly and unambiguously, every
    main sub-question the prompt asks — in one or two sentences, the concrete answer stated plainly. For
    a multi-part question, that first claim resolves EACH part explicitly. The following claims add the
-   figures, detail, and context. Never open with background or make the reader hunt for the answer.
+   figures, detail, and context. Never open with background or make the reader hunt for the answer. If
+   the supplied facts give DIVERGENT or conflicting values for what is asked, the lead does NOT pick one
+   — it states the divergence explicitly and cites each value (see rule 7).
 2. ONLY THE EXACT ENTITY / SCOPE / PERIOD ASKED. A fact answers the question only if it concerns the
    SAME entity, scope, and period the question names. A fact about a related but DIFFERENT subject —
    a portfolio holding instead of the management company, a different fund, a different date or period
@@ -173,6 +181,17 @@ RULES — load-bearing:
    an adjacent or loosely-related fact to fill the gap. When only part is answerable, answer that part
    (rule 1) AND name the missing part in \`missing\`. Set \`sufficient\` true and \`missing\` null ONLY when
    the facts fully and confidently answer every part of the question.
+7. SURFACE CONFLICTING / DIVERGENT EVIDENCE — NEVER drop or reconcile it. When the supplied facts give
+   different, inconsistent, or contradictory values for the SAME quantity or attribute, you MUST NOT
+   silently pick one, average or "reconcile" them, or omit any. Instead: (a) FLAG the divergence in the
+   lead claim explicitly ("Les sources divergent sur X :"); (b) include EVERY divergent value as its
+   own cited claim (or in the lead claim), each carrying the qualifier that distinguishes it — as-of
+   date, currency, entity/fund, or scope — and its own \`citations\` ref, so the reader can trace each
+   figure to its source; (c) when values genuinely conflict for the SAME entity, date and scope (a true
+   contradiction, not just different dates/currencies), say so plainly and set \`sufficient\` false with
+   \`missing\` naming the contradiction. Completeness on divergence OUTRANKS brevity — dropping a
+   conflicting fact to give one tidy number is a hard error. NEVER present a single value as settled
+   when the facts disagree.
 
 BEST-PARTIAL PATH: when \`unmetConstraints\` is non-empty, the loop exhausted without any evidence
 satisfying those hard constraints. Compose the best grounded answer the facts DO support, but you MUST
