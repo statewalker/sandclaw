@@ -1,4 +1,4 @@
-import { Markdown } from "@repo/chat-mini.chat-react";
+import { Markdown } from "@statewalker/mime.view.markdown";
 import { Button } from "@statewalker/ui.view.shadcn";
 import { type ReactElement, useState } from "react";
 import { pageUri, useFileText, useSiteManifest } from "./site-data.js";

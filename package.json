@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@json-render/core": "0.18.0",
-    "@repo/chat-mini.chat-react": "workspace:*",
+    "@statewalker/mime.view.markdown": "workspace:*",
     "@statewalker/mime.core": "workspace:*",
     "@statewalker/render.core": "workspace:*",
     "@statewalker/render.view.react": "workspace:*",
