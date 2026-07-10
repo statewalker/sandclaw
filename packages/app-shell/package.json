@@ -1,0 +1,59 @@
+{
+  "name": "@statewalker/app-shell",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Workbench-substrate boot helper shared by chat-mini.app and explorer.app.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check --write .",
+    "format": "biome format --write ."
+  },
+  "dependencies": {
+    "@statewalker/ui.view.react": "workspace:*",
+    "@statewalker/shell.core": "workspace:*",
+    "@statewalker/shell.view.react": "workspace:*",
+    "@statewalker/mime.core": "workspace:*",
+    "@statewalker/mime.view.image": "workspace:*",
+    "@statewalker/inline.core": "workspace:*",
+    "@statewalker/inline.view.react": "workspace:*",
+    "@statewalker/mime.view.markdown": "workspace:*",
+    "@statewalker/mime.view.pdf": "workspace:*",
+    "@statewalker/render.core": "workspace:*",
+    "@statewalker/platform.browser": "catalog:",
+    "@statewalker/settings.core": "workspace:*",
+    "@statewalker/settings.view.react": "workspace:*",
+    "@statewalker/ui.view.shadcn": "workspace:*",
+    "@statewalker/shared-commands": "catalog:",
+    "@statewalker/shared-registry": "catalog:",
+    "@statewalker/shared-slots": "catalog:",
+    "@statewalker/mime.view.video": "workspace:*",
+    "@statewalker/workspace.core": "catalog:",
+    "@statewalker/workspace.browser": "workspace:*",
+    "@statewalker/workspace.view.react": "workspace:*",
+    "@tanstack/react-query": "^5.66.10",
+    "lucide-react": "catalog:"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@types/react": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  }
+}

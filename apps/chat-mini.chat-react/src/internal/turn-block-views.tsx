@@ -1,0 +1,33 @@
+import type { Message, ToolCall } from "@statewalker/ai-agent.core/state";
+import type { ReactElement } from "react";
+import { ErrorBlock } from "./error-block.js";
+import { MessageView } from "./message-view.js";
+import { ToolCallsBlock } from "./tool-calls-block.js";
+
+/**
+ * Adapter components that bridge the slot-pattern's `{ props: unknown }`
+ * shape to the existing chat-screen components. Registered into
+ * `ViewRegistry` under `STANDARD_TURN_BLOCK_KINDS.*` viewKeys by the
+ * chat-views init. Each one casts `props` to the kind-specific
+ * payload shape produced by `TurnView.groupChildren`.
+ */
+
+export function UserMessageBlock({ props }: { props: unknown }): ReactElement {
+  const { message } = props as { message: Message };
+  return <MessageView message={message} />;
+}
+
+export function AgentMessageBlock({ props }: { props: unknown }): ReactElement {
+  const { message } = props as { message: Message };
+  return <MessageView message={message} />;
+}
+
+export function ToolCallsRunBlock({ props }: { props: unknown }): ReactElement {
+  const { calls } = props as { calls: ToolCall[] };
+  return <ToolCallsBlock calls={calls} />;
+}
+
+export function ErrorTurnBlock({ props }: { props: unknown }): ReactElement {
+  const { text } = props as { text: string };
+  return <ErrorBlock text={text} />;
+}

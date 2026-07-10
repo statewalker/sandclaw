@@ -1,0 +1,74 @@
+{
+  "name": "@statewalker/chat-mini.chat-react",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Chat-specific renderer fragment for chat-mini.app.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./fragment": "./src/fragment.ts",
+    "./styles": "./src/styles.css"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@json-render/core": "0.18.0",
+    "@json-render/react": "0.18.0",
+    "@json-render/shadcn": "0.18.0",
+    "@radix-ui/react-collapsible": "^1.1.12",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-popover": "^1.1.15",
+    "@radix-ui/react-tooltip": "^1.2.8",
+    "@statewalker/chat-mini.chat": "workspace:*",
+    "@statewalker/ai-agent.core": "catalog:",
+    "@tanstack/react-query": "^5.66.10",
+    "ai": "catalog:",
+    "zod": "catalog:",
+    "@statewalker/ai-agent-runtime.core": "workspace:*",
+    "@statewalker/workspace.browser": "workspace:*",
+    "@statewalker/ui.view.react": "workspace:*",
+    "@statewalker/shell.core": "workspace:*",
+    "@statewalker/shell.view.react": "workspace:*",
+    "@statewalker/mime.core": "workspace:*",
+    "@statewalker/mime.view.markdown": "workspace:*",
+    "@statewalker/render.core": "workspace:*",
+    "@statewalker/inline.core": "workspace:*",
+    "@statewalker/inline.view.react": "workspace:*",
+    "@statewalker/ui.view.shadcn": "workspace:*",
+    "@statewalker/shared-baseclass": "catalog:",
+    "@statewalker/shared-commands": "catalog:",
+    "@statewalker/shared-registry": "catalog:",
+    "@statewalker/shared-slots": "catalog:",
+    "@statewalker/webrun-files": "catalog:",
+    "@statewalker/workspace.core": "catalog:",
+    "@statewalker/workspace.view.react": "workspace:*",
+    "lucide-react": "catalog:",
+    "react-markdown": "catalog:",
+    "use-stick-to-bottom": "^1.1.4"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@statewalker/webrun-files-mem": "catalog:",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "jsdom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ]
+}

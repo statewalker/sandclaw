@@ -1,0 +1,40 @@
+{
+  "name": "@statewalker/chat-mini.chat",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Chat-specific logic fragment for chat-mini.app.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./fragment": "./src/fragment.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@json-render/core": "0.18.0",
+    "@json-render/react": "0.18.0",
+    "@statewalker/ai-agent.core": "catalog:",
+    "@statewalker/ai-agent-runtime.core": "workspace:*",
+    "@statewalker/shell.core": "workspace:*",
+    "@statewalker/mime.core": "workspace:*",
+    "@statewalker/inline.core": "workspace:*",
+    "@statewalker/shared-baseclass": "catalog:",
+    "@statewalker/render.core": "workspace:*",
+    "@statewalker/shared-commands": "catalog:",
+    "@statewalker/shared-registry": "catalog:",
+    "@statewalker/shared-slots": "catalog:",
+    "@statewalker/webrun-files": "catalog:",
+    "@statewalker/workspace.core": "catalog:",
+    "ai": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
