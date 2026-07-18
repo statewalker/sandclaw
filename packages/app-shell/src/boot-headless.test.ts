@@ -3,9 +3,23 @@ import {
   PreferenceGetCommand,
   PreferenceSetCommand,
 } from "@statewalker/platform.core";
+import initPlatformNode from "@statewalker/platform.node";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import { describe, expect, it } from "vitest";
-import { bootHeadless } from "./boot-shell.js";
+import { type BootHeadlessOptions, bootHeadless } from "./boot-shell.js";
+
+/**
+ * bootHeadless with in-memory preferences so the test never touches the real
+ * host config dir (`initPlatformNode`'s default is a NodeFilesApi at ~/.config).
+ */
+function bootHeadlessMem(
+  options: Omit<BootHeadlessOptions, "platform">,
+): ReturnType<typeof bootHeadless> {
+  return bootHeadless({
+    ...options,
+    platform: (ctx) => initPlatformNode(ctx, { preferences: new MemFilesApi() }),
+  });
+}
 
 /**
  * Smoke test for the isomorphic split: `bootHeadless` must boot the logic
@@ -16,7 +30,7 @@ import { bootHeadless } from "./boot-shell.js";
 describe("bootHeadless", () => {
   it("boots the substrate headlessly and opens the workspace against the given FilesApi", async () => {
     const files = new MemFilesApi();
-    const { workspace, cleanup } = bootHeadless({ files });
+    const { workspace, cleanup } = bootHeadlessMem({ files });
 
     // bootHeadless opens eagerly (fire-and-forget); await the transition.
     await new Promise<void>((resolve) => {
@@ -31,8 +45,8 @@ describe("bootHeadless", () => {
     expect(workspace.isOpened).toBe(false);
   });
 
-  it("round-trips platform:preference through the initPlatformNode stub", async () => {
-    const { ctx, cleanup } = bootHeadless({ files: new MemFilesApi() });
+  it("round-trips platform:preference through initPlatformNode", async () => {
+    const { ctx, cleanup } = bootHeadlessMem({ files: new MemFilesApi() });
     const commands = getCommands(ctx);
 
     await commands.call(PreferenceSetCommand, { key: "theme", value: "dark" }).promise;

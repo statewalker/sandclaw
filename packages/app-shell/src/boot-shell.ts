@@ -6,6 +6,7 @@ import initMarkdownViewerReact from "@statewalker/mime.view.markdown/fragment";
 import initPdfViewerReact from "@statewalker/mime.view.pdf/fragment";
 import initVideoViewerReact from "@statewalker/mime.view.video/fragment";
 import initPlatformWeb from "@statewalker/platform.browser";
+import initPlatformNode from "@statewalker/platform.node";
 import initSpecStore from "@statewalker/render.core/fragment";
 import initSettings from "@statewalker/settings.core/fragment";
 import initSettingsReact from "@statewalker/settings.view.react/fragment";
@@ -20,7 +21,6 @@ import { getWorkspace, Workspace } from "@statewalker/workspace.core";
 import initWorkspaceFiles from "@statewalker/workspace.core/files-fragment";
 import initWorkspaceBridgeReact from "@statewalker/workspace.view.react/fragment";
 import { QueryClient } from "@tanstack/react-query";
-import initPlatformNode from "./init-platform-node.js";
 import { initMenubar } from "./menubar-init.js";
 import { applyInitialTheme } from "./theme-manager.js";
 
@@ -79,7 +79,7 @@ export interface BootLogicOptions {
   /**
    * Host platform impl — the fragment registering the `platform:*` capability
    * commands. `initPlatformWeb` (`@statewalker/platform.browser`) in a browser;
-   * `initPlatformNode` (stub) or a future `platform-node` headless.
+   * `initPlatformNode` (`@statewalker/platform.node`) headless.
    */
   platform: FragmentInit;
   /**
@@ -95,7 +95,10 @@ export interface BootLogicOptions {
 export interface BootHeadlessOptions {
   /** The workspace's file system. The workspace is opened against it eagerly. */
   files: FilesApi;
-  /** Host platform impl. Defaults to the in-process `initPlatformNode` stub. */
+  /**
+   * Host platform impl. Defaults to `@statewalker/platform.node`'s
+   * `initPlatformNode` — filesystem-backed preferences at the host config dir.
+   */
   platform?: FragmentInit;
   logic?: readonly FragmentInit[];
   onLogicReady?: BootShellOptions["onLogicReady"];
@@ -236,8 +239,10 @@ export function bootShell(options: BootShellOptions = {}): BootShellResult {
  * asserting should await `workspace.onLoad` (or the workspace's ready signal)
  * rather than assuming it is open on return.
  *
- * The default `platform` is the in-process `initPlatformNode` stub — durable
- * preferences only; browser-only capabilities are unregistered by design.
+ * The default `platform` is `@statewalker/platform.node`'s `initPlatformNode` —
+ * filesystem-backed durable preferences at the host config dir; browser-only
+ * capabilities are unregistered by design. Tests inject a `MemFilesApi` for
+ * preferences via a custom `platform` to avoid touching the real config dir.
  */
 export function bootHeadless(options: BootHeadlessOptions): BootShellResult {
   const workspace = new Workspace();

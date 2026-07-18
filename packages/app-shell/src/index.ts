@@ -1,3 +1,4 @@
+export { default as initPlatformNode } from "@statewalker/platform.node";
 export {
   type BootHeadlessOptions,
   type BootLogicOptions,
@@ -9,4 +10,3 @@ export {
   type FragmentInit,
 } from "./boot-shell.js";
 export * from "./extension-points.js";
-export { default as initPlatformNode } from "./init-platform-node.js";

@@ -29,6 +29,7 @@
     "@statewalker/render.core": "workspace:*",
     "@statewalker/platform.core": "catalog:",
     "@statewalker/platform.browser": "catalog:",
+    "@statewalker/platform.node": "workspace:*",
     "@statewalker/webrun-files": "catalog:",
     "@statewalker/settings.core": "workspace:*",
     "@statewalker/settings.view.react": "workspace:*",
