@@ -1,24 +1,26 @@
-import initCoreReact from "@statewalker/ui.view.react/fragment";
-import initDock from "@statewalker/shell.core/fragment";
-import initDockReact from "@statewalker/shell.view.react/fragment";
-import initImageViewerReact from "@statewalker/mime.view.image/fragment";
 import initInlineContent from "@statewalker/inline.core/fragment";
 import initInlineContentReact from "@statewalker/inline.view.react/fragment";
-import initMarkdownViewerReact from "@statewalker/mime.view.markdown/fragment";
 import initFiles from "@statewalker/mime.core/fragment";
+import initImageViewerReact from "@statewalker/mime.view.image/fragment";
+import initMarkdownViewerReact from "@statewalker/mime.view.markdown/fragment";
 import initPdfViewerReact from "@statewalker/mime.view.pdf/fragment";
+import initVideoViewerReact from "@statewalker/mime.view.video/fragment";
 import initPlatformWeb from "@statewalker/platform.browser";
 import initSpecStore from "@statewalker/render.core/fragment";
 import initSettings from "@statewalker/settings.core/fragment";
 import initSettingsReact from "@statewalker/settings.view.react/fragment";
-import initShadcnReact from "@statewalker/ui.view.shadcn/fragment";
 import { newRegistry } from "@statewalker/shared-registry";
-import initVideoViewerReact from "@statewalker/mime.view.video/fragment";
-import { Workspace } from "@statewalker/workspace.core";
-import initWorkspaceFiles from "@statewalker/workspace.core/files-fragment";
+import initDock from "@statewalker/shell.core/fragment";
+import initDockReact from "@statewalker/shell.view.react/fragment";
+import initCoreReact from "@statewalker/ui.view.react/fragment";
+import initShadcnReact from "@statewalker/ui.view.shadcn/fragment";
+import type { FilesApi } from "@statewalker/webrun-files";
 import initWorkspaceBridge from "@statewalker/workspace.browser/fragment";
+import { getWorkspace, Workspace } from "@statewalker/workspace.core";
+import initWorkspaceFiles from "@statewalker/workspace.core/files-fragment";
 import initWorkspaceBridgeReact from "@statewalker/workspace.view.react/fragment";
 import { QueryClient } from "@tanstack/react-query";
+import initPlatformNode from "./init-platform-node.js";
 import { initMenubar } from "./menubar-init.js";
 import { applyInitialTheme } from "./theme-manager.js";
 
@@ -27,9 +29,7 @@ import { applyInitialTheme } from "./theme-manager.js";
  * boot context, returns a cleanup. Both sync and async cleanups are
  * accepted — the underlying registry awaits whichever shape is given.
  */
-export type FragmentInit = (
-  ctx: Record<string, unknown>,
-) => () => void | Promise<void>;
+export type FragmentInit = (ctx: Record<string, unknown>) => () => void | Promise<void>;
 
 export interface BootShellOptions {
   /**
@@ -70,6 +70,71 @@ export interface BootShellResult {
   ctx: Record<string, unknown>;
   /** Tear down every registered fragment, in reverse order. */
   cleanup: () => Promise<void>;
+}
+
+/** The registrar returned by `newRegistry()` — tracks a cleanup and returns an unregister. */
+type Register = (cleanup: () => void | Promise<void>) => () => Promise<void>;
+
+export interface BootLogicOptions {
+  /**
+   * Host platform impl — the fragment registering the `platform:*` capability
+   * commands. `initPlatformWeb` (`@statewalker/platform.browser`) in a browser;
+   * `initPlatformNode` (stub) or a future `platform-node` headless.
+   */
+  platform: FragmentInit;
+  /**
+   * Host workspace-provisioning strategy — how the `Workspace` acquires its
+   * `FilesApi` and opens. `initWorkspaceBridge` (FS-Access picker + IndexedDB
+   * restore) in a browser; a synchronous `setFileSystem().open()` headless.
+   */
+  provisionWorkspace: FragmentInit;
+  logic?: readonly FragmentInit[];
+  onLogicReady?: BootShellOptions["onLogicReady"];
+}
+
+export interface BootHeadlessOptions {
+  /** The workspace's file system. The workspace is opened against it eagerly. */
+  files: FilesApi;
+  /** Host platform impl. Defaults to the in-process `initPlatformNode` stub. */
+  platform?: FragmentInit;
+  logic?: readonly FragmentInit[];
+  onLogicReady?: BootShellOptions["onLogicReady"];
+}
+
+/**
+ * Register the isomorphic logic substrate — no React, no DOM, no QueryClient.
+ * Runs identically in a browser and under Node; the only host-specific choices
+ * are the two injected fragments (`platform`, `provisionWorkspace`), kept at
+ * their exact original ordinals so the fixed substrate order is unchanged.
+ *
+ * Fixed order: platform(1) → spec-store(2) → dock(3) → provisionWorkspace(4) →
+ * settings(5) → workspace-files(6) → files(7) → inline-content(8) → app logic →
+ * onLogicReady hook.
+ */
+export function bootLogic(
+  ctx: Record<string, unknown>,
+  register: Register,
+  opts: BootLogicOptions,
+): void {
+  register(opts.platform(ctx)); // slot 1
+  register(initSpecStore(ctx));
+  register(initDock(ctx));
+  register(opts.provisionWorkspace(ctx)); // slot 4
+  register(initSettings(ctx));
+  register(initWorkspaceFiles(ctx));
+  register(initFiles(ctx));
+  register(initInlineContent(ctx));
+
+  for (const init of opts.logic ?? []) {
+    register(init(ctx));
+  }
+
+  if (opts.onLogicReady) {
+    const result = opts.onLogicReady(ctx, register);
+    if (typeof result === "function") {
+      register(result);
+    }
+  }
 }
 
 /**
@@ -120,28 +185,14 @@ export function bootShell(options: BootShellOptions = {}): BootShellResult {
 
   const [register, cleanup] = newRegistry();
 
-  // ── 1. Substrate logic fragments ─────────────────────────────
-  register(initPlatformWeb(ctx));
-  register(initSpecStore(ctx));
-  register(initDock(ctx));
-  register(initWorkspaceBridge(ctx));
-  register(initSettings(ctx));
-  register(initWorkspaceFiles(ctx));
-  register(initFiles(ctx));
-  register(initInlineContent(ctx));
-
-  // ── 2. App-specific logic fragments ──────────────────────────
-  for (const init of options.logic ?? []) {
-    register(init(ctx));
-  }
-
-  // ── 3. Pre-renderer hook ─────────────────────────────────────
-  if (options.onLogicReady) {
-    const result = options.onLogicReady(ctx, register);
-    if (typeof result === "function") {
-      register(result);
-    }
-  }
+  // ── 1–3. Isomorphic logic substrate + app logic + pre-renderer hook ──
+  // Browser host: platform.browser + the FS-Access workspace bridge.
+  bootLogic(ctx, register, {
+    platform: initPlatformWeb,
+    provisionWorkspace: initWorkspaceBridge,
+    logic: options.logic,
+    onLogicReady: options.onLogicReady,
+  });
 
   // ── 4. Substrate renderer fragments ──────────────────────────
   // `core-react` owns the React mount (per ADR 0003); register first
@@ -172,6 +223,38 @@ export function bootShell(options: BootShellOptions = {}): BootShellResult {
       void cleanup();
     });
   }
+
+  return { workspace, ctx, cleanup };
+}
+
+/**
+ * Boot the isomorphic logic substrate headlessly — no React, no DOM. For Node
+ * hosts and headless tests of the substrate + app logic fragments.
+ *
+ * The workspace is provisioned synchronously against `options.files` and opened
+ * eagerly; `open()` is async, so callers that need the workspace loaded before
+ * asserting should await `workspace.onLoad` (or the workspace's ready signal)
+ * rather than assuming it is open on return.
+ *
+ * The default `platform` is the in-process `initPlatformNode` stub — durable
+ * preferences only; browser-only capabilities are unregistered by design.
+ */
+export function bootHeadless(options: BootHeadlessOptions): BootShellResult {
+  const workspace = new Workspace();
+  const ctx: Record<string, unknown> = { "workspace:workspace": workspace };
+  const [register, cleanup] = newRegistry();
+
+  bootLogic(ctx, register, {
+    platform: options.platform ?? initPlatformNode,
+    provisionWorkspace: (c) => {
+      const ws = getWorkspace(c);
+      ws.setFileSystem(options.files);
+      void ws.open();
+      return () => ws.close();
+    },
+    logic: options.logic,
+    onLogicReady: options.onLogicReady,
+  });
 
   return { workspace, ctx, cleanup };
 }

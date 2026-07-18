@@ -27,7 +27,9 @@
     "@statewalker/mime.view.markdown": "workspace:*",
     "@statewalker/mime.view.pdf": "workspace:*",
     "@statewalker/render.core": "workspace:*",
+    "@statewalker/platform.core": "catalog:",
     "@statewalker/platform.browser": "catalog:",
+    "@statewalker/webrun-files": "catalog:",
     "@statewalker/settings.core": "workspace:*",
     "@statewalker/settings.view.react": "workspace:*",
     "@statewalker/ui.view.shadcn": "workspace:*",
@@ -47,6 +49,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
+    "@statewalker/webrun-files-mem": "catalog:",
     "@types/react": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
