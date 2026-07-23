@@ -121,6 +121,10 @@ export class SearchAdapter extends ProjectAdapter {
   /** The index revision this in-memory copy was loaded at — lets a reader detect that
    * another writer (tab/CLI) advanced the on-disk index and reload it. */
   private loadedRev?: number;
+  /** Sub-indexes reconstructed in the current in-memory open. A mode-aware load skips the
+   * others (`{skip:true}`), avoiding their reconstruction; a request needing a skipped
+   * sub-index triggers a reload covering it. */
+  private loadedSubs = new Set<string>();
 
   private get opts(): AdapterOptions {
     return this.options as AdapterOptions;
@@ -137,6 +141,10 @@ export class SearchAdapter extends ProjectAdapter {
    * false the index is full-text only and vector queries are skipped. */
   private get hasVectors(): boolean {
     return !!this.model;
+  }
+  /** The sub-indexes this project persists: full-text always, vector only with a model. */
+  private allSubs(): Set<string> {
+    return new Set(this.hasVectors ? [FTS_SUB, VEC_SUB] : [FTS_SUB]);
   }
   /** Embed a query through the injected per-project embedder. */
   private embedQuery(text: string): Promise<Float32Array> {
@@ -171,10 +179,13 @@ export class SearchAdapter extends ProjectAdapter {
    * `index/search/` when present, or created fresh on first use. Records the model
    * + dimensionality in `index/search.json`.
    */
-  private ensureIndex(): Promise<Index> {
+  private ensureIndex(needed: Set<string>): Promise<Index> {
     // Memoise the in-flight promise so concurrent callers (e.g. parallel per-subject
     // searches) share ONE open — otherwise they race on creating + persisting the index.
-    this.indexReady ??= this.openIndex();
+    // Reuse the open only when it already covers every needed sub-index; otherwise reopen
+    // with the union so a narrower earlier load is widened rather than dropping a sub-index.
+    if (this.indexReady && [...needed].every((s) => this.loadedSubs.has(s))) return this.indexReady;
+    this.indexReady = this.openIndex(new Set([...this.loadedSubs, ...needed]));
     return this.indexReady;
   }
 
@@ -189,17 +200,26 @@ export class SearchAdapter extends ProjectAdapter {
     if (onDisk === undefined || onDisk === this.loadedRev) return;
     this.indexReady = undefined;
     this.indexer = undefined;
+    this.loadedSubs = new Set();
     this.loadedRev = onDisk;
   }
 
-  private async openIndex(): Promise<Index> {
+  /** Open the index, reconstructing only the sub-indexes in `loadSubs` (mode-aware). */
+  private async openIndex(loadSubs: Set<string>): Promise<Index> {
     const persistence = new FilesIndexerPersistence(
       this.filesApi,
       concatPath(this.indexDir(), "search"),
     );
     this.indexer = createFlexSearchIndexer({ persistence });
-    const existing = await this.indexer.getIndex(INDEX_NAME);
-    if (existing) return existing;
+    // Skip reconstruction of any persisted sub-index this open doesn't need; its saved
+    // bytes stay on disk untouched (no save happens on the read path).
+    const skip: Record<string, { skip: true }> = {};
+    for (const sub of this.allSubs()) if (!loadSubs.has(sub)) skip[sub] = { skip: true };
+    const existing = await this.indexer.getIndex(INDEX_NAME, { subIndexes: skip });
+    if (existing) {
+      this.loadedSubs = loadSubs;
+      return existing;
+    }
     // A text-only project (no embedding model) gets a full-text sub-index only; the
     // vector sub-index is created solely when an embedding model + dimensionality exist.
     const subIndexes: Record<string, unknown> = {
@@ -222,6 +242,7 @@ export class SearchAdapter extends ProjectAdapter {
       model: this.model,
       dimensionality: this.dimensionality,
     });
+    this.loadedSubs = this.allSubs();
     return created;
   }
 
@@ -250,7 +271,8 @@ export class SearchAdapter extends ProjectAdapter {
    * the FTS content is the section summary + raw text. Persists (throttled).
    */
   async indexPage(resource: Resource, uri: string): Promise<void> {
-    const index = await this.ensureIndex();
+    // Indexing writes both sub-indexes, so load the full set.
+    const index = await this.ensureIndex(this.allSubs());
     const fullTextIndex = ftsAccess.get(index);
     const vectorIndex = this.hasVectors ? vecAccess.get(index) : undefined;
 
@@ -282,7 +304,7 @@ export class SearchAdapter extends ProjectAdapter {
 
   /** Remove a source's blocks from the index. Persists (throttled). */
   async removePage(uri: string): Promise<void> {
-    const index = await this.ensureIndex();
+    const index = await this.ensureIndex(this.allSubs());
     const path = toDocumentPath(uri);
     await ftsAccess.get(index).deleteDocuments([{ path }]);
     if (this.hasVectors) await vecAccess.get(index).deleteDocuments([{ path }]);
@@ -293,11 +315,15 @@ export class SearchAdapter extends ProjectAdapter {
   /** Hybrid (RRF) search, grouped by document. */
   async search(query: SearchQuery): Promise<DocumentMatch[]> {
     await this.reloadIfStale();
-    const index = await this.ensureIndex();
     // Drop vector mode when the project has no embeddings (text-only); never embed the
     // query in that case. Guarantee at least full-text so a vector-only request still works.
     let modes = (query.modes ?? ["fts", "vector"]).filter((m) => m !== "vector" || this.hasVectors);
     if (modes.length === 0) modes = ["fts"];
+    // Mode-aware load: reconstruct only the sub-indexes the requested modes query.
+    const needed = new Set<string>();
+    if (modes.includes("fts")) needed.add(FTS_SUB);
+    if (modes.includes("vector")) needed.add(VEC_SUB);
+    const index = await this.ensureIndex(needed);
     const request: SearchRequest = { topK: query.topK ?? DEFAULT_TOP_K };
     if (query.paths) request.paths = query.paths.map(toDocumentPath);
     if (modes.includes("fts")) {

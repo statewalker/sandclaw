@@ -20,7 +20,16 @@ export class PinoLoggerAdapter extends LoggerAdapter {
   constructor(host: unknown, options?: Record<string, unknown>) {
     super(host, options);
     const destination = (options?.destination as 1 | 2) ?? 1;
-    this.root = newPinoLogger((options?.level as LoggerLevel) ?? "info", {}, { destination });
+    // Synchronous in-process pretty output: the wiki CLI is short-lived, so a pino
+    // worker-thread transport's spawn + busy-wait would dominate its runtime.
+    this.root = newPinoLogger(
+      (options?.level as LoggerLevel) ?? "info",
+      {},
+      {
+        destination,
+        sync: true,
+      },
+    );
   }
 
   newLogger(key: string, options?: Record<string, unknown>): Logger {
