@@ -56,7 +56,7 @@ catalog:
   "@statewalker/content-pipeline": ^0.1.0
   "@statewalker/db-api": ^0.1.0
   "@statewalker/db-duckdb-node": ^0.1.0
-  "@statewalker/db-turso-node": ^0.1.0
+  "@statewalker/db-sqlite-node": ^0.1.0
   "@statewalker/fsm": ^0.37.0
   "@statewalker/fsm-validator": ^0.2.0
   "@statewalker/indexer-api": ^0.1.0
