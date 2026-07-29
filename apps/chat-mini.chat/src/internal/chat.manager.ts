@@ -1,6 +1,6 @@
 import { ShowDockPanelCommand } from "@statewalker/shell.core";
 import {
-  DOCK_LAYOUT_STORAGE_KEY,
+  LayoutStore,
   restorePanelSpecsFromLayout,
   SpecStore,
 } from "@statewalker/render.core";
@@ -21,13 +21,9 @@ export interface ChatManagerOptions {
 
 /**
  * Orchestrator for the chat fragment. Registers the
- * `chat:open-session` command handler and runs layout-restore on
- * construction. Per ADR 0002 (logic-only fragment): no React
- * imports.
- *
- * Re-entrant lifecycle (ADR 0001) is added in Wave 3 alongside the
- * SystemFiles-backed layout migration; today the manager is one-shot
- * because the workspace is never `open()`ed in the current codebase.
+ * `chat:open-session` command handler and pre-allocates chat panel
+ * specs from the saved dock layout on workspace-connect. Per ADR 0002
+ * (logic-only fragment): no React imports.
  *
  * Boot order: this fragment registers AFTER `initSpecStore` and
  * AFTER `initDock`. Catalog registration (the React binding) lives
@@ -44,20 +40,25 @@ export class ChatManager {
     [this._register, this._cleanup] = newRegistry();
     this.commands = workspace.requireAdapter(Commands);
     this.store = workspace.requireAdapter(SpecStore);
+    const layoutStore = workspace.requireAdapter(LayoutStore);
 
-    // Pre-allocate specs for chat panels saved in the dock layout
-    // so the dock host's `fromJSON` finds them ready. Runs BEFORE
-    // React mounts the DockView host. Layout source is still
-    // localStorage; migrates to SystemFiles in Wave 3.
-    restorePanelSpecsFromLayout({
-      store: this.store,
-      storage: globalThis.localStorage,
-      layoutKey: DOCK_LAYOUT_STORAGE_KEY,
-      panelIdPrefix: "chat:",
-      catalogId: CHAT_CATALOG_ID,
-      buildSpec: (sessionId) => makeChatSpec(sessionId),
-      buildSpecId: (sessionId) => chatSpecId(sessionId),
-    });
+    // Pre-allocate specs for chat panels saved in the dock layout so
+    // the dock host's deferred `fromJSON` finds them ready. Runs on
+    // workspace-connect (`onLoad`), reading the layout held by the
+    // `LayoutStore` adapter — after it has loaded the file, before
+    // `DockHost` applies the layout.
+    this._register(
+      workspace.onLoad(() => {
+        restorePanelSpecsFromLayout({
+          store: this.store,
+          layout: layoutStore.get(),
+          panelIdPrefix: "chat:",
+          catalogId: CHAT_CATALOG_ID,
+          buildSpec: (sessionId) => makeChatSpec(sessionId),
+          buildSpecId: (sessionId) => chatSpecId(sessionId),
+        });
+      }),
+    );
 
     this._register(
       this.commands.listen(OpenChatSessionCommand, (cmd) => {

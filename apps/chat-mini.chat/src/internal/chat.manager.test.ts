@@ -1,11 +1,12 @@
 import { DockHost } from "@statewalker/shell.core";
 import initDock from "@statewalker/shell.core/fragment";
-import { SpecStore } from "@statewalker/render.core";
+import { LayoutStore, SpecStore } from "@statewalker/render.core";
 import initSpecStore from "@statewalker/render.core/fragment";
 import { Commands } from "@statewalker/shared-commands";
-import { getWorkspace } from "@statewalker/workspace.core";
+import { getWorkspace, initWorkspace } from "@statewalker/workspace.core";
+import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import type { DockviewApi, IDockviewPanel } from "dockview-react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { chatPanelId, chatSpecId } from "../public/catalog.js";
 import { OpenChatSessionCommand } from "../public/commands.js";
 import initChat from "../public/init.js";
@@ -51,21 +52,16 @@ function makeFakeApi(): {
   return { api: fake as unknown as DockviewApi, panels };
 }
 
-let storage: Map<string, string>;
-
-beforeEach(() => {
-  storage = new Map();
-  vi.stubGlobal("localStorage", {
-    getItem: (k: string) => storage.get(k) ?? null,
-    setItem: (k: string, v: string) => storage.set(k, v),
-    removeItem: (k: string) => storage.delete(k),
-    clear: () => storage.clear(),
-  });
-});
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
+/**
+ * Prime `ctx` with an open-able workspace (file system + SystemFiles
+ * adapter) so `workspace.open()` can fire the `onLoad` handlers the
+ * chat fragment registers.
+ */
+function makeWorkspace(ctx: Record<string, unknown>) {
+  const workspace = getWorkspace(ctx);
+  initWorkspace({ workspace, filesApi: new MemFilesApi() });
+  return workspace;
+}
 
 describe("chat:open-session handler", () => {
   it("creates a per-session spec and opens a panel for a new session", async () => {
@@ -165,24 +161,27 @@ describe("chat:open-session handler", () => {
 });
 
 describe("chat layout restore", () => {
-  it("re-allocates chat specs for chat-shaped panels in saved layout", async () => {
-    storage.set(
-      "chat-mini:dock-layout",
-      JSON.stringify({
-        panels: {
-          "chat:S-1": { id: "chat:S-1" },
-          "chat:S-2": { id: "chat:S-2" },
-          "files:abc": { id: "files:abc" }, // non-chat panel — ignored
-        },
-      }),
-    );
+  it("re-allocates chat specs for chat-shaped panels in the adapter-held layout on connect", async () => {
     const ctx: Record<string, unknown> = {};
+    const workspace = makeWorkspace(ctx);
+    // Simulate the layout the LayoutStore would have loaded from the file.
+    workspace.requireAdapter(LayoutStore).set({
+      panels: {
+        "chat:S-1": { id: "chat:S-1" },
+        "chat:S-2": { id: "chat:S-2" },
+        "files:abc": { id: "files:abc" }, // non-chat panel — ignored
+      },
+    });
     const cleanupSpec = await initSpecStore(ctx);
     const cleanupDock = await initDock(ctx);
     const cleanupChat = await initChat(ctx);
     try {
-      const ws = getWorkspace(ctx);
-      const store = ws.requireAdapter(SpecStore);
+      const store = workspace.requireAdapter(SpecStore);
+      // Nothing pre-allocated before connect (restore runs on onLoad).
+      expect(store.get(chatSpecId("S-1"))).toBeNull();
+
+      await workspace.open();
+
       expect(store.get(chatSpecId("S-1"))?.catalogId).toBe("chat");
       expect(store.get(chatSpecId("S-2"))?.catalogId).toBe("chat");
       expect(store.get("spec:files:abc")).toBeNull();
@@ -193,16 +192,18 @@ describe("chat layout restore", () => {
     }
   });
 
-  it("is a no-op when localStorage is missing or layout is malformed", async () => {
-    storage.set("chat-mini:dock-layout", "not-json{{{");
+  it("is a no-op when the adapter holds no layout (cold load / corrupt-file fallback)", async () => {
     const ctx: Record<string, unknown> = {};
+    const workspace = makeWorkspace(ctx);
+    // LayoutStore present but never loaded/set → get() is null.
+    workspace.requireAdapter(LayoutStore);
     const cleanupSpec = await initSpecStore(ctx);
     const cleanupDock = await initDock(ctx);
     const cleanupChat = await initChat(ctx);
     try {
+      await workspace.open();
       // No throw, no specs allocated.
-      const ws = getWorkspace(ctx);
-      const store = ws.requireAdapter(SpecStore);
+      const store = workspace.requireAdapter(SpecStore);
       expect(store.get(chatSpecId("anything"))).toBeNull();
     } finally {
       await cleanupChat();
@@ -211,25 +212,23 @@ describe("chat layout restore", () => {
     }
   });
 
-  it("does not duplicate specs when re-running with already-allocated specs", async () => {
-    storage.set(
-      "chat-mini:dock-layout",
-      JSON.stringify({ panels: { "chat:S-1": {} } }),
-    );
+  it("does not duplicate specs when the pre-alloc re-runs with already-allocated specs", async () => {
     const ctx: Record<string, unknown> = {};
+    const workspace = makeWorkspace(ctx);
+    workspace.requireAdapter(LayoutStore).set({ panels: { "chat:S-1": {} } });
     const cleanupSpec = await initSpecStore(ctx);
     const cleanupDock = await initDock(ctx);
     // First boot
     const cleanupChat1 = await initChat(ctx);
     try {
-      const ws = getWorkspace(ctx);
-      const store = ws.requireAdapter(SpecStore);
+      const store = workspace.requireAdapter(SpecStore);
+      await workspace.open();
       const first = store.get(chatSpecId("S-1"));
       expect(first).not.toBeNull();
 
-      // Cleanup & re-boot chat (e.g. hot-reload) — pass should
-      // skip the already-present spec rather than throwing on
-      // duplicate id.
+      // Re-boot chat (e.g. hot-reload). The workspace is already open,
+      // so `onLoad` fires the fragment's pre-alloc immediately — it must
+      // skip the already-present spec rather than throw on a duplicate id.
       await cleanupChat1();
       const cleanupChat2 = await initChat(ctx);
       try {
