@@ -1,6 +1,6 @@
 import {
   catalogsSlot,
-  DOCK_LAYOUT_STORAGE_KEY,
+  LayoutStore,
   restorePanelSpecsFromLayout,
   SpecStore,
 } from "@statewalker/render.core";
@@ -42,22 +42,28 @@ export default function initWikiReact(ctx: Record<string, unknown>): () => Promi
   const slots = workspace.requireAdapter(Slots);
   const store = workspace.requireAdapter(SpecStore);
   const commands = workspace.requireAdapter(Commands);
+  const layoutStore = workspace.requireAdapter(LayoutStore);
 
-  restorePanelSpecsFromLayout({
-    store,
-    storage: globalThis.localStorage,
-    layoutKey: DOCK_LAYOUT_STORAGE_KEY,
-    panelIdPrefix: "wiki-site:",
-    catalogId: WIKI_SITE_CATALOG_ID,
-    buildSpec: (id) => {
-      const { project, slug } = splitSiteId(id);
-      return makeWikiSiteSpec(project, slug);
-    },
-    buildSpecId: (id) => {
-      const { project, slug } = splitSiteId(id);
-      return wikiSiteSpecId(project, slug);
-    },
-  });
+  // Pre-allocate specs for restored wiki-site tabs on workspace-connect,
+  // reading the layout held by the LayoutStore adapter (see mime.view.pdf).
+  register(
+    workspace.onLoad(() => {
+      restorePanelSpecsFromLayout({
+        store,
+        layout: layoutStore.get(),
+        panelIdPrefix: "wiki-site:",
+        catalogId: WIKI_SITE_CATALOG_ID,
+        buildSpec: (id) => {
+          const { project, slug } = splitSiteId(id);
+          return makeWikiSiteSpec(project, slug);
+        },
+        buildSpecId: (id) => {
+          const { project, slug } = splitSiteId(id);
+          return wikiSiteSpecId(project, slug);
+        },
+      });
+    }),
+  );
 
   const { registry } = defineRegistry(wikiSiteCatalog, {
     components: {
