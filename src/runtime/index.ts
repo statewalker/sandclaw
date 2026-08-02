@@ -6,6 +6,7 @@ export {
   registerWiki,
   type WikiBuildOptions,
   type WikiDeps,
+  wikiNature,
   wikiSearchBlocks,
   wireWikiProject,
 } from "./register-wiki.js";

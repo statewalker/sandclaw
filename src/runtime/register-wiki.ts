@@ -1,5 +1,7 @@
 import type { ExtractorRegistry } from "@statewalker/content-extractors";
 import {
+  applyNature,
+  type Nature,
   type Project,
   ProjectBuilder,
   type RegisteredBuilder,
@@ -100,30 +102,50 @@ function resolveLlm(deps: WikiDeps): LlmApi {
 }
 
 /**
- * One-call setup: register the core resource adapters plus the full wiki adapter pack
- * (the generic `LlmProjectAdapter` + wiki-specific `WikiLlmConfiguration`, content
- * extraction, per-page + global knowledge adapters, hybrid search, query, snapshots)
- * on a `ResourceRepository`. Providers/config are injected here — adapters read no
- * environment. Use `wireWikiProject` to attach the builders to a project before a run.
+ * The wiki nature's project-adapter pack: the generic `LlmProjectAdapter` (from the
+ * injected stub/provider) plus the wiki-specific per-project adapters that self-host
+ * on a `Project` (`WikiLlmConfiguration`, the `WikiNature` façade, build-session
+ * telemetry). Its `builders()` are the wiki's incremental index pipeline. Applied via
+ * `applyNature(workspace, wikiNature(deps))`; the closure/multi-level registrations
+ * (content extraction, hybrid search, snapshots) stay explicit in `registerWiki`.
+ */
+export function wikiNature(deps: WikiDeps, opts: WikiBuildOptions = {}): Nature {
+  const llm = resolveLlm(deps);
+  return {
+    adapters: () => [
+      // Model access (generic), from the injected stub/provider.
+      { level: "project", type: LlmProjectAdapter, factory: () => llm },
+      // Model configuration (wiki-specific, per-project): reads `.project/nature.wiki.json`
+      // via its `load()`, driven by the `WikiNature` façade's entry points.
+      {
+        level: "project",
+        type: WikiLlmConfiguration,
+        factory: (project) => new WikiLlmConfiguration(project),
+      },
+      { level: "project", type: WikiNature, factory: (project) => new WikiNature(project) },
+      // Per-project build-session telemetry (LLM model/token/price + time stats, persisted
+      // under `.project/builds/`, resumable across interrupted builds).
+      {
+        level: "project",
+        type: WikiBuildSession,
+        factory: (project) => new WikiBuildSession(project),
+      },
+    ],
+    builders: () => createWikiBuilders(opts),
+  };
+}
+
+/**
+ * One-call setup: apply the wiki nature (project-adapter pack + builder provider) plus
+ * the remaining closure/multi-level registrations — content extraction, per-page +
+ * global knowledge adapters, hybrid search, query, snapshots. Providers/config are
+ * injected here — adapters read no environment. Use `wireWikiProject` to attach the
+ * builders to a project before a run.
  */
 export function registerWiki(workspace: Workspace, deps: WikiDeps): void {
-  const llm = resolveLlm(deps);
-  const registry = workspace.adaptersRegistry;
   // Core resource adapters (ContentRead/Write/Text), Project, and ProjectBuilder
   // self-host on the workspace model — no registration needed.
-  // Model access (generic) + model configuration (wiki-specific, per-project), as
-  // project adapters. `WikiLlmConfiguration` reads `.project/nature.wiki.json` per
-  // project via its `load()` (driven by `WikiNature`'s entry points).
-  registry.register("project", LlmProjectAdapter, () => llm);
-  registry.register(
-    "project",
-    WikiLlmConfiguration,
-    (project) => new WikiLlmConfiguration(project),
-  );
-  registry.register("project", WikiNature, (project) => new WikiNature(project));
-  // Per-project build-session telemetry (LLM model/token/price + time stats, persisted
-  // under `.project/builds/`, resumable across interrupted builds).
-  registry.register("project", WikiBuildSession, (project) => new WikiBuildSession(project));
+  applyNature(workspace, wikiNature(deps));
   // Wiki adapters.
   registerContentExtraction(workspace, { registry: deps.extractors });
   registerKnowledgeAdapters();
@@ -178,6 +200,8 @@ export function wireWikiProject(project: Project, opts: WikiBuildOptions = {}): 
   const builder = project.requireAdapter(ProjectBuilder);
   builder.configureYield({ scanBatchSize: WIKI_SCAN_BATCH_SIZE });
   builder.configureSourceIgnore(() => buildIndexIgnore(project.workspace.files, project.path));
-  for (const b of createWikiBuilders(opts)) builder.registerBuilder(b);
+  // The per-project builder step: attach the nature's builders (per-call `opts` such as
+  // `force` are threaded here, so builders are built per wiring rather than shared).
+  applyNature(project, { builders: () => createWikiBuilders(opts) });
   return builder;
 }
