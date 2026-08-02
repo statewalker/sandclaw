@@ -36,7 +36,6 @@
     "@statewalker/indexer-fulltext": "catalog:",
     "@statewalker/indexer-mem-flexsearch": "catalog:",
     "@statewalker/indexer-vector": "catalog:",
-    "@statewalker/shared-dataflow": "catalog:",
     "@statewalker/shared-logger": "catalog:",
     "@statewalker/webrun-files": "catalog:",
     "@uwdata/flechette": "catalog:",
