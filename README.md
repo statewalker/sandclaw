@@ -211,7 +211,7 @@ Flags: `--format <none|json|yaml>` (data channel; default `json`), `--log-level 
 
 ### Dependencies
 
-- `@statewalker/workspace.core` — the `Workspace`/`Project`/`Resource` model, `ResourceAdapter`/`ProjectAdapter`, and the `ProjectBuilder` signal-driven build engine the whole pipeline rides on.
+- `@statewalker/workspace.core` — the `Workspace`/`Project`/`Resource` model, `ResourceAdapter`/`ProjectAdapter`, and the `ProjectBuilder` build adapter (a `BuildEngine<Project>` from `@statewalker/webrun-builder`) the whole pipeline rides on.
 - `@statewalker/content-extractors` — mime-aware text extraction registry (`createDefaultRegistry`) behind `ContentAdapter`.
 - `@statewalker/indexer-api` / `-fulltext` / `-vector` / `-mem-flexsearch` — the FTS + vector index abstractions and the in-memory FlexSearch backend behind `SearchAdapter`.
 - `@statewalker/fsm` (+ `-validator` in dev) — the query retrieval state machine.
