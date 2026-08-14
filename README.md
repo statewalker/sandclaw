@@ -49,8 +49,6 @@ This repository depends on:
 | [`statewalker-workbench`](https://github.com/statewalker/statewalker-workbench) | `@statewalker/ai-agent-runtime.core`, `@statewalker/ai-agent.core`, `@statewalker/ai-config.core`, `@statewalker/ai-config.view.react`, `@statewalker/ai-local-models.browser`, `@statewalker/ai-local-models.core`, `@statewalker/ai-local-models.view.react`, `@statewalker/explorer.core`, `@statewalker/explorer.view.react`, `@statewalker/inline.core`, `@statewalker/inline.view.react`, `@statewalker/mime.core`, `@statewalker/mime.view.image`, `@statewalker/mime.view.markdown`, `@statewalker/mime.view.pdf`, `@statewalker/mime.view.video`, `@statewalker/platform.browser`, `@statewalker/platform.core`, `@statewalker/platform.node`, `@statewalker/render.core`, `@statewalker/render.view.react`, `@statewalker/settings.core`, `@statewalker/settings.view.react`, `@statewalker/shell.core`, `@statewalker/shell.view.react`, `@statewalker/ui.view.react`, `@statewalker/ui.view.shadcn`, `@statewalker/workspace.browser`, `@statewalker/workspace.core`, `@statewalker/workspace.view.react` |
 | [`webrun-files`](https://github.com/statewalker/webrun-files) | `@statewalker/webrun-files`, `@statewalker/webrun-files-browser`, `@statewalker/webrun-files-node` |
 
-**Depended on by:** nothing else in the workspace — it sits at the top of the graph.
-
 Cross-repo dependencies are declared `workspace:*` rather than `catalog:`. This is
 deliberate: turbo derives its task graph from `workspace:` specifiers and does **not**
 resolve `catalog:`, so a `catalog:` cross-repo dependency is invisible to the scheduler
