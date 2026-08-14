@@ -110,14 +110,14 @@ function chatEntries(): PackageEntry[] {
   for (const { npmName, dir } of CHAT_LOGIC_PACKAGES) {
     out.push({
       npmName,
-      rootRelPath: `workspaces/statewalker-apps/apps/${dir}`,
+      rootRelPath: `workspaces/sandclaw/apps/${dir}`,
       isRenderer: false,
     });
   }
   for (const { npmName, dir } of CHAT_REACT_PACKAGES) {
     out.push({
       npmName,
-      rootRelPath: `workspaces/statewalker-apps/apps/${dir}`,
+      rootRelPath: `workspaces/sandclaw/apps/${dir}`,
       isRenderer: true,
     });
   }

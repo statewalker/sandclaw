@@ -18,22 +18,23 @@
   "dependencies": {
     "@json-render/core": "0.18.0",
     "@json-render/react": "0.18.0",
-    "@statewalker/ai-agent.core": "catalog:",
+    "@statewalker/ai-agent.core": "workspace:*",
     "@statewalker/ai-agent-runtime.core": "workspace:*",
     "@statewalker/shell.core": "workspace:*",
     "@statewalker/mime.core": "workspace:*",
     "@statewalker/inline.core": "workspace:*",
-    "@statewalker/shared-baseclass": "catalog:",
+    "@statewalker/shared-baseclass": "workspace:*",
     "@statewalker/render.core": "workspace:*",
-    "@statewalker/shared-commands": "catalog:",
-    "@statewalker/shared-registry": "catalog:",
-    "@statewalker/shared-slots": "catalog:",
-    "@statewalker/webrun-files": "catalog:",
-    "@statewalker/workspace.core": "catalog:",
+    "@statewalker/shared-commands": "workspace:*",
+    "@statewalker/shared-registry": "workspace:*",
+    "@statewalker/shared-slots": "workspace:*",
+    "@statewalker/webrun-files": "workspace:*",
+    "@statewalker/workspace.core": "workspace:*",
     "ai": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@statewalker/webrun-files-mem": "workspace:*",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
