@@ -1,0 +1,57 @@
+{
+  "name": "@statewalker/wiki.core",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "LLM-curated wiki on the @statewalker/workspace model: ingestion builders on ProjectBuilder, hybrid full-text + vector search, and a query retrieval router.",
+  "homepage": "https://github.com/statewalker/statewalker-workbench",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/statewalker/statewalker-workbench.git"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "bin"
+  ],
+  "scripts": {
+    "start": "tsx bin/wiki.ts",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check --write .",
+    "format": "biome format --write ."
+  },
+  "dependencies": {
+    "@statewalker/workspace.core": "workspace:*",
+    "@statewalker/content-extractors": "catalog:",
+    "@statewalker/fsm": "catalog:",
+    "@statewalker/shared-adapters": "catalog:",
+    "@statewalker/shared-baseclass": "catalog:",
+    "@statewalker/shared-commands": "catalog:",
+    "@statewalker/indexer-api": "catalog:",
+    "@statewalker/indexer-fulltext": "catalog:",
+    "@statewalker/indexer-mem-flexsearch": "catalog:",
+    "@statewalker/indexer-vector": "catalog:",
+    "@statewalker/shared-logger": "catalog:",
+    "@statewalker/webrun-files": "catalog:",
+    "@uwdata/flechette": "catalog:",
+    "@ai-sdk/google": "catalog:",
+    "@ai-sdk/openai": "catalog:",
+    "ai": "catalog:",
+    "yaml": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@statewalker/fsm-validator": "catalog:",
+    "@statewalker/shared-logger-pino": "catalog:",
+    "@statewalker/webrun-files-mem": "catalog:",
+    "@statewalker/webrun-files-node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
