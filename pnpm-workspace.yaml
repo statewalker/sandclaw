@@ -80,11 +80,11 @@ catalog:
   "@statewalker/shared-registry": ^0.1.0
   "@statewalker/shared-slots": ^0.2.0
   "@statewalker/uris": ^0.2.6
-  "@statewalker/webrun-files": ^0.7.0
-  "@statewalker/webrun-files-browser": ^0.7.2
-  "@statewalker/webrun-files-composite": ^0.8.0
-  "@statewalker/webrun-files-mem": ^0.7.2
-  "@statewalker/webrun-files-node": ^0.7.2
+  "@statewalker/webrun-files": ^0.9.0
+  "@statewalker/webrun-files-browser": ^0.9.0
+  "@statewalker/webrun-files-composite": ^0.9.0
+  "@statewalker/webrun-files-mem": ^0.9.0
+  "@statewalker/webrun-files-node": ^0.9.0
   "@statewalker/workspace.core": ^0.1.0
   "@tailwindcss/typography": ^0.5.20
   "@tailwindcss/vite": ^4.3.3
