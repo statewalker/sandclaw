@@ -13,26 +13,26 @@ import { FolderPlus } from "lucide-react";
  * chat is the primary view, file panels open when asked for).
  */
 export default function initFilesMenu(
-  ctx: Record<string, unknown>,
+	ctx: Record<string, unknown>,
 ): () => Promise<void> {
-  const workspace = getWorkspace(ctx);
-  const slots = workspace.requireAdapter(Slots);
-  const commands = workspace.requireAdapter(Commands);
+	const workspace = getWorkspace(ctx);
+	const slots = workspace.requireAdapter(Slots);
+	const commands = workspace.requireAdapter(Commands);
 
-  const [register, cleanup] = newRegistry();
+	const [register, cleanup] = newRegistry();
 
-  register(
-    slots.provide(menubarItemsSlot, {
-      id: "chat-mini:new-file-panel",
-      menu: "Files",
-      order: 50,
-      label: "New file panel",
-      Icon: FolderPlus,
-      onActivate: async () => {
-        await commands.call(NewFileExplorerPanelCommand, {}).promise;
-      },
-    }),
-  );
+	register(
+		slots.provide(menubarItemsSlot, {
+			id: "chat-mini:new-file-panel",
+			menu: "Files",
+			order: 50,
+			label: "New file panel",
+			Icon: FolderPlus,
+			onActivate: async () => {
+				await commands.call(NewFileExplorerPanelCommand, {}).promise;
+			},
+		}),
+	);
 
-  return cleanup;
+	return cleanup;
 }

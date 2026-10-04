@@ -6,8 +6,8 @@ import { newRegistry } from "@statewalker/shared-registry";
 import { Slots } from "@statewalker/shared-slots";
 import { getWorkspace } from "@statewalker/workspace.core";
 import {
-  ChangeWorkspaceCommand,
-  WorkspaceDisconnectCommand,
+	ChangeWorkspaceCommand,
+	WorkspaceDisconnectCommand,
 } from "@statewalker/workspace.browser";
 import { LogOut, Settings as SettingsIcon } from "lucide-react";
 import { menubarItemsSlot } from "./extension-points.js";
@@ -26,71 +26,71 @@ const THEME_TOGGLE_VIEW_KEY = "app-shell:theme-toggle";
  * under the Files menu, for instance.
  */
 export function initMenubar(ctx: Record<string, unknown>): () => Promise<void> {
-  const workspace = getWorkspace(ctx);
-  const slots = workspace.requireAdapter(Slots);
-  const commands = workspace.requireAdapter(Commands);
+	const workspace = getWorkspace(ctx);
+	const slots = workspace.requireAdapter(Slots);
+	const commands = workspace.requireAdapter(Commands);
 
-  const [register, cleanup] = newRegistry();
+	const [register, cleanup] = newRegistry();
 
-  register(
-    slots.register(coreViewsSlot, MENUBAR_VIEW_KEY, Menubar as ViewComponent),
-  );
-  register(
-    slots.register(
-      coreViewsSlot,
-      THEME_TOGGLE_VIEW_KEY,
-      ThemeToggle as ViewComponent,
-    ),
-  );
+	register(
+		slots.register(coreViewsSlot, MENUBAR_VIEW_KEY, Menubar as ViewComponent),
+	);
+	register(
+		slots.register(
+			coreViewsSlot,
+			THEME_TOGGLE_VIEW_KEY,
+			ThemeToggle as ViewComponent,
+		),
+	);
 
-  register(
-    slots.provide(dockHeaderItemsSlot, {
-      id: "app-shell:menubar",
-      slot: "leading",
-      order: 100,
-      viewKey: MENUBAR_VIEW_KEY,
-    }),
-  );
-  register(
-    slots.provide(dockHeaderItemsSlot, {
-      id: "app-shell:theme-toggle",
-      slot: "trailing",
-      order: 1000,
-      viewKey: THEME_TOGGLE_VIEW_KEY,
-    }),
-  );
+	register(
+		slots.provide(dockHeaderItemsSlot, {
+			id: "app-shell:menubar",
+			slot: "leading",
+			order: 100,
+			viewKey: MENUBAR_VIEW_KEY,
+		}),
+	);
+	register(
+		slots.provide(dockHeaderItemsSlot, {
+			id: "app-shell:theme-toggle",
+			slot: "trailing",
+			order: 1000,
+			viewKey: THEME_TOGGLE_VIEW_KEY,
+		}),
+	);
 
-  register(
-    slots.provide(menubarItemsSlot, {
-      id: "app-shell:settings",
-      menu: "System",
-      order: 100,
-      label: "Settings",
-      Icon: SettingsIcon,
-      onActivate: () => {
-        commands.call(OpenSettingsCommand, {});
-      },
-    }),
-  );
-  register(
-    slots.provide(menubarItemsSlot, {
-      id: "app-shell:switch-workspace",
-      menu: "System",
-      order: 900,
-      label: "Switch workspace",
-      Icon: LogOut,
-      onActivate: async () => {
-        await commands.call(WorkspaceDisconnectCommand, {}).promise;
-        try {
-          await commands.call(ChangeWorkspaceCommand, {}).promise;
-        } catch (e) {
-          // User cancellation throws AbortError; user already in `empty`.
-          if (e instanceof DOMException && e.name === "AbortError") return;
-          throw e;
-        }
-      },
-    }),
-  );
+	register(
+		slots.provide(menubarItemsSlot, {
+			id: "app-shell:settings",
+			menu: "System",
+			order: 100,
+			label: "Settings",
+			Icon: SettingsIcon,
+			onActivate: () => {
+				commands.call(OpenSettingsCommand, {});
+			},
+		}),
+	);
+	register(
+		slots.provide(menubarItemsSlot, {
+			id: "app-shell:switch-workspace",
+			menu: "System",
+			order: 900,
+			label: "Switch workspace",
+			Icon: LogOut,
+			onActivate: async () => {
+				await commands.call(WorkspaceDisconnectCommand, {}).promise;
+				try {
+					await commands.call(ChangeWorkspaceCommand, {}).promise;
+				} catch (e) {
+					// User cancellation throws AbortError; user already in `empty`.
+					if (e instanceof DOMException && e.name === "AbortError") return;
+					throw e;
+				}
+			},
+		}),
+	);
 
-  return cleanup;
+	return cleanup;
 }

@@ -8,10 +8,12 @@ import { assertWikiKey } from "./wiki-uri.js";
  * exist and `create` is false.
  */
 export async function openWiki(
-  workspace: Workspace,
-  key: string,
-  create = false,
+	workspace: Workspace,
+	key: string,
+	create = false,
 ): Promise<Project | null> {
-  assertWikiKey(key);
-  return create ? workspace.getProject(key, true) : workspace.getProject(key, false);
+	assertWikiKey(key);
+	return create
+		? workspace.getProject(key, true)
+		: workspace.getProject(key, false);
 }

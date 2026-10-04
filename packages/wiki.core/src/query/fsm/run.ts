@@ -15,23 +15,29 @@ import { QUERY_FSM } from "./query-fsm.js";
  * the result surfaces on it (await `progress.complete()`).
  */
 export function runQuery(
-  project: Project,
-  question: string,
-  opts?: { paths?: string[] },
+	project: Project,
+	question: string,
+	opts?: { paths?: string[] },
 ): QueryProgress {
-  const progress = new QueryProgress();
-  const log = loggerOf(project, "QueryFsm");
-  const ctx = new QueryContext(project, { question, paths: opts?.paths }, progress);
-  log.info("query start", { question });
-  // Trace every state entry (and the event that drove it) so a stall is visible —
-  // the last logged state is where the pipeline is stuck.
-  const tracedLoad = (state: string, event: string | undefined) => {
-    log.info("query state", { state, event });
-    return load(state);
-  };
-  startProcess(ctx, QUERY_FSM, tracedLoad, "").catch((err) => {
-    log.error("query failed", { error: err instanceof Error ? err.message : String(err) });
-    progress._fail(err);
-  });
-  return progress;
+	const progress = new QueryProgress();
+	const log = loggerOf(project, "QueryFsm");
+	const ctx = new QueryContext(
+		project,
+		{ question, paths: opts?.paths },
+		progress,
+	);
+	log.info("query start", { question });
+	// Trace every state entry (and the event that drove it) so a stall is visible —
+	// the last logged state is where the pipeline is stuck.
+	const tracedLoad = (state: string, event: string | undefined) => {
+		log.info("query state", { state, event });
+		return load(state);
+	};
+	startProcess(ctx, QUERY_FSM, tracedLoad, "").catch((err) => {
+		log.error("query failed", {
+			error: err instanceof Error ? err.message : String(err),
+		});
+		progress._fail(err);
+	});
+	return progress;
 }

@@ -11,9 +11,9 @@ import { ChatManager } from "../internal/chat.manager.js";
  * which runs after all logic fragments per ADR 0002.
  */
 export default function initChat(
-  ctx: Record<string, unknown>,
+	ctx: Record<string, unknown>,
 ): () => Promise<void> {
-  const workspace = getWorkspace(ctx);
-  const manager = new ChatManager({ workspace });
-  return () => manager.close();
+	const workspace = getWorkspace(ctx);
+	const manager = new ChatManager({ workspace });
+	return () => manager.close();
 }

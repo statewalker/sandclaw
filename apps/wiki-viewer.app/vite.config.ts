@@ -19,53 +19,53 @@ const appDir = fileURLToPath(new URL("./app", import.meta.url));
  * in node_modules so Node loads their real (CJS-capable) builds natively.
  */
 function ssrExternalPolicy(): Plugin {
-  return {
-    name: "wiki-viewer:ssr-external-policy",
-    enforce: "post",
-    // Mutate the *resolved* config so this wins over HonoX's `noExternal: true`
-    // regardless of plugin/merge ordering. Vite 6 reads the SSR policy from the
-    // environment API (`environments.ssr.resolve`), so set both shapes.
-    configResolved(resolved) {
-      // Inline only what needs Vite's transform: HonoX (its route loader uses
-      // `import.meta.glob`) and the workspace packages that ship raw `.ts`.
-      // Everything else in node_modules stays external → loaded natively, so
-      // CJS deps (yaml, use-sync-external-store, …) keep their require/module.
-      const noExternal = [/^honox/, /^@statewalker\//];
-      const external = ["react", "react-dom"];
-      // biome-ignore lint/suspicious/noExplicitAny: ssr config is readonly in types only
-      const ssr = resolved.ssr as any;
-      ssr.noExternal = noExternal;
-      ssr.external = external;
-      // biome-ignore lint/suspicious/noExplicitAny: environment API is loosely typed here
-      const envResolve = (resolved as any).environments?.ssr?.resolve;
-      if (envResolve) {
-        envResolve.noExternal = noExternal;
-        envResolve.external = external;
-      }
-    },
-  };
+	return {
+		name: "wiki-viewer:ssr-external-policy",
+		enforce: "post",
+		// Mutate the *resolved* config so this wins over HonoX's `noExternal: true`
+		// regardless of plugin/merge ordering. Vite 6 reads the SSR policy from the
+		// environment API (`environments.ssr.resolve`), so set both shapes.
+		configResolved(resolved) {
+			// Inline only what needs Vite's transform: HonoX (its route loader uses
+			// `import.meta.glob`) and the workspace packages that ship raw `.ts`.
+			// Everything else in node_modules stays external → loaded natively, so
+			// CJS deps (yaml, use-sync-external-store, …) keep their require/module.
+			const noExternal = [/^honox/, /^@statewalker\//];
+			const external = ["react", "react-dom"];
+			// biome-ignore lint/suspicious/noExplicitAny: ssr config is readonly in types only
+			const ssr = resolved.ssr as any;
+			ssr.noExternal = noExternal;
+			ssr.external = external;
+			// biome-ignore lint/suspicious/noExplicitAny: environment API is loosely typed here
+			const envResolve = (resolved as any).environments?.ssr?.resolve;
+			if (envResolve) {
+				envResolve.noExternal = noExternal;
+				envResolve.external = external;
+			}
+		},
+	};
 }
 
 export default defineConfig(({ mode }) => {
-  if (mode === "client") {
-    return {
-      resolve: { alias: { "@": appDir } },
-      plugins: [react(), tailwindcss()],
-      build: {
-        rollupOptions: {
-          input: ["./app/client.ts", "./app/style.css"],
-          output: {
-            entryFileNames: "static/client.js",
-            chunkFileNames: "static/assets/[name]-[hash].js",
-            assetFileNames: "static/assets/[name].[ext]",
-          },
-        },
-        emptyOutDir: false,
-      },
-    };
-  }
-  return {
-    resolve: { alias: { "@": appDir } },
-    plugins: [honox(), react(), tailwindcss(), ssrExternalPolicy(), build()],
-  };
+	if (mode === "client") {
+		return {
+			resolve: { alias: { "@": appDir } },
+			plugins: [react(), tailwindcss()],
+			build: {
+				rollupOptions: {
+					input: ["./app/client.ts", "./app/style.css"],
+					output: {
+						entryFileNames: "static/client.js",
+						chunkFileNames: "static/assets/[name]-[hash].js",
+						assetFileNames: "static/assets/[name].[ext]",
+					},
+				},
+				emptyOutDir: false,
+			},
+		};
+	}
+	return {
+		resolve: { alias: { "@": appDir } },
+		plugins: [honox(), react(), tailwindcss(), ssrExternalPolicy(), build()],
+	};
 });

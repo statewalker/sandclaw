@@ -13,28 +13,28 @@ import { capabilitiesFor } from "@statewalker/ai-config.core";
  */
 
 export interface ChoiceRow {
-  value: string;
-  connectionId: string;
-  modelId: string;
-  label: string;
-  providerLabel: string;
+	value: string;
+	connectionId: string;
+	modelId: string;
+	label: string;
+	providerLabel: string;
 }
 
 export interface ModelRef {
-  connectionId: string;
-  modelId: string;
+	connectionId: string;
+	modelId: string;
 }
 
 /** A connection is usable once a discovery has cached models on it. */
 export function isConnected(c: Connection): boolean {
-  return (c.discoveredModels?.length ?? 0) > 0;
+	return (c.discoveredModels?.length ?? 0) > 0;
 }
 
 export function findConnection(
-  connections: readonly Connection[],
-  id: string | undefined,
+	connections: readonly Connection[],
+	id: string | undefined,
 ): Connection | undefined {
-  return id ? connections.find((c) => c.id === id) : undefined;
+	return id ? connections.find((c) => c.id === id) : undefined;
 }
 
 /**
@@ -42,24 +42,24 @@ export function findConnection(
  * connected AiConfig connections, filtered by `chat` capability.
  */
 export function buildChoices(connections: readonly Connection[]): ChoiceRow[] {
-  const out: ChoiceRow[] = [];
-  for (const c of connections) {
-    if (!isConnected(c)) continue;
-    const discovered = new Set((c.discoveredModels ?? []).map((m) => m.id));
-    for (const modelId of c.starredModelIds) {
-      // Skip stars that no longer correspond to a discovered model.
-      if (!discovered.has(modelId)) continue;
-      if (!capabilitiesFor(modelId).includes("chat")) continue;
-      out.push({
-        value: `${c.id}::${modelId}`,
-        connectionId: c.id,
-        modelId,
-        label: modelId,
-        providerLabel: c.name,
-      });
-    }
-  }
-  return out;
+	const out: ChoiceRow[] = [];
+	for (const c of connections) {
+		if (!isConnected(c)) continue;
+		const discovered = new Set((c.discoveredModels ?? []).map((m) => m.id));
+		for (const modelId of c.starredModelIds) {
+			// Skip stars that no longer correspond to a discovered model.
+			if (!discovered.has(modelId)) continue;
+			if (!capabilitiesFor(modelId).includes("chat")) continue;
+			out.push({
+				value: `${c.id}::${modelId}`,
+				connectionId: c.id,
+				modelId,
+				label: modelId,
+				providerLabel: c.name,
+			});
+		}
+	}
+	return out;
 }
 
 /**
@@ -67,13 +67,13 @@ export function buildChoices(connections: readonly Connection[]): ChoiceRow[] {
  * per-session readiness discriminator: invalid → the picker shows recovery.
  */
 export function isModelRefValid(
-  connections: readonly Connection[],
-  ref: ModelRef | undefined,
+	connections: readonly Connection[],
+	ref: ModelRef | undefined,
 ): boolean {
-  if (!ref) return false;
-  const conn = findConnection(connections, ref.connectionId);
-  if (!conn || !isConnected(conn)) return false;
-  if (!conn.starredModelIds.includes(ref.modelId)) return false;
-  if (!capabilitiesFor(ref.modelId).includes("chat")) return false;
-  return true;
+	if (!ref) return false;
+	const conn = findConnection(connections, ref.connectionId);
+	if (!conn || !isConnected(conn)) return false;
+	if (!conn.starredModelIds.includes(ref.modelId)) return false;
+	if (!capabilitiesFor(ref.modelId).includes("chat")) return false;
+	return true;
 }

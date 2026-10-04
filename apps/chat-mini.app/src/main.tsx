@@ -46,28 +46,28 @@ import { maybeMountConnectionsPrototype } from "./prototype-connections/index.js
 // PROTOTYPE gate: when `?prototype=connections` is in the URL, mount the
 // throwaway connections-redesign prototype instead of booting the real app.
 if (!maybeMountConnectionsPrototype()) {
-  bootShell({
-    logic: [
-      initAgentRuntime,
-      initAiConfig,
-      initActiveModelProjection,
-      initAiLocalModels,
-      initChat,
-      initFileExplorer,
-      initWiki,
-    ],
-    onLogicReady: (ctx, register) => {
-      register(initChatMenu(ctx));
-      register(initFilesMenu(ctx));
-      register(initWikiMenu(ctx));
-    },
-    renderers: [
-      initAiConfigView,
-      initAiLocalModelsReact,
-      initComposerPicker,
-      initChatReact,
-      initFileExplorerReact,
-      initWikiReact,
-    ],
-  });
+	bootShell({
+		logic: [
+			initAgentRuntime,
+			initAiConfig,
+			initActiveModelProjection,
+			initAiLocalModels,
+			initChat,
+			initFileExplorer,
+			initWiki,
+		],
+		onLogicReady: (ctx, register) => {
+			register(initChatMenu(ctx));
+			register(initFilesMenu(ctx));
+			register(initWikiMenu(ctx));
+		},
+		renderers: [
+			initAiConfigView,
+			initAiLocalModelsReact,
+			initComposerPicker,
+			initChatReact,
+			initFileExplorerReact,
+			initWikiReact,
+		],
+	});
 }

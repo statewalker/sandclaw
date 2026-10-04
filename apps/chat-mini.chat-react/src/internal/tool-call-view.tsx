@@ -4,12 +4,12 @@ import { useNodeChildren, useNodeContent } from "./hooks/use-session-node.js";
 import { Tool, type ToolPart } from "./prompt-kit/tool.js";
 
 function asInputRecord(args: unknown): Record<string, unknown> | undefined {
-  if (args && typeof args === "object" && !Array.isArray(args)) {
-    return args as Record<string, unknown>;
-  }
-  if (args === undefined) return undefined;
-  // Wrap non-object args so the Tool component's keyed renderer can show them.
-  return { value: args };
+	if (args && typeof args === "object" && !Array.isArray(args)) {
+		return args as Record<string, unknown>;
+	}
+	if (args === undefined) return undefined;
+	// Wrap non-object args so the Tool component's keyed renderer can show them.
+	return { value: args };
 }
 
 /**
@@ -27,50 +27,50 @@ function asInputRecord(args: unknown): Record<string, unknown> | undefined {
  *   verbatim in the output pre.
  */
 function parseOutput(text: string): Record<string, unknown> | undefined {
-  if (!text) return undefined;
-  try {
-    const parsed = JSON.parse(text);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>;
-    }
-    return { result: parsed };
-  } catch {
-    return { result: text };
-  }
+	if (!text) return undefined;
+	try {
+		const parsed = JSON.parse(text);
+		if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+			return parsed as Record<string, unknown>;
+		}
+		return { result: parsed };
+	} catch {
+		return { result: text };
+	}
 }
 
 export function ToolCallView({ call }: { call: ToolCall }): ReactElement {
-  // React to request → response child being added.
-  useNodeChildren(call);
-  const response = call.response;
-  // Subscribe to streaming response content (mostly arrives whole, but some
-  // tools stream).
-  const responseContent = useNodeContent(response ?? call) ?? "";
-  const isError = call.isError;
-  const hasResponse = !!response;
+	// React to request → response child being added.
+	useNodeChildren(call);
+	const response = call.response;
+	// Subscribe to streaming response content (mostly arrives whole, but some
+	// tools stream).
+	const responseContent = useNodeContent(response ?? call) ?? "";
+	const isError = call.isError;
+	const hasResponse = !!response;
 
-  // Map the SessionNode tool-call state into Prompt Kit's ToolPart state.
-  // - request only, no response → "input-available"
-  // - response present, no error → "output-available"
-  // - response present, error → "output-error"
-  const state: ToolPart["state"] = !hasResponse
-    ? "input-available"
-    : isError
-      ? "output-error"
-      : "output-available";
+	// Map the SessionNode tool-call state into Prompt Kit's ToolPart state.
+	// - request only, no response → "input-available"
+	// - response present, no error → "output-available"
+	// - response present, error → "output-error"
+	const state: ToolPart["state"] = !hasResponse
+		? "input-available"
+		: isError
+			? "output-error"
+			: "output-available";
 
-  const toolPart: ToolPart = {
-    type: call.toolName,
-    state,
-    input: asInputRecord(call.args),
-    output: hasResponse && !isError ? parseOutput(responseContent) : undefined,
-    toolCallId: call.callId,
-    errorText: hasResponse && isError ? responseContent : undefined,
-  };
+	const toolPart: ToolPart = {
+		type: call.toolName,
+		state,
+		input: asInputRecord(call.args),
+		output: hasResponse && !isError ? parseOutput(responseContent) : undefined,
+		toolCallId: call.callId,
+		errorText: hasResponse && isError ? responseContent : undefined,
+	};
 
-  return (
-    <div className="w-full max-w-2xl">
-      <Tool toolPart={toolPart} />
-    </div>
-  );
+	return (
+		<div className="w-full max-w-2xl">
+			<Tool toolPart={toolPart} />
+		</div>
+	);
 }

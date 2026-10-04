@@ -8,8 +8,8 @@ import { resolve } from "node:path";
  * deployment). It is the `rootDir` of the server's `NodeFilesApi`.
  */
 export function dataRoot(): string {
-  const env = process.env.REPORT_DATA_ROOT;
-  return env
-    ? resolve(env)
-    : resolve(process.cwd(), "..", "..", "..", "..", "data");
+	const env = process.env.REPORT_DATA_ROOT;
+	return env
+		? resolve(env)
+		: resolve(process.cwd(), "..", "..", "..", "..", "data");
 }
