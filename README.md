@@ -23,12 +23,13 @@ low-level libraries; this repository is the boundary between the two.
 | `@statewalker/app-shell` | [`packages/app-shell`](packages/app-shell) | Shared application shell both apps boot from. |
 | `@statewalker/wiki.core` | [`packages/wiki.core`](packages/wiki.core) | Wiki domain logic (React-free). Moved here from `statewalker-workbench`. |
 | `@statewalker/wiki.view.react` | [`packages/wiki.view.react`](packages/wiki.view.react) | Wiki renderer (React). Moved with `wiki.core`, which was its only remaining consumer outside this repo. |
-| `@statewalker/content-extractors` | [`packages/content-extractors`](packages/content-extractors) | Text extraction from PDF/DOCX/XLSX/Markdown/HTML. Moved here from the archived `statewalker-content`. |
 | `@statewalker/chat-mini.chat` | [`apps/chat-mini.chat`](apps/chat-mini.chat) | Chat fragment (React-free). A library, still located under `apps/`. |
 | `@statewalker/chat-mini.chat-react` | [`apps/chat-mini.chat-react`](apps/chat-mini.chat-react) | Chat fragment renderer (React). Also a library under `apps/`. |
 
 Each moved package kept its history, both in `main`'s ancestry and on a `history/*`
 branch (`history/wiki.core`, `history/wiki.view.react`, `history/content-extractors`).
+`content-extractors` has since been removed here: it was a byte-identical copy of the one
+in `statewalker-search`, which is now its only home.
 
 ## Building
 
@@ -45,6 +46,7 @@ This repository depends on:
 | --- | --- |
 | [`statewalker-fsm`](https://github.com/statewalker/statewalker-fsm) | `@statewalker/fsm` |
 | [`statewalker-indexer`](https://github.com/statewalker/statewalker-indexer) | `@statewalker/indexer-api`, `@statewalker/indexer-fulltext`, `@statewalker/indexer-mem-flexsearch`, `@statewalker/indexer-vector` |
+| [`statewalker-search`](https://github.com/statewalker/statewalker-search) | `@statewalker/content-extractors` |
 | [`statewalker-shared`](https://github.com/statewalker/statewalker-shared) | `@statewalker/shared-adapters`, `@statewalker/shared-baseclass`, `@statewalker/shared-commands`, `@statewalker/shared-logger`, `@statewalker/shared-registry`, `@statewalker/shared-slots` |
 | [`statewalker-workbench`](https://github.com/statewalker/statewalker-workbench) | `@statewalker/ai-agent-runtime.core`, `@statewalker/ai-agent.core`, `@statewalker/ai-config.core`, `@statewalker/ai-config.view.react`, `@statewalker/ai-local-models.browser`, `@statewalker/ai-local-models.core`, `@statewalker/ai-local-models.view.react`, `@statewalker/explorer.core`, `@statewalker/explorer.view.react`, `@statewalker/inline.core`, `@statewalker/inline.view.react`, `@statewalker/mime.core`, `@statewalker/mime.view.image`, `@statewalker/mime.view.markdown`, `@statewalker/mime.view.pdf`, `@statewalker/mime.view.video`, `@statewalker/platform.browser`, `@statewalker/platform.core`, `@statewalker/platform.node`, `@statewalker/render.core`, `@statewalker/render.view.react`, `@statewalker/settings.core`, `@statewalker/settings.view.react`, `@statewalker/shell.core`, `@statewalker/shell.view.react`, `@statewalker/ui.view.react`, `@statewalker/ui.view.shadcn`, `@statewalker/workspace.browser`, `@statewalker/workspace.core`, `@statewalker/workspace.view.react` |
 | [`webrun-files`](https://github.com/statewalker/webrun-files) | `@statewalker/webrun-files`, `@statewalker/webrun-files-browser`, `@statewalker/webrun-files-node` |

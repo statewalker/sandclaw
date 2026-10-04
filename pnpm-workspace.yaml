@@ -52,7 +52,7 @@ catalog:
   "@statewalker/backbone.node": ^0.1.0
   "@statewalker/cache-mem": 0.1.2
   "@statewalker/content-blocks": ^0.1.0
-  "@statewalker/content-extractors": ^0.1.0
+  "@statewalker/content-extractors": ^0.2.0
   "@statewalker/content-pipeline": ^0.1.0
   "@statewalker/db-api": ^0.1.0
   "@statewalker/db-duckdb-node": ^0.1.0
