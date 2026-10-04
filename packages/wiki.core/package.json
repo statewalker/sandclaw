@@ -1,6 +1,6 @@
 {
   "name": "@statewalker/wiki.core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "type": "module",
   "description": "LLM-curated wiki on the @statewalker/workspace model: ingestion builders on ProjectBuilder, hybrid full-text + vector search, and a query retrieval router.",
