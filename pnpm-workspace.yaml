@@ -3,7 +3,16 @@ packages:
   - "apps/*"
 
 catalog:
+  "@ai-sdk/anthropic": ^4.0.71
+  "@ai-sdk/google": ^4.0.87
+  "@ai-sdk/openai": ^4.0.83
+  "@ai-sdk/provider": ^4.0.21
+  "@base-ui/react": ^1.8.0
+  "@biomejs/biome": ^2.5.15
+  "@browser-ai/transformers-js": ^3.0.4
+  "@changesets/cli": ^3.0.3
   "@embedpdf/react-pdf-viewer": "^2.15.1"
+  "@hono/node-server": ^2.1.3
   "@hono/react-renderer": "^1.0.1"
   "@hono/vite-build": "^1.11.1"
   "@hono/vite-dev-server": "^0.26.1"
@@ -11,6 +20,7 @@ catalog:
   "@json-render/core": ^0.21.0
   "@json-render/react": ^0.21.0
   "@json-render/shadcn": ^0.21.0
+  "@mlc-ai/web-llm": ^0.2.85
   "@radix-ui/react-alert-dialog": "^1.1.23"
   "@radix-ui/react-collapsible": "^1.1.20"
   "@radix-ui/react-dialog": "^1.1.23"
@@ -24,13 +34,21 @@ catalog:
   "@radix-ui/react-tabs": "^1.1.21"
   "@radix-ui/react-tooltip": "^1.2.16"
   "@statewalker/ai-agent-runtime.core": "^0.5.0"
+  "@statewalker/ai-agent.core": "^0.4.0"
   "@statewalker/ai-config.core": "^0.5.0"
   "@statewalker/ai-config.view.react": "^0.2.0"
   "@statewalker/ai-local-models.browser": "^0.4.0"
   "@statewalker/ai-local-models.core": "^0.5.0"
   "@statewalker/ai-local-models.view.react": "^0.2.0"
+  "@statewalker/content-extractors": "^0.2.1"
   "@statewalker/explorer.core": "^0.5.0"
   "@statewalker/explorer.view.react": "^0.2.0"
+  "@statewalker/fsm": ^0.38.1
+  "@statewalker/fsm-validator": ^0.2.0
+  "@statewalker/indexer-api": ^0.1.0
+  "@statewalker/indexer-fulltext": ^0.1.0
+  "@statewalker/indexer-mem-flexsearch": ^0.1.0
+  "@statewalker/indexer-vector": ^0.1.0
   "@statewalker/inline.core": "^0.4.0"
   "@statewalker/inline.view.react": "^0.2.0"
   "@statewalker/mime.core": "^0.5.0"
@@ -38,48 +56,13 @@ catalog:
   "@statewalker/mime.view.markdown": "^0.2.0"
   "@statewalker/mime.view.pdf": "^0.2.0"
   "@statewalker/mime.view.video": "^0.2.0"
+  "@statewalker/platform.browser": "^0.5.0"
+  "@statewalker/platform.core": "^0.5.0"
   "@statewalker/platform.node": "^0.5.0"
   "@statewalker/render.core": "^0.5.0"
   "@statewalker/render.view.react": "^0.2.0"
   "@statewalker/settings.core": "^0.5.0"
   "@statewalker/settings.view.react": "^0.2.0"
-  "@statewalker/shell.core": "^0.5.0"
-  "@statewalker/shell.view.react": "^0.2.0"
-  "@statewalker/ui.view.react": "^0.2.0"
-  "@statewalker/ui.view.shadcn": ^0.1.1
-  "@statewalker/workspace.browser": "^0.5.0"
-  "@statewalker/workspace.view.react": "^0.2.0"
-  "@tanstack/react-query": "^5.104.1"
-  "@testing-library/jest-dom": ^7.0.1
-  "@testing-library/react": "^16.3.3"
-  "dockview-core": ^8.4.0
-  "dockview-react": ^8.4.0
-  "honox": "^0.1.61"
-  "marked": "^18.0.14"
-  "react-hook-form": "^7.89.0"
-  "remark-breaks": "^4.0.0"
-  "shiki": "^4.5.0"
-  "use-stick-to-bottom": "^1.1.6"
-  "@ai-sdk/anthropic": ^4.0.71
-  "@ai-sdk/google": ^4.0.87
-  "@ai-sdk/openai": ^4.0.83
-  "@ai-sdk/provider": ^4.0.21
-  "@base-ui/react": ^1.8.0
-  "@biomejs/biome": ^2.5.15
-  "@browser-ai/transformers-js": ^3.0.4
-  "@changesets/cli": ^3.0.3
-  "@hono/node-server": ^2.1.3
-  "@mlc-ai/web-llm": ^0.2.85
-  "@statewalker/ai-agent.core": "^0.4.0"
-  "@statewalker/content-extractors": "^0.2.1"
-  "@statewalker/fsm": ^0.38.1
-  "@statewalker/fsm-validator": ^0.2.0
-  "@statewalker/indexer-api": ^0.1.0
-  "@statewalker/indexer-fulltext": ^0.1.0
-  "@statewalker/indexer-mem-flexsearch": ^0.1.0
-  "@statewalker/indexer-vector": ^0.1.0
-  "@statewalker/platform.browser": "^0.5.0"
-  "@statewalker/platform.core": "^0.5.0"
   "@statewalker/shared-adapters": ^0.1.0
   "@statewalker/shared-baseclass": ^0.1.0
   "@statewalker/shared-commands": ^0.2.0
@@ -87,13 +70,22 @@ catalog:
   "@statewalker/shared-logger-pino": ^0.1.0
   "@statewalker/shared-registry": ^0.1.0
   "@statewalker/shared-slots": ^0.2.0
+  "@statewalker/shell.core": "^0.5.0"
+  "@statewalker/shell.view.react": "^0.2.0"
+  "@statewalker/ui.view.react": "^0.2.0"
+  "@statewalker/ui.view.shadcn": ^0.1.1
   "@statewalker/webrun-files": "^0.10.0"
   "@statewalker/webrun-files-browser": "^0.10.0"
   "@statewalker/webrun-files-mem": ^0.10.0
   "@statewalker/webrun-files-node": ^0.10.0
+  "@statewalker/workspace.browser": "^0.5.0"
   "@statewalker/workspace.core": "^0.5.0"
+  "@statewalker/workspace.view.react": "^0.2.0"
   "@tailwindcss/typography": ^0.5.20
   "@tailwindcss/vite": ^4.3.3
+  "@tanstack/react-query": "^5.104.1"
+  "@testing-library/jest-dom": ^7.0.1
+  "@testing-library/react": "^16.3.3"
   "@types/node": ^26.6.4
   "@types/react": ^19.3.0
   "@types/react-dom": ^19.3.0
@@ -102,29 +94,37 @@ catalog:
   ai: ^7.0.127
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
+  "dockview-core": ^8.4.0
+  "dockview-react": ^8.4.0
   dotenv: ^18.0.5
   hono: ^4.13.12
+  "honox": "^0.1.61"
   idb-keyval: ^6.3.0
   jsdom: ^30.1.1
   lucide-react: ^1.51.0
+  "marked": "^18.0.14"
   radix-ui: ^1.6.7
-  react: ^19.3.0
   react-dom: ^19.3.0
+  "react-hook-form": "^7.89.0"
   react-markdown: ^10.1.0
   react-resizable-panels: ^4.14.2
+  react: ^19.3.0
+  "remark-breaks": "^4.0.0"
   remark-gfm: ^4.0.1
   shadcn: ^4.21.1
+  "shiki": "^4.5.0"
   tailwind-merge: ^3.7.0
   tailwindcss: ^4.3.3
+  "tsdown": "^0.23.0"
   tsx: ^4.23.15
   turbo: ^2.11.7
   tw-animate-css: ^1.4.0
   typescript: ^7.0.2
+  "use-stick-to-bottom": "^1.1.6"
   vite: ^8.3.2
   vitest: ^5.0.3
   yaml: ^2.9.1
   zod: ^4.6.5
-
 catalogs:
   peers:
     "react": ^19.3.0
