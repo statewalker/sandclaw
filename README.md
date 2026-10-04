@@ -33,10 +33,14 @@ in `statewalker-search`, which is now its only home.
 
 ## Building
 
-These packages depend on other StateWalker repositories via `workspace:*` and are
-**not built standalone**. They build inside a StateWalker umbrella workspace, which
-checks this repository out alongside the repositories listed below and resolves the
-cross-repo links.
+The repository installs, builds and tests on its own: other StateWalker packages come
+from the registry.
+
+```sh
+pnpm install
+pnpm run build
+pnpm run test
+```
 
 ## Cross-repo dependencies
 
@@ -44,17 +48,16 @@ This repository depends on:
 
 | Repository | Packages used |
 | --- | --- |
+| [`statewalker-ai`](https://github.com/statewalker/statewalker-ai) | `@statewalker/ai-agent-runtime.core`, `@statewalker/ai-agent.core`, `@statewalker/ai-config.core`, `@statewalker/ai-local-models.browser`, `@statewalker/ai-local-models.core` |
 | [`statewalker-fsm`](https://github.com/statewalker/statewalker-fsm) | `@statewalker/fsm` |
-| [`statewalker-indexer`](https://github.com/statewalker/statewalker-indexer) | `@statewalker/indexer-api`, `@statewalker/indexer-fulltext`, `@statewalker/indexer-mem-flexsearch`, `@statewalker/indexer-vector` |
-| [`statewalker-search`](https://github.com/statewalker/statewalker-search) | `@statewalker/content-extractors` |
+| [`statewalker-kernel`](https://github.com/statewalker/statewalker-kernel) | `@statewalker/explorer.core`, `@statewalker/inline.core`, `@statewalker/mime.core`, `@statewalker/platform.browser`, `@statewalker/platform.core`, `@statewalker/platform.node`, `@statewalker/render.core`, `@statewalker/settings.core`, `@statewalker/shell.core`, `@statewalker/workspace.browser`, `@statewalker/workspace.core` |
+| [`statewalker-search`](https://github.com/statewalker/statewalker-search) | `@statewalker/content-extractors`, `@statewalker/indexer-api`, `@statewalker/indexer-fulltext`, `@statewalker/indexer-mem-flexsearch`, `@statewalker/indexer-vector` |
 | [`statewalker-shared`](https://github.com/statewalker/statewalker-shared) | `@statewalker/shared-adapters`, `@statewalker/shared-baseclass`, `@statewalker/shared-commands`, `@statewalker/shared-logger`, `@statewalker/shared-registry`, `@statewalker/shared-slots` |
-| [`statewalker-workbench`](https://github.com/statewalker/statewalker-workbench) | `@statewalker/ai-agent-runtime.core`, `@statewalker/ai-agent.core`, `@statewalker/ai-config.core`, `@statewalker/ai-config.view.react`, `@statewalker/ai-local-models.browser`, `@statewalker/ai-local-models.core`, `@statewalker/ai-local-models.view.react`, `@statewalker/explorer.core`, `@statewalker/explorer.view.react`, `@statewalker/inline.core`, `@statewalker/inline.view.react`, `@statewalker/mime.core`, `@statewalker/mime.view.image`, `@statewalker/mime.view.markdown`, `@statewalker/mime.view.pdf`, `@statewalker/mime.view.video`, `@statewalker/platform.browser`, `@statewalker/platform.core`, `@statewalker/platform.node`, `@statewalker/render.core`, `@statewalker/render.view.react`, `@statewalker/settings.core`, `@statewalker/settings.view.react`, `@statewalker/shell.core`, `@statewalker/shell.view.react`, `@statewalker/ui.view.react`, `@statewalker/ui.view.shadcn`, `@statewalker/workspace.browser`, `@statewalker/workspace.core`, `@statewalker/workspace.view.react` |
+| [`statewalker-workbench`](https://github.com/statewalker/statewalker-workbench) | `@statewalker/ai-config.view.react`, `@statewalker/ai-local-models.view.react`, `@statewalker/explorer.view.react`, `@statewalker/inline.view.react`, `@statewalker/mime.view.image`, `@statewalker/mime.view.markdown`, `@statewalker/mime.view.pdf`, `@statewalker/mime.view.video`, `@statewalker/render.view.react`, `@statewalker/settings.view.react`, `@statewalker/shell.view.react`, `@statewalker/ui.view.react`, `@statewalker/ui.view.shadcn`, `@statewalker/workspace.view.react` |
 | [`webrun-files`](https://github.com/statewalker/webrun-files) | `@statewalker/webrun-files`, `@statewalker/webrun-files-browser`, `@statewalker/webrun-files-node` |
 
-Cross-repo dependencies are declared `workspace:*` rather than `catalog:`. This is
-deliberate: turbo derives its task graph from `workspace:` specifiers and does **not**
-resolve `catalog:`, so a `catalog:` cross-repo dependency is invisible to the scheduler
-and its consumer can be built before it.
+Cross-repo dependencies are declared `catalog:` with ranges on the released versions (see
+`pnpm-workspace.yaml`); packages of this repository reference each other with `workspace:^`.
 
 ## License
 
