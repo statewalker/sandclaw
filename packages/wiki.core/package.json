@@ -46,7 +46,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/turndown": "catalog:",
     "@statewalker/fsm-validator": "catalog:",
     "@statewalker/shared-logger-pino": "catalog:",
     "@statewalker/webrun-files-mem": "catalog:",

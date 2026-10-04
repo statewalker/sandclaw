@@ -99,7 +99,6 @@
     "@statewalker/content-extractors": "catalog:"
   },
   "devDependencies": {
-    "@types/turndown": "catalog:",
     "@statewalker/webrun-files-mem": "catalog:",
     "@tailwindcss/typography": "catalog:",
     "@tailwindcss/vite": "catalog:",

@@ -118,8 +118,8 @@ catalogs:
       specifier: ^0.2.0
       version: 0.2.0
     '@statewalker/content-extractors':
-      specifier: ^0.2.0
-      version: 0.2.0
+      specifier: ^0.2.1
+      version: 0.2.1
     '@statewalker/explorer.core':
       specifier: ^0.5.0
       version: 0.5.0
@@ -264,9 +264,6 @@ catalogs:
     '@types/react-dom':
       specifier: ^19.3.0
       version: 19.3.0
-    '@types/turndown':
-      specifier: ^5.0.6
-      version: 5.0.6
     '@uwdata/flechette':
       specifier: ^2.5.0
       version: 2.5.0
@@ -499,7 +496,7 @@ importers:
         version: link:../chat-mini.chat-react
       '@statewalker/content-extractors':
         specifier: 'catalog:'
-        version: 0.2.0
+        version: 0.2.1
       '@statewalker/explorer.core':
         specifier: 'catalog:'
         version: 0.5.0(@types/json-schema@7.0.15)(zod-to-json-schema@3.25.2(zod@4.6.5))
@@ -672,9 +669,6 @@ importers:
       '@types/react-dom':
         specifier: 'catalog:'
         version: 19.3.0(@types/react@19.3.0)
-      '@types/turndown':
-        specifier: 'catalog:'
-        version: 5.0.6
       '@vitejs/plugin-react':
         specifier: 'catalog:'
         version: 6.1.1(vite@8.3.2(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
@@ -1116,7 +1110,7 @@ importers:
         version: 4.0.83(zod@4.6.5)
       '@statewalker/content-extractors':
         specifier: 'catalog:'
-        version: 0.2.0
+        version: 0.2.1
       '@statewalker/fsm':
         specifier: 'catalog:'
         version: 0.38.1
@@ -1175,9 +1169,6 @@ importers:
       '@statewalker/webrun-files-node':
         specifier: 'catalog:'
         version: 0.10.1
-      '@types/turndown':
-        specifier: 'catalog:'
-        version: 5.0.6
       tsx:
         specifier: 'catalog:'
         version: 4.23.15
@@ -3535,8 +3526,8 @@ packages:
       react: '>=18'
       react-dom: '>=18'
 
-  '@statewalker/content-extractors@0.2.0':
-    resolution: {integrity: sha512-QYVHWIuj9NW5BQETZxikjUSq/rpYmAZPXKvCEzBgSGZ9HiJ7VHqfRgO30f1yFR69sTXqFmYNqoQFUo+SgqDGwg==}
+  '@statewalker/content-extractors@0.2.1':
+    resolution: {integrity: sha512-SdPYDpCjYZR0cguGzNOX/uC8xxvolGbdLL9Dxd1hQgHSWcPLYQWLueKGUQ2j2WUiONQ47FGiMXaVZwAPt5x7aQ==}
 
   '@statewalker/explorer.core@0.5.0':
     resolution: {integrity: sha512-S3EJw4HdZ4n7n9C040l556WuA+w83Aax6dvw3Jg+3CWodBkKi7dBkL+o1/CpT2WT6eqUGTyvTrlBlh0I4KoQSQ==}
@@ -9341,9 +9332,10 @@ snapshots:
       - valibot
       - zod-to-json-schema
 
-  '@statewalker/content-extractors@0.2.0':
+  '@statewalker/content-extractors@0.2.1':
     dependencies:
       '@joplin/turndown-plugin-gfm': 1.0.68
+      '@types/turndown': 5.0.6
       exceljs: 4.4.0
       mammoth: 1.13.0
       markdown-it: 15.0.2
