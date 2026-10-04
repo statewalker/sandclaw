@@ -3,187 +3,129 @@ packages:
   - "apps/*"
 
 catalog:
-  "@adobe/react-spectrum": ^3.47.3
-  "@ai-sdk/anthropic": ^3.0.71
-  "@ai-sdk/google": ^3.0.64
-  "@ai-sdk/mcp": ^1.0.36
-  "@ai-sdk/openai": ^3.0.53
-  "@ai-sdk/provider": ^3.0.10
-  "@ai-sdk/provider-utils": ^4.0.23
-  "@aws-sdk/client-s3": ^3.1110.0
-  "@base-ui/react": ^1.7.0
-  "@biomejs/biome": ^2.5.8
-  "@browser-ai/transformers-js": ^3.0.0
-  "@changesets/cli": ^3.0.0
-  "@duckdb/duckdb-wasm": ^1.33.1-dev57.0
-  "@duckdb/node-api": ^1.5.5-r.4
-  "@eigenpal/docx-js-editor": ^0.5.3
-  "@electric-sql/pglite": ^0.4.4
-  "@eslint/js": ^10.0.1
-  "@fontsource-variable/geist": ^5.3.0
-  "@hono/node-server": ^2.1.1
-  "@hono/node-ws": ^1.3.1
-  "@huggingface/transformers": ^4.2.0
-  "@internationalized/date": ^3.12.3
-  "@joplin/turndown-plugin-gfm": ^1.0.67
-  "@jspm/generator": ^2.16.3
-  "@libsql/client": ^0.17.4
-  "@libsql/libsql-wasm-experimental": ^0.0.3
-  "@lume/kiwi": ^0.4.4
-  "@mlc-ai/web-llm": ^0.2.84
-  "@modelcontextprotocol/sdk": ^1.30.0
-  "@observablehq/framework": ^1.13.4
-  "@playwright/test": ^1.62.1
-  "@preact/signals-core": ^1.14.4
-  "@react-stately/color": ^3.10.1
-  "@repo/docker-litellm": ^0.0.0
-  "@repo/docker-pg": ^0.0.0
-  "@repo/docker-pgadmin": ^0.0.0
-  "@repo/docker-rustfs": ^0.0.0
-  "@repo/docker-traefik": ^0.0.0
-  "@spectrum-icons/workflow": ^4.3.1
-  "@standard-community/standard-json": ^0.3.5
-  "@standard-schema/spec": ^1.1.0
-  "@statewalker/adapters": ^0.1.0
-  "@statewalker/ai-agent.core": ^0.1.0
-  "@statewalker/ai-provider": ^0.1.0
-  "@statewalker/ai-provider-browser": ^0.1.0
-  "@statewalker/backbone.browser": ^0.1.0
-  "@statewalker/backbone.node": ^0.1.0
-  "@statewalker/cache-mem": 0.1.2
-  "@statewalker/content-blocks": ^0.1.0
-  "@statewalker/content-extractors": ^0.1.0
-  "@statewalker/content-pipeline": ^0.1.0
-  "@statewalker/db-api": ^0.1.0
-  "@statewalker/db-duckdb-node": ^0.1.0
-  "@statewalker/db-sqlite-node": ^0.1.0
+  "@ai-sdk/anthropic": ^4.0.71
+  "@ai-sdk/google": ^4.0.87
+  "@ai-sdk/openai": ^4.0.83
+  "@ai-sdk/provider": ^4.0.21
+  "@base-ui/react": ^1.8.0
+  "@biomejs/biome": ^2.5.15
+  "@browser-ai/transformers-js": ^3.0.4
+  "@changesets/cli": ^3.0.3
+  "@embedpdf/react-pdf-viewer": "^2.15.1"
+  "@hono/node-server": ^2.1.3
+  "@hono/react-renderer": "^1.0.1"
+  "@hono/vite-build": "^1.11.1"
+  "@hono/vite-dev-server": "^0.26.1"
+  "@hookform/resolvers": "^5.9.1"
+  "@json-render/core": ^0.21.0
+  "@json-render/react": ^0.21.0
+  "@json-render/shadcn": ^0.21.0
+  "@mlc-ai/web-llm": ^0.2.85
+  "@radix-ui/react-alert-dialog": "^1.1.23"
+  "@radix-ui/react-collapsible": "^1.1.20"
+  "@radix-ui/react-dialog": "^1.1.23"
+  "@radix-ui/react-dropdown-menu": "^2.1.24"
+  "@radix-ui/react-label": "^2.1.15"
+  "@radix-ui/react-popover": "^1.1.23"
+  "@radix-ui/react-scroll-area": "^1.2.18"
+  "@radix-ui/react-select": "^2.3.7"
+  "@radix-ui/react-separator": "^1.1.15"
+  "@radix-ui/react-slot": "^1.3.3"
+  "@radix-ui/react-tabs": "^1.1.21"
+  "@radix-ui/react-tooltip": "^1.2.16"
+  "@statewalker/ai-agent-runtime.core": "^0.5.0"
+  "@statewalker/ai-agent.core": "^0.4.0"
+  "@statewalker/ai-config.core": "^0.5.0"
+  "@statewalker/ai-config.view.react": "^0.2.0"
+  "@statewalker/ai-local-models.browser": "^0.4.0"
+  "@statewalker/ai-local-models.core": "^0.5.0"
+  "@statewalker/ai-local-models.view.react": "^0.2.0"
+  "@statewalker/content-extractors": "^0.2.1"
+  "@statewalker/explorer.core": "^0.5.0"
+  "@statewalker/explorer.view.react": "^0.2.0"
   "@statewalker/fsm": ^0.38.1
   "@statewalker/fsm-validator": ^0.2.0
   "@statewalker/indexer-api": ^0.1.0
-  "@statewalker/indexer-chunker": ^0.1.0
   "@statewalker/indexer-fulltext": ^0.1.0
   "@statewalker/indexer-mem-flexsearch": ^0.1.0
   "@statewalker/indexer-vector": ^0.1.0
-  "@statewalker/platform.browser": ^0.1.0
-  "@statewalker/platform.core": ^0.1.0
-  "@statewalker/service-http": ^0.0.0
-  "@statewalker/service-http-impl": ^0.0.0
-  "@statewalker/service-pg": ^0.0.0
+  "@statewalker/inline.core": "^0.4.0"
+  "@statewalker/inline.view.react": "^0.2.0"
+  "@statewalker/mime.core": "^0.5.0"
+  "@statewalker/mime.view.image": "^0.2.0"
+  "@statewalker/mime.view.markdown": "^0.2.0"
+  "@statewalker/mime.view.pdf": "^0.2.0"
+  "@statewalker/mime.view.video": "^0.2.0"
+  "@statewalker/platform.browser": "^0.5.0"
+  "@statewalker/platform.core": "^0.5.0"
+  "@statewalker/platform.node": "^0.5.0"
+  "@statewalker/render.core": "^0.5.0"
+  "@statewalker/render.view.react": "^0.2.0"
+  "@statewalker/settings.core": "^0.5.0"
+  "@statewalker/settings.view.react": "^0.2.0"
   "@statewalker/shared-adapters": ^0.1.0
   "@statewalker/shared-baseclass": ^0.1.0
   "@statewalker/shared-commands": ^0.2.0
-  "@statewalker/shared-dataflow": ^0.1.0
-  "@statewalker/shared-generators": ^0.1.0
-  "@statewalker/shared-ids": ^0.1.0
   "@statewalker/shared-logger": ^0.1.0
   "@statewalker/shared-logger-pino": ^0.1.0
   "@statewalker/shared-registry": ^0.1.0
   "@statewalker/shared-slots": ^0.2.0
-  "@statewalker/uris": ^0.2.6
-  "@statewalker/webrun-files": ^0.7.0
-  "@statewalker/webrun-files-browser": ^0.7.2
-  "@statewalker/webrun-files-composite": ^0.8.0
-  "@statewalker/webrun-files-mem": ^0.7.2
-  "@statewalker/webrun-files-node": ^0.7.2
-  "@statewalker/workspace.core": ^0.1.0
+  "@statewalker/shell.core": "^0.5.0"
+  "@statewalker/shell.view.react": "^0.2.0"
+  "@statewalker/ui.view.react": "^0.2.0"
+  "@statewalker/ui.view.shadcn": ^0.1.1
+  "@statewalker/webrun-files": "^0.10.0"
+  "@statewalker/webrun-files-browser": "^0.10.0"
+  "@statewalker/webrun-files-mem": ^0.10.0
+  "@statewalker/webrun-files-node": ^0.10.0
+  "@statewalker/workspace.browser": "^0.5.0"
+  "@statewalker/workspace.core": "^0.5.0"
+  "@statewalker/workspace.view.react": "^0.2.0"
   "@tailwindcss/typography": ^0.5.20
   "@tailwindcss/vite": ^4.3.3
-  "@testcontainers/minio": ^12.1.0
-  "@types/jsdom": ^30.0.0
-  "@types/lodash-es": ^4.17.12
-  "@types/lodash.isequal": ^4.5.8
-  "@types/markdown-it": ^14.1.2
-  "@types/node": ^26.2.0
-  "@types/pako": ^2.0.4
-  "@types/pg": ^8.21.0
-  "@types/react": ^19.2.18
-  "@types/react-dom": ^19.2.4
-  "@types/sql.js": ^1.4.11
-  "@types/turndown": ^5.0.6
-  "@types/ws": ^8.18.1
-  "@typescript-eslint/eslint-plugin": ^8.67.0
+  "@tanstack/react-query": "^5.104.1"
+  "@testing-library/jest-dom": ^7.0.1
+  "@testing-library/react": "^16.3.3"
+  "@types/node": ^26.6.4
+  "@types/react": ^19.3.0
+  "@types/react-dom": ^19.3.0
   "@uwdata/flechette": ^2.5.0
-  "@vitejs/plugin-react": ^6.0.5
-  "@vitest/browser": ^4.1.10
-  "@vitest/browser-playwright": ^4.1.10
-  "@vitest/coverage-v8": ^4.1.10
-  "@ygoe/msgpack": ^1.0.3
-  ai: ^6.0.168
-  apache-arrow: ^21.2.0
-  arquero: ^8.0.3
-  basecoat-css: ^1.0.2
+  "@vitejs/plugin-react": ^6.1.1
+  ai: ^7.0.127
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
-  comlink: ^4.4.2
-  commander: ^15.0.0
-  d3: ^7.9.0
-  dotenv: ^17.4.2
-  drizzle-kit: ^0.31.10
-  drizzle-orm: ^0.45.2
-  es-module-lexer: ^2.3.1
-  es-module-shims: ^2.8.4
-  eslint: ^10.8.1
-  eslint-config-standard-with-typescript: ^43.0.1
-  eslint-plugin-import: ^2.32.0
-  eslint-plugin-promise: ^7.3.0
-  eslint-plugin-react-hooks: ^7.1.1
-  eslint-plugin-react-refresh: ^0.5.4
-  exceljs: ^4.4.0
-  flexsearch: ^0.8.212
-  globals: ^17.11.0
-  hono: ^4.13.2
-  htl: ^1.0.0
-  http-server: ^14.1.1
+  "dockview-core": ^8.4.0
+  "dockview-react": ^8.4.0
+  dotenv: ^18.0.5
+  hono: ^4.13.12
+  "honox": "^0.1.61"
   idb-keyval: ^6.3.0
-  import-meta-resolve: ^4.2.0
-  isomorphic-ws: ^5.0.0
-  jsdom: ^30.0.1
-  livekit-client: ^2.21.0
-  lodash: ^4.18.1
-  lodash-es: ^4.18.1
-  lodash.isequal: ^4.5.0
-  lucide-react: ^1.31.0
-  mammoth: ^1.12.1
-  markdown-it: ^15.0.0
-  minisearch: ^7.2.0
-  native-file-system-adapter: ^3.0.1
-  openai: ^7.4.0
-  pako: ^2.1.0
-  peerjs: ^1.5.5
-  pg: ^8.23.0
-  pino: ^10.3.1
-  pino-pretty: ^13.1.3
-  playwright: ^1.62.1
-  pnpm: ^11.21.0
+  jsdom: ^30.1.1
+  lucide-react: ^1.51.0
+  "marked": "^18.0.14"
   radix-ui: ^1.6.7
-  rbush: ^4.0.1
-  react: ^19.2.8
-  react-dom: ^19.2.8
-  react-markdown: 10.1.0
-  react-resizable-panels: ^4.12.2
-  remark-gfm: 4.0.1
-  rimraf: ^6.1.3
-  rolldown: ^1.2.4
-  shadcn: ^4.18.0
-  sql.js: 1.14.1
-  sucrase: ^3.35.1
-  tailwind-merge: ^3.6.0
+  react-dom: ^19.3.0
+  "react-hook-form": "^7.89.0"
+  react-markdown: ^10.1.0
+  react-resizable-panels: ^4.14.2
+  react: ^19.3.0
+  "remark-breaks": "^4.0.0"
+  remark-gfm: ^4.0.1
+  shadcn: ^4.21.1
+  "shiki": "^4.5.0"
+  tailwind-merge: ^3.7.0
   tailwindcss: ^4.3.3
-  testcontainers: ^12.1.0
-  tsdown: ^0.22.14
-  tsup: ^8.5.1
-  tsx: ^4.23.12
-  turbo: ^2.10.9
-  turndown: ^7.2.4
+  "tsdown": "^0.23.0"
+  tsx: ^4.23.15
+  turbo: ^2.11.7
   tw-animate-css: ^1.4.0
   typescript: ^7.0.2
-  typescript-eslint: ^8.67.0
-  unpdf: ^1.8.1
-  urlpattern-polyfill: ^10.1.0
-  vite: ^8.2.1
-  vite-plugin-static-copy: ^4.1.1
-  vitest: ^4.1.10
-  ws: ^8.21.3
-  yaml: ^2.9.0
-  zod: ^4.4.3
-  zod-to-json-schema: ^3.25.2
+  "use-stick-to-bottom": "^1.1.6"
+  vite: ^8.3.2
+  vitest: ^5.0.3
+  yaml: ^2.9.1
+  zod: ^4.6.5
+catalogs:
+  peers:
+    "react": ^19.3.0
+    "react-dom": ^19.3.0

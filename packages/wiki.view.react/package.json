@@ -1,6 +1,6 @@
 {
   "name": "@statewalker/wiki.view.react",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "type": "module",
   "description": "Wiki renderer fragment: search panel, indexer panel, and browsing/citation views (DockView specs / slot contributions) consuming the React-free @statewalker/wiki adapters.",
@@ -11,11 +11,22 @@
     "url": "git+ssh://git@github.com/statewalker/statewalker-workbench.git"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./fragment": "./src/fragment.ts",
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./fragment": {
+      "source": "./src/fragment.ts",
+      "types": "./dist/fragment.d.ts",
+      "import": "./dist/fragment.js",
+      "default": "./dist/fragment.js"
+    },
     "./styles": "./src/styles.css"
   },
   "files": [
+    "dist",
     "src"
   ],
   "scripts": {
@@ -23,36 +34,38 @@
     "test:watch": "vitest --passWithNoTests",
     "typecheck": "tsc --noEmit",
     "lint": "biome check --write .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "build": "tsdown"
   },
   "dependencies": {
-    "@json-render/core": "0.18.0",
-    "@statewalker/mime.view.markdown": "workspace:*",
-    "@statewalker/mime.core": "workspace:*",
-    "@statewalker/render.core": "workspace:*",
-    "@statewalker/render.view.react": "workspace:*",
-    "@statewalker/shared-commands": "workspace:*",
-    "@statewalker/shared-registry": "workspace:*",
-    "@statewalker/shared-slots": "workspace:*",
-    "@statewalker/shell.core": "workspace:*",
-    "@statewalker/shell.view.react": "workspace:*",
-    "@statewalker/ui.view.react": "workspace:*",
-    "@statewalker/ui.view.shadcn": "workspace:*",
-    "@statewalker/wiki.core": "workspace:*",
-    "@statewalker/workspace.core": "workspace:*",
+    "@json-render/core": "catalog:",
+    "@statewalker/mime.view.markdown": "catalog:",
+    "@statewalker/mime.core": "catalog:",
+    "@statewalker/render.core": "catalog:",
+    "@statewalker/render.view.react": "catalog:",
+    "@statewalker/shared-commands": "catalog:",
+    "@statewalker/shared-registry": "catalog:",
+    "@statewalker/shared-slots": "catalog:",
+    "@statewalker/shell.core": "catalog:",
+    "@statewalker/shell.view.react": "catalog:",
+    "@statewalker/ui.view.react": "catalog:",
+    "@statewalker/ui.view.shadcn": "catalog:",
+    "@statewalker/wiki.core": "workspace:^",
+    "@statewalker/workspace.core": "catalog:",
     "lucide-react": "catalog:",
     "zod": "catalog:"
   },
   "peerDependencies": {
-    "react": ">=18",
-    "react-dom": ">=18"
+    "react": "catalog:peers",
+    "react-dom": "catalog:peers"
   },
   "devDependencies": {
-    "@testing-library/react": "^16.3.2",
+    "@testing-library/react": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "tsdown": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

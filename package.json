@@ -15,9 +15,9 @@
     "url": "git+ssh://git@github.com/statewalker/sandclaw.git"
   },
   "scripts": {
-    "build": "turbo run build",
-    "test": "turbo run test",
-    "typecheck": "turbo run typecheck",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "typecheck": "pnpm -r run typecheck",
     "lint": "biome check --write .",
     "lint:check": "biome check .",
     "format": "biome format --write .",
@@ -29,10 +29,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
-    "@changesets/cli": "^2.30.0",
+    "@changesets/cli": "catalog:",
     "@types/node": "catalog:",
     "tsx": "catalog:",
-    "turbo": "^2.9.6",
+    "turbo": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
