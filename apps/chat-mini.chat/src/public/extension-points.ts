@@ -12,7 +12,8 @@ import type { ComposerAction, TurnBlockContribution } from "./types.js";
  * bindings — the same wiring a plug-in fragment uses, no special
  * built-in path inside `TurnView`.
  */
-export const turnBlocksSlot = defineSlot<TurnBlockContribution>("chat:turn-blocks");
+export const turnBlocksSlot =
+	defineSlot<TurnBlockContribution>("chat:turn-blocks");
 
 /**
  * `chat:composer-actions` — Slot pattern C. Contributions render
@@ -24,4 +25,6 @@ export const turnBlocksSlot = defineSlot<TurnBlockContribution>("chat:turn-block
  * is contributed by the `providers/` fragment, with its React
  * binding registered into `ViewRegistry` by `providers-views/`.
  */
-export const composerActionsSlot = defineSlot<ComposerAction>("chat:composer-actions");
+export const composerActionsSlot = defineSlot<ComposerAction>(
+	"chat:composer-actions",
+);

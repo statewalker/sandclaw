@@ -21,44 +21,49 @@ let workspaceSingleton: Workspace | undefined;
  * surfaces at the first generate/embed call (query/search), not at boot.
  */
 function providers(): ReturnType<typeof resolveProvidersFromEnv> {
-  try {
-    return resolveProvidersFromEnv(process.env);
-  } catch {
-    const unconfigured = (): never => {
-      throw new Error(
-        "wiki provider not configured — set OPENAI_API_KEY (or WIKI_PROVIDER=google + GOOGLE_GENERATIVE_AI_API_KEY)",
-      );
-    };
-    return {
-      provider: { languageModel: unconfigured, textEmbeddingModel: unconfigured },
-      models: { default: "unconfigured" },
-      embedModel: "unconfigured",
-      dimensionality: 1536,
-    };
-  }
+	try {
+		return resolveProvidersFromEnv(process.env);
+	} catch {
+		const unconfigured = (): never => {
+			throw new Error(
+				"wiki provider not configured — set OPENAI_API_KEY (or WIKI_PROVIDER=google + GOOGLE_GENERATIVE_AI_API_KEY)",
+			);
+		};
+		return {
+			provider: {
+				languageModel: unconfigured,
+				textEmbeddingModel: unconfigured,
+			},
+			models: { default: "unconfigured" },
+			embedModel: "unconfigured",
+			dimensionality: 1536,
+		};
+	}
 }
 
 /** The process-wide wiki `Workspace`, lazily constructed and wired. */
 export function workspace(): Workspace {
-  if (!workspaceSingleton) {
-    const ws = new Workspace().setFileSystem(new NodeFilesApi({ rootDir: dataRoot() }));
-    const p = providers();
-    registerWiki(ws, {
-      provider: p.provider,
-      models: p.models,
-      embedModel: p.embedModel,
-      dimensionality: p.dimensionality,
-    });
-    workspaceSingleton = ws;
-  }
-  return workspaceSingleton;
+	if (!workspaceSingleton) {
+		const ws = new Workspace().setFileSystem(
+			new NodeFilesApi({ rootDir: dataRoot() }),
+		);
+		const p = providers();
+		registerWiki(ws, {
+			provider: p.provider,
+			models: p.models,
+			embedModel: p.embedModel,
+			dimensionality: p.dimensionality,
+		});
+		workspaceSingleton = ws;
+	}
+	return workspaceSingleton;
 }
 
 export function filesApi(): FilesApi {
-  return workspace().files;
+	return workspace().files;
 }
 
 /** Open a project read-only (never creates). `null` when it doesn't exist. */
 export function getProject(name: string): Promise<Project | null> {
-  return workspace().getProject(name, false);
+	return workspace().getProject(name, false);
 }

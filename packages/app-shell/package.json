@@ -1,63 +1,72 @@
 {
-  "name": "@statewalker/app-shell",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "description": "Workbench-substrate boot helper shared by chat-mini.app and explorer.app.",
-  "exports": {
-    ".": "./src/index.ts"
-  },
-  "files": [
-    "src"
-  ],
-  "scripts": {
-    "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit",
-    "lint": "biome check --write .",
-    "format": "biome format --write ."
-  },
-  "dependencies": {
-    "@statewalker/ui.view.react": "catalog:",
-    "@statewalker/shell.core": "catalog:",
-    "@statewalker/shell.view.react": "catalog:",
-    "@statewalker/mime.core": "catalog:",
-    "@statewalker/mime.view.image": "catalog:",
-    "@statewalker/inline.core": "catalog:",
-    "@statewalker/inline.view.react": "catalog:",
-    "@statewalker/mime.view.markdown": "catalog:",
-    "@statewalker/mime.view.pdf": "catalog:",
-    "@statewalker/render.core": "catalog:",
-    "@statewalker/platform.core": "catalog:",
-    "@statewalker/platform.browser": "catalog:",
-    "@statewalker/platform.node": "catalog:",
-    "@statewalker/webrun-files": "catalog:",
-    "@statewalker/settings.core": "catalog:",
-    "@statewalker/settings.view.react": "catalog:",
-    "@statewalker/ui.view.shadcn": "catalog:",
-    "@statewalker/shared-commands": "catalog:",
-    "@statewalker/shared-registry": "catalog:",
-    "@statewalker/shared-slots": "catalog:",
-    "@statewalker/mime.view.video": "catalog:",
-    "@statewalker/workspace.core": "catalog:",
-    "@statewalker/workspace.browser": "catalog:",
-    "@statewalker/workspace.view.react": "catalog:",
-    "@tanstack/react-query": "catalog:",
-    "lucide-react": "catalog:"
-  },
-  "peerDependencies": {
-    "react": "catalog:peers",
-    "react-dom": "catalog:peers"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "catalog:",
-    "@statewalker/webrun-files-mem": "catalog:",
-    "@types/react": "catalog:",
-    "react": "catalog:",
-    "react-dom": "catalog:",
-    "typescript": "catalog:"
-  },
-  "sideEffects": false,
-  "publishConfig": {
-    "access": "public"
-  }
+	"name": "@statewalker/app-shell",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Workbench-substrate boot helper shared by chat-mini.app and explorer.app.",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/statewalker/sandclaw.git",
+		"directory": "packages/app-shell"
+	},
+	"bugs": {
+		"url": "https://github.com/statewalker/sandclaw/issues"
+	},
+	"homepage": "https://github.com/statewalker/sandclaw/tree/main/packages/app-shell#readme",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"files": [
+		"src"
+	],
+	"scripts": {
+		"test": "vitest run --passWithNoTests",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check --write .",
+		"format": "biome format --write ."
+	},
+	"dependencies": {
+		"@statewalker/ui.view.react": "catalog:",
+		"@statewalker/shell.core": "catalog:",
+		"@statewalker/shell.view.react": "catalog:",
+		"@statewalker/mime.core": "catalog:",
+		"@statewalker/mime.view.image": "catalog:",
+		"@statewalker/inline.core": "catalog:",
+		"@statewalker/inline.view.react": "catalog:",
+		"@statewalker/mime.view.markdown": "catalog:",
+		"@statewalker/mime.view.pdf": "catalog:",
+		"@statewalker/render.core": "catalog:",
+		"@statewalker/platform.core": "catalog:",
+		"@statewalker/platform.browser": "catalog:",
+		"@statewalker/platform.node": "catalog:",
+		"@statewalker/webrun-files": "catalog:",
+		"@statewalker/settings.core": "catalog:",
+		"@statewalker/settings.view.react": "catalog:",
+		"@statewalker/ui.view.shadcn": "catalog:",
+		"@statewalker/shared-commands": "catalog:",
+		"@statewalker/shared-registry": "catalog:",
+		"@statewalker/shared-slots": "catalog:",
+		"@statewalker/mime.view.video": "catalog:",
+		"@statewalker/workspace.core": "catalog:",
+		"@statewalker/workspace.browser": "catalog:",
+		"@statewalker/workspace.view.react": "catalog:",
+		"@tanstack/react-query": "catalog:",
+		"lucide-react": "catalog:"
+	},
+	"peerDependencies": {
+		"react": "catalog:peers",
+		"react-dom": "catalog:peers"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "catalog:",
+		"@statewalker/webrun-files-mem": "catalog:",
+		"@types/react": "catalog:",
+		"react": "catalog:",
+		"react-dom": "catalog:",
+		"typescript": "catalog:"
+	},
+	"sideEffects": false,
+	"publishConfig": {
+		"access": "public"
+	}
 }

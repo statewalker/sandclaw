@@ -12,14 +12,14 @@ const PANEL_ID_PREFIX = "chat:";
  * updates as the user moves between tabs.
  */
 export function useFocusedChatTab(): string | undefined {
-  const workspace = useAppWorkspace();
-  const dockHost = workspace.requireAdapter(DockHost);
-  const subscribe = (onChange: () => void): (() => void) =>
-    dockHost.onActivePanelChange(onChange);
-  const getSnapshot = (): string | undefined => {
-    const panelId = dockHost.getActivePanelId();
-    if (!panelId || !panelId.startsWith(PANEL_ID_PREFIX)) return undefined;
-    return panelId.slice(PANEL_ID_PREFIX.length);
-  };
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+	const workspace = useAppWorkspace();
+	const dockHost = workspace.requireAdapter(DockHost);
+	const subscribe = (onChange: () => void): (() => void) =>
+		dockHost.onActivePanelChange(onChange);
+	const getSnapshot = (): string | undefined => {
+		const panelId = dockHost.getActivePanelId();
+		if (!panelId || !panelId.startsWith(PANEL_ID_PREFIX)) return undefined;
+		return panelId.slice(PANEL_ID_PREFIX.length);
+	};
+	return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

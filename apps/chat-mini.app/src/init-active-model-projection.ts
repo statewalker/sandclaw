@@ -1,4 +1,7 @@
-import { ActiveModel, AgentRuntimeAdapter } from "@statewalker/ai-agent-runtime.core";
+import {
+	ActiveModel,
+	AgentRuntimeAdapter,
+} from "@statewalker/ai-agent-runtime.core";
 import { AiConfig } from "@statewalker/ai-config.core";
 import { newRegistry } from "@statewalker/shared-registry";
 import { getWorkspace } from "@statewalker/workspace.core";
@@ -11,31 +14,43 @@ import { getWorkspace } from "@statewalker/workspace.core";
  * local-model path and ignored here. Idempotent and safe to call on every
  * `AiConfig` update and on workspace load.
  */
-export async function applyRemoteActive(aiConfig: AiConfig, activeModel: ActiveModel): Promise<void> {
-  const active = aiConfig.getActive();
-  if (!active.connectionId || !active.modelId || active.connectionId === "local") return;
-  const current = activeModel.get();
-  if (
-    current?.kind === "remote" &&
-    current.providerId === active.connectionId &&
-    current.modelId === active.modelId
-  ) {
-    return;
-  }
-  try {
-    const provider = await aiConfig.getProvider(active.connectionId);
-    // Re-read in case the active selection changed while awaiting.
-    const latest = aiConfig.getActive();
-    if (latest.connectionId !== active.connectionId || latest.modelId !== active.modelId) return;
-    activeModel.set({
-      kind: "remote",
-      providerId: active.connectionId,
-      modelId: active.modelId,
-      createProvider: () => provider,
-    });
-  } catch {
-    // Bad/missing key or unbuildable provider — leave ActiveModel untouched.
-  }
+export async function applyRemoteActive(
+	aiConfig: AiConfig,
+	activeModel: ActiveModel,
+): Promise<void> {
+	const active = aiConfig.getActive();
+	if (
+		!active.connectionId ||
+		!active.modelId ||
+		active.connectionId === "local"
+	)
+		return;
+	const current = activeModel.get();
+	if (
+		current?.kind === "remote" &&
+		current.providerId === active.connectionId &&
+		current.modelId === active.modelId
+	) {
+		return;
+	}
+	try {
+		const provider = await aiConfig.getProvider(active.connectionId);
+		// Re-read in case the active selection changed while awaiting.
+		const latest = aiConfig.getActive();
+		if (
+			latest.connectionId !== active.connectionId ||
+			latest.modelId !== active.modelId
+		)
+			return;
+		activeModel.set({
+			kind: "remote",
+			providerId: active.connectionId,
+			modelId: active.modelId,
+			createProvider: () => provider,
+		});
+	} catch {
+		// Bad/missing key or unbuildable provider — leave ActiveModel untouched.
+	}
 }
 
 /**
@@ -47,13 +62,15 @@ export async function applyRemoteActive(aiConfig: AiConfig, activeModel: ActiveM
  * chat UI shows its placeholder instead of hanging on the `loading` spinner.
  */
 export function applyRuntimeEmptyState(
-  aiConfig: AiConfig,
-  activeModel: ActiveModel,
-  adapter: AgentRuntimeAdapter,
+	aiConfig: AiConfig,
+	activeModel: ActiveModel,
+	adapter: AgentRuntimeAdapter,
 ): void {
-  if (activeModel.get()) return;
-  const hasConnections = aiConfig.listConnections().length > 0;
-  adapter._setState({ status: hasConnections ? "no-active-model" : "no-providers" });
+	if (activeModel.get()) return;
+	const hasConnections = aiConfig.listConnections().length > 0;
+	adapter._setState({
+		status: hasConnections ? "no-active-model" : "no-providers",
+	});
 }
 
 /**
@@ -71,27 +88,28 @@ export function applyRuntimeEmptyState(
  * and `initAiConfig` (`AiConfig`).
  */
 export default function initActiveModelProjection(
-  ctx: Record<string, unknown>,
+	ctx: Record<string, unknown>,
 ): () => Promise<void> {
-  const workspace = getWorkspace(ctx);
-  const aiConfig = workspace.requireAdapter(AiConfig);
-  const activeModel = workspace.requireAdapter(ActiveModel);
-  const adapter = workspace.requireAdapter(AgentRuntimeAdapter);
+	const workspace = getWorkspace(ctx);
+	const aiConfig = workspace.requireAdapter(AiConfig);
+	const activeModel = workspace.requireAdapter(ActiveModel);
+	const adapter = workspace.requireAdapter(AgentRuntimeAdapter);
 
-  const [register, cleanup] = newRegistry();
+	const [register, cleanup] = newRegistry();
 
-  const projectRemote = (): void => {
-    void applyRemoteActive(aiConfig, activeModel).then(() =>
-      applyRuntimeEmptyState(aiConfig, activeModel, adapter),
-    );
-  };
-  const refreshEmptyState = (): void => applyRuntimeEmptyState(aiConfig, activeModel, adapter);
+	const projectRemote = (): void => {
+		void applyRemoteActive(aiConfig, activeModel).then(() =>
+			applyRuntimeEmptyState(aiConfig, activeModel, adapter),
+		);
+	};
+	const refreshEmptyState = (): void =>
+		applyRuntimeEmptyState(aiConfig, activeModel, adapter);
 
-  register(aiConfig.onUpdate(projectRemote));
-  register(workspace.onLoad(projectRemote));
-  // Reactive empty-state: covers local selections/clears (which only set
-  // `ActiveModel`) and connection removals.
-  register(activeModel.onUpdate(refreshEmptyState));
+	register(aiConfig.onUpdate(projectRemote));
+	register(workspace.onLoad(projectRemote));
+	// Reactive empty-state: covers local selections/clears (which only set
+	// `ActiveModel`) and connection removals.
+	register(activeModel.onUpdate(refreshEmptyState));
 
-  return cleanup;
+	return cleanup;
 }

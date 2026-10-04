@@ -12,13 +12,13 @@ import { type ReactNode, useEffect, useState } from "react";
  * acceptable here since the whole view is interactive anyway.
  */
 export function ClientOnly({
-  children,
-  fallback = null,
+	children,
+	fallback = null,
 }: {
-  children: ReactNode;
-  fallback?: ReactNode;
+	children: ReactNode;
+	fallback?: ReactNode;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  return <>{mounted ? children : fallback}</>;
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => setMounted(true), []);
+	return <>{mounted ? children : fallback}</>;
 }

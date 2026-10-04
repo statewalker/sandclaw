@@ -15,28 +15,30 @@ const COMPOSER_PICKER_VIEW_KEY = "chat-mini:composer-picker";
  * app-level concern: it composes the chat session context with the workbench
  * `AiConfig`, so it lives here rather than in a workbench package.
  */
-export default function initComposerPicker(ctx: Record<string, unknown>): () => Promise<void> {
-  const workspace = getWorkspace(ctx);
-  const slots = workspace.requireAdapter(Slots);
+export default function initComposerPicker(
+	ctx: Record<string, unknown>,
+): () => Promise<void> {
+	const workspace = getWorkspace(ctx);
+	const slots = workspace.requireAdapter(Slots);
 
-  const [register, cleanup] = newRegistry();
+	const [register, cleanup] = newRegistry();
 
-  register(
-    slots.provide(composerActionsSlot, {
-      id: "chat-mini:picker",
-      viewKey: COMPOSER_PICKER_VIEW_KEY,
-      position: "leading",
-      order: 10,
-    }),
-  );
+	register(
+		slots.provide(composerActionsSlot, {
+			id: "chat-mini:picker",
+			viewKey: COMPOSER_PICKER_VIEW_KEY,
+			position: "leading",
+			order: 10,
+		}),
+	);
 
-  register(
-    slots.register(
-      coreViewsSlot,
-      COMPOSER_PICKER_VIEW_KEY,
-      ComposerModelPicker as unknown as ViewComponent,
-    ),
-  );
+	register(
+		slots.register(
+			coreViewsSlot,
+			COMPOSER_PICKER_VIEW_KEY,
+			ComposerModelPicker as unknown as ViewComponent,
+		),
+	);
 
-  return cleanup;
+	return cleanup;
 }

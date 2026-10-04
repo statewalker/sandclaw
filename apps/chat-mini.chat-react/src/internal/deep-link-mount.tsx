@@ -18,36 +18,36 @@ const SESSION_PARAM = "s";
  * (ADR 0003: no React Router at the app root).
  */
 export function DeepLinkMount(): null {
-  const workspace = useAppWorkspace();
-  const commands = useAdapter(Commands);
-  const ranRef = useRef(false);
+	const workspace = useAppWorkspace();
+	const commands = useAdapter(Commands);
+	const ranRef = useRef(false);
 
-  useEffect(() => {
-    if (ranRef.current) return;
-    const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get(SESSION_PARAM);
-    if (!sessionId) {
-      ranRef.current = true;
-      return;
-    }
-    const shell = workspace.requireAdapter(WorkspaceShellAdapter);
-    const fire = (): void => {
-      if (ranRef.current) return;
-      if (shell.getState().status === "ready") {
-        ranRef.current = true;
-        commands.call(OpenChatSessionCommand, { sessionId });
-      }
-    };
-    fire();
-    if (ranRef.current) return;
-    const unsubscribe = shell.onUpdate(() => {
-      fire();
-      if (ranRef.current) unsubscribe();
-    });
-    return () => {
-      unsubscribe();
-    };
-  }, [workspace, commands]);
+	useEffect(() => {
+		if (ranRef.current) return;
+		const params = new URLSearchParams(window.location.search);
+		const sessionId = params.get(SESSION_PARAM);
+		if (!sessionId) {
+			ranRef.current = true;
+			return;
+		}
+		const shell = workspace.requireAdapter(WorkspaceShellAdapter);
+		const fire = (): void => {
+			if (ranRef.current) return;
+			if (shell.getState().status === "ready") {
+				ranRef.current = true;
+				commands.call(OpenChatSessionCommand, { sessionId });
+			}
+		};
+		fire();
+		if (ranRef.current) return;
+		const unsubscribe = shell.onUpdate(() => {
+			fire();
+			if (ranRef.current) unsubscribe();
+		});
+		return () => {
+			unsubscribe();
+		};
+	}, [workspace, commands]);
 
-  return null;
+	return null;
 }

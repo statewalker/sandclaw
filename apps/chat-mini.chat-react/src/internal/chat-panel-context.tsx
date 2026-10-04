@@ -10,15 +10,15 @@ import { createContext, useContext } from "react";
  * handle this case (e.g. render no-op or a "Configure models…" hint).
  */
 export interface ChatPanelContextValue {
-  sessionId: string;
+	sessionId: string;
 }
 
 export const ChatPanelContext = createContext<ChatPanelContextValue | null>(
-  null,
+	null,
 );
 
 /** Read the active session id for a slot-rendered child of the
  * composer. Returns `null` outside any `<ChatPanel>`. */
 export function useChatPanelContext(): ChatPanelContextValue | null {
-  return useContext(ChatPanelContext);
+	return useContext(ChatPanelContext);
 }

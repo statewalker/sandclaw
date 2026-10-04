@@ -8,23 +8,23 @@ import { getProject } from "@/lib/wiki-repo";
  * to `/projects/<project>/answers/<id>`).
  */
 export const POST = createRoute(async (c) => {
-  const body = (await c.req.json().catch(() => null)) as {
-    project?: string;
-    question?: string;
-    answer?: Answer;
-  } | null;
-  const project = body?.project?.trim();
-  const question = body?.question?.trim();
-  const answer = body?.answer;
-  if (!project || !question || !answer) {
-    return c.json({ error: "missing 'project', 'question', or 'answer'" }, 400);
-  }
+	const body = (await c.req.json().catch(() => null)) as {
+		project?: string;
+		question?: string;
+		answer?: Answer;
+	} | null;
+	const project = body?.project?.trim();
+	const question = body?.question?.trim();
+	const answer = body?.answer;
+	if (!project || !question || !answer) {
+		return c.json({ error: "missing 'project', 'question', or 'answer'" }, 400);
+	}
 
-  const proj = await getProject(project);
-  if (!proj) return c.json({ error: `unknown project '${project}'` }, 404);
-  const id = await proj
-    .requireAdapter(WikiSnapshotsAdapter)
-    .saveAnswer(answer, question);
+	const proj = await getProject(project);
+	if (!proj) return c.json({ error: `unknown project '${project}'` }, 404);
+	const id = await proj
+		.requireAdapter(WikiSnapshotsAdapter)
+		.saveAnswer(answer, question);
 
-  return c.json({ file: id, set: "answers", project });
+	return c.json({ file: id, set: "answers", project });
 });

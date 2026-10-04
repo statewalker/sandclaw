@@ -1,5 +1,9 @@
 import { newPinoLogger } from "@statewalker/shared-logger-pino";
-import { type Logger, LoggerAdapter, type LoggerLevel } from "@statewalker/workspace.core";
+import {
+	type Logger,
+	LoggerAdapter,
+	type LoggerLevel,
+} from "@statewalker/workspace.core";
 
 /**
  * A {@link LoggerAdapter} backed by pino (`@statewalker/shared-logger-pino`). One
@@ -15,15 +19,19 @@ import { type Logger, LoggerAdapter, type LoggerLevel } from "@statewalker/works
  * a machine-readable data channel); the default `1` writes to stdout.
  */
 export class PinoLoggerAdapter extends LoggerAdapter {
-  private readonly root: Logger;
+	private readonly root: Logger;
 
-  constructor(host: unknown, options?: Record<string, unknown>) {
-    super(host, options);
-    const destination = (options?.destination as 1 | 2) ?? 1;
-    this.root = newPinoLogger((options?.level as LoggerLevel) ?? "info", {}, { destination });
-  }
+	constructor(host: unknown, options?: Record<string, unknown>) {
+		super(host, options);
+		const destination = (options?.destination as 1 | 2) ?? 1;
+		this.root = newPinoLogger(
+			(options?.level as LoggerLevel) ?? "info",
+			{},
+			{ destination },
+		);
+	}
 
-  newLogger(key: string, options?: Record<string, unknown>): Logger {
-    return this.root.child({ name: key, ...(options ?? {}) });
-  }
+	newLogger(key: string, options?: Record<string, unknown>): Logger {
+		return this.root.child({ name: key, ...(options ?? {}) });
+	}
 }

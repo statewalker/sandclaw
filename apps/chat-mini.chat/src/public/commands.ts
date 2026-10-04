@@ -1,7 +1,7 @@
 import { Command, passthrough } from "@statewalker/shared-commands";
 
 export interface OpenChatSessionPayload {
-  sessionId: string;
+	sessionId: string;
 }
 
 /**
@@ -13,6 +13,6 @@ export interface OpenChatSessionPayload {
  * safe — the existing tab is focused rather than duplicated.
  */
 export const OpenChatSessionCommand = Command.silent("chat:open-session")
-  .input(passthrough<OpenChatSessionPayload>())
-  .output(passthrough<void>())
-  .build();
+	.input(passthrough<OpenChatSessionPayload>())
+	.output(passthrough<void>())
+	.build();

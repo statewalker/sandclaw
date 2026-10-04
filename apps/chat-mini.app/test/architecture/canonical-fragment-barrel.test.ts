@@ -28,31 +28,31 @@ import { describe, expect, it } from "vitest";
  */
 
 interface PackageEntry {
-  npmName: string;
-  isRenderer: boolean;
+	npmName: string;
+	isRenderer: boolean;
 }
 
 const SUBSTRATE_REACT_PACKAGES = [
-  "ui.view.react",
-  "ui.view.shadcn",
-  "shell.view.react",
-  "settings.view.react",
-  "workspace.view.react",
-  "inline.view.react",
-  "mime.view.image",
-  "mime.view.markdown",
-  "mime.view.pdf",
-  "mime.view.video",
+	"ui.view.react",
+	"ui.view.shadcn",
+	"shell.view.react",
+	"settings.view.react",
+	"workspace.view.react",
+	"inline.view.react",
+	"mime.view.image",
+	"mime.view.markdown",
+	"mime.view.pdf",
+	"mime.view.video",
 ];
 
 const SUBSTRATE_LOGIC_PACKAGES = [
-  "workspace.core",
-  "shell.core",
-  "mime.core",
-  "settings.core",
-  "workspace.browser",
-  "inline.core",
-  "render.core",
+	"workspace.core",
+	"shell.core",
+	"mime.core",
+	"settings.core",
+	"workspace.browser",
+	"inline.core",
+	"render.core",
 ];
 
 const AI_LOGIC_PACKAGES = ["ai-agent-runtime.core", "ai-local-models.core"];
@@ -62,123 +62,123 @@ const CHAT_LOGIC_PACKAGES = ["@statewalker/chat-mini.chat"];
 const CHAT_REACT_PACKAGES = ["@statewalker/chat-mini.chat-react"];
 
 function workbenchEntries(): PackageEntry[] {
-  const out: PackageEntry[] = [];
-  for (const name of SUBSTRATE_LOGIC_PACKAGES) {
-    out.push({
-      npmName: `@statewalker/${name}`,
-      isRenderer: false,
-    });
-  }
-  for (const name of SUBSTRATE_REACT_PACKAGES) {
-    out.push({
-      npmName: `@statewalker/${name}`,
-      isRenderer: true,
-    });
-  }
-  return out;
+	const out: PackageEntry[] = [];
+	for (const name of SUBSTRATE_LOGIC_PACKAGES) {
+		out.push({
+			npmName: `@statewalker/${name}`,
+			isRenderer: false,
+		});
+	}
+	for (const name of SUBSTRATE_REACT_PACKAGES) {
+		out.push({
+			npmName: `@statewalker/${name}`,
+			isRenderer: true,
+		});
+	}
+	return out;
 }
 
 function aiEntries(): PackageEntry[] {
-  const out: PackageEntry[] = [];
-  for (const name of AI_LOGIC_PACKAGES) {
-    out.push({
-      npmName: `@statewalker/${name}`,
-      isRenderer: false,
-    });
-  }
-  for (const name of AI_REACT_PACKAGES) {
-    out.push({
-      npmName: `@statewalker/${name}`,
-      isRenderer: true,
-    });
-  }
-  return out;
+	const out: PackageEntry[] = [];
+	for (const name of AI_LOGIC_PACKAGES) {
+		out.push({
+			npmName: `@statewalker/${name}`,
+			isRenderer: false,
+		});
+	}
+	for (const name of AI_REACT_PACKAGES) {
+		out.push({
+			npmName: `@statewalker/${name}`,
+			isRenderer: true,
+		});
+	}
+	return out;
 }
 
 function chatEntries(): PackageEntry[] {
-  const out: PackageEntry[] = [];
-  for (const npmName of CHAT_LOGIC_PACKAGES) {
-    out.push({
-      npmName,
-      isRenderer: false,
-    });
-  }
-  for (const npmName of CHAT_REACT_PACKAGES) {
-    out.push({
-      npmName,
-      isRenderer: true,
-    });
-  }
-  return out;
+	const out: PackageEntry[] = [];
+	for (const npmName of CHAT_LOGIC_PACKAGES) {
+		out.push({
+			npmName,
+			isRenderer: false,
+		});
+	}
+	for (const npmName of CHAT_REACT_PACKAGES) {
+		out.push({
+			npmName,
+			isRenderer: true,
+		});
+	}
+	return out;
 }
 
 const PACKAGES: PackageEntry[] = [
-  ...workbenchEntries(),
-  ...aiEntries(),
-  ...chatEntries(),
+	...workbenchEntries(),
+	...aiEntries(),
+	...chatEntries(),
 ];
 
 // `process.cwd()` is the chat-mini.app package root when vitest runs from there;
 // every package is linked under its node_modules.
 function packageDir(pkg: PackageEntry): string {
-  return join(process.cwd(), "node_modules", pkg.npmName);
+	return join(process.cwd(), "node_modules", pkg.npmName);
 }
 
 function readJSON(path: string): Record<string, unknown> {
-  return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+	return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
 }
 
 describe("architecture: canonical fragment package shape", () => {
-  it.each(PACKAGES)("$npmName declares . and ./fragment exports", (pkg) => {
-    const pj = readJSON(join(packageDir(pkg), "package.json"));
-    expect(pj.name).toBe(pkg.npmName);
-    const exports = pj.exports as Record<string, string> | undefined;
-    expect(
-      exports,
-      `${pkg.npmName}: package.json has no exports`,
-    ).toBeDefined();
-    expect(exports?.["."], `${pkg.npmName}: missing "." export`).toBeDefined();
-    expect(
-      exports?.["./fragment"],
-      `${pkg.npmName}: missing "./fragment" export`,
-    ).toBeDefined();
-  });
+	it.each(PACKAGES)("$npmName declares . and ./fragment exports", (pkg) => {
+		const pj = readJSON(join(packageDir(pkg), "package.json"));
+		expect(pj.name).toBe(pkg.npmName);
+		const exports = pj.exports as Record<string, string> | undefined;
+		expect(
+			exports,
+			`${pkg.npmName}: package.json has no exports`,
+		).toBeDefined();
+		expect(exports?.["."], `${pkg.npmName}: missing "." export`).toBeDefined();
+		expect(
+			exports?.["./fragment"],
+			`${pkg.npmName}: missing "./fragment" export`,
+		).toBeDefined();
+	});
 
-  it.each(
-    PACKAGES.filter((p) => p.isRenderer),
-  )("$npmName declares ./styles export with @source directive", (pkg) => {
-    const pjPath = join(packageDir(pkg), "package.json");
-    const pj = readJSON(pjPath);
-    const exports = (pj.exports ?? {}) as Record<string, string>;
-    expect(
-      exports["./styles"],
-      `${pkg.npmName}: missing "./styles" export`,
-    ).toBeDefined();
-    const cssPath = join(packageDir(pkg), exports["./styles"] as string);
-    const css = readFileSync(cssPath, "utf8");
-    expect(
-      css,
-      `${pkg.npmName}: ./styles CSS does not declare @source`,
-    ).toMatch(/@source\s+"/);
-  });
+	it.each(PACKAGES.filter((p) => p.isRenderer))(
+		"$npmName declares ./styles export with @source directive",
+		(pkg) => {
+			const pjPath = join(packageDir(pkg), "package.json");
+			const pj = readJSON(pjPath);
+			const exports = (pj.exports ?? {}) as Record<string, string>;
+			expect(
+				exports["./styles"],
+				`${pkg.npmName}: missing "./styles" export`,
+			).toBeDefined();
+			const cssPath = join(packageDir(pkg), exports["./styles"] as string);
+			const css = readFileSync(cssPath, "utf8");
+			expect(
+				css,
+				`${pkg.npmName}: ./styles CSS does not declare @source`,
+			).toMatch(/@source\s+"/);
+		},
+	);
 
-  it.each(PACKAGES)("$npmName fragment.ts exports a default", (pkg) => {
-    const pjPath = join(packageDir(pkg), "package.json");
-    const pj = readJSON(pjPath);
-    const exports = (pj.exports ?? {}) as Record<string, unknown>;
-    // A plain path (raw-source exports) or a condition object whose "source" is the TypeScript file
-    // (dist + source exports).
-    const entry = exports["./fragment"];
-    const fragmentRel =
-      typeof entry === "string" ? entry : (entry as { source?: string } | undefined)?.source;
-    if (!fragmentRel) return; // covered by the export-shape test
-    const src = readFileSync(
-      join(packageDir(pkg), fragmentRel),
-      "utf8",
-    );
-    expect(
-      /\bexport\s+default\b/.test(src) || /\bexport\s*\{\s*default\b/.test(src),
-      `${pkg.npmName}: ${fragmentRel} has no default export`,
-    ).toBe(true);
-  });
+	it.each(PACKAGES)("$npmName fragment.ts exports a default", (pkg) => {
+		const pjPath = join(packageDir(pkg), "package.json");
+		const pj = readJSON(pjPath);
+		const exports = (pj.exports ?? {}) as Record<string, unknown>;
+		// A plain path (raw-source exports) or a condition object whose "source" is the TypeScript file
+		// (dist + source exports).
+		const entry = exports["./fragment"];
+		const fragmentRel =
+			typeof entry === "string"
+				? entry
+				: (entry as { source?: string } | undefined)?.source;
+		if (!fragmentRel) return; // covered by the export-shape test
+		const src = readFileSync(join(packageDir(pkg), fragmentRel), "utf8");
+		expect(
+			/\bexport\s+default\b/.test(src) || /\bexport\s*\{\s*default\b/.test(src),
+			`${pkg.npmName}: ${fragmentRel} has no default export`,
+		).toBe(true);
+	});
 });
