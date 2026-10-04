@@ -5,7 +5,7 @@ import initSpecStore from "@statewalker/render.core/fragment";
 import { Commands } from "@statewalker/shared-commands";
 import { getWorkspace, initWorkspace } from "@statewalker/workspace.core";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
-import type { DockviewApi, IDockviewPanel } from "dockview-react";
+import type { DockviewApi, IDockviewPanel } from "dockview-core";
 import { describe, expect, it, vi } from "vitest";
 import { chatPanelId, chatSpecId } from "../public/catalog.js";
 import { OpenChatSessionCommand } from "../public/commands.js";

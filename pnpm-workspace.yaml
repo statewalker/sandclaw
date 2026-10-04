@@ -52,6 +52,7 @@ catalog:
   "@tanstack/react-query": "^5.104.1"
   "@testing-library/jest-dom": ^7.0.1
   "@testing-library/react": "^16.3.3"
+  "dockview-core": ^8.4.0
   "dockview-react": ^8.4.0
   "honox": "^0.1.61"
   "marked": "^18.0.14"
