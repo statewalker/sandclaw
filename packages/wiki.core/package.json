@@ -57,6 +57,7 @@
     "@statewalker/fsm-validator": "catalog:",
     "@statewalker/webrun-files-mem": "catalog:",
     "@statewalker/webrun-files-node": "catalog:",
+    "@types/node": "catalog:",
     "tsdown": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",

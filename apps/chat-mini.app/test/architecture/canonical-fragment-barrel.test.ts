@@ -165,8 +165,12 @@ describe("architecture: canonical fragment package shape", () => {
   it.each(PACKAGES)("$npmName fragment.ts exports a default", (pkg) => {
     const pjPath = join(packageDir(pkg), "package.json");
     const pj = readJSON(pjPath);
-    const exports = (pj.exports ?? {}) as Record<string, string>;
-    const fragmentRel = exports["./fragment"];
+    const exports = (pj.exports ?? {}) as Record<string, unknown>;
+    // A plain path (raw-source exports) or a condition object whose "source" is the TypeScript file
+    // (dist + source exports).
+    const entry = exports["./fragment"];
+    const fragmentRel =
+      typeof entry === "string" ? entry : (entry as { source?: string } | undefined)?.source;
     if (!fragmentRel) return; // covered by the export-shape test
     const src = readFileSync(
       join(packageDir(pkg), fragmentRel),

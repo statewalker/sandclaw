@@ -104,6 +104,7 @@
     "@tailwindcss/vite": "catalog:",
     "@testing-library/jest-dom": "catalog:",
     "@testing-library/react": "catalog:",
+    "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
