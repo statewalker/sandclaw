@@ -1,84 +1,84 @@
 {
-	"name": "@statewalker/chat-mini.chat-react",
-	"version": "0.0.0",
-	"private": true,
-	"type": "module",
-	"description": "Chat-specific renderer fragment for chat-mini.app.",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/statewalker/sandclaw.git",
-		"directory": "apps/chat-mini.chat-react"
-	},
-	"bugs": {
-		"url": "https://github.com/statewalker/sandclaw/issues"
-	},
-	"homepage": "https://github.com/statewalker/sandclaw/tree/main/apps/chat-mini.chat-react#readme",
-	"exports": {
-		".": "./src/index.ts",
-		"./fragment": "./src/fragment.ts",
-		"./styles": "./src/styles.css"
-	},
-	"files": [
-		"src"
-	],
-	"scripts": {
-		"test": "vitest run --passWithNoTests",
-		"typecheck": "tsc --noEmit"
-	},
-	"dependencies": {
-		"@json-render/core": "catalog:",
-		"@json-render/react": "catalog:",
-		"@json-render/shadcn": "catalog:",
-		"@radix-ui/react-collapsible": "catalog:",
-		"@radix-ui/react-dropdown-menu": "catalog:",
-		"@radix-ui/react-label": "catalog:",
-		"@radix-ui/react-popover": "catalog:",
-		"@radix-ui/react-tooltip": "catalog:",
-		"@statewalker/ai-agent-runtime.core": "catalog:",
-		"@statewalker/ai-agent.core": "catalog:",
-		"@statewalker/chat-mini.chat": "workspace:^",
-		"@statewalker/inline.core": "catalog:",
-		"@statewalker/inline.view.react": "catalog:",
-		"@statewalker/mime.core": "catalog:",
-		"@statewalker/mime.view.markdown": "catalog:",
-		"@statewalker/render.core": "catalog:",
-		"@statewalker/shared-baseclass": "catalog:",
-		"@statewalker/shared-commands": "catalog:",
-		"@statewalker/shared-registry": "catalog:",
-		"@statewalker/shared-slots": "catalog:",
-		"@statewalker/shell.core": "catalog:",
-		"@statewalker/shell.view.react": "catalog:",
-		"@statewalker/ui.view.react": "catalog:",
-		"@statewalker/ui.view.shadcn": "catalog:",
-		"@statewalker/webrun-files": "catalog:",
-		"@statewalker/workspace.browser": "catalog:",
-		"@statewalker/workspace.core": "catalog:",
-		"@statewalker/workspace.view.react": "catalog:",
-		"@tanstack/react-query": "catalog:",
-		"ai": "catalog:",
-		"class-variance-authority": "catalog:",
-		"lucide-react": "catalog:",
-		"react-markdown": "catalog:",
-		"use-stick-to-bottom": "catalog:",
-		"zod": "catalog:"
-	},
-	"peerDependencies": {
-		"react": "catalog:peers",
-		"react-dom": "catalog:peers"
-	},
-	"devDependencies": {
-		"@statewalker/webrun-files-mem": "catalog:",
-		"@testing-library/jest-dom": "catalog:",
-		"@testing-library/react": "catalog:",
-		"@types/react": "catalog:",
-		"@types/react-dom": "catalog:",
-		"jsdom": "catalog:",
-		"react": "catalog:",
-		"react-dom": "catalog:",
-		"typescript": "catalog:",
-		"vitest": "catalog:"
-	},
-	"sideEffects": [
-		"**/*.css"
-	]
+  "name": "@statewalker/chat-mini.chat-react",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Chat-specific renderer fragment for chat-mini.app.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/statewalker/sandclaw.git",
+    "directory": "apps/chat-mini.chat-react"
+  },
+  "bugs": {
+    "url": "https://github.com/statewalker/sandclaw/issues"
+  },
+  "homepage": "https://github.com/statewalker/sandclaw/tree/main/apps/chat-mini.chat-react#readme",
+  "exports": {
+    ".": "./src/index.ts",
+    "./fragment": "./src/fragment.ts",
+    "./styles": "./src/styles.css"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@json-render/core": "catalog:",
+    "@json-render/react": "catalog:",
+    "@json-render/shadcn": "catalog:",
+    "@radix-ui/react-collapsible": "catalog:",
+    "@radix-ui/react-dropdown-menu": "catalog:",
+    "@radix-ui/react-label": "catalog:",
+    "@radix-ui/react-popover": "catalog:",
+    "@radix-ui/react-tooltip": "catalog:",
+    "@statewalker/ai-agent-runtime.core": "catalog:",
+    "@statewalker/ai-agent.core": "catalog:",
+    "@statewalker/chat-mini.chat": "workspace:^",
+    "@statewalker/inline.core": "catalog:",
+    "@statewalker/inline.view.react": "catalog:",
+    "@statewalker/mime.core": "catalog:",
+    "@statewalker/mime.view.markdown": "catalog:",
+    "@statewalker/render.core": "catalog:",
+    "@statewalker/shared-baseclass": "catalog:",
+    "@statewalker/shared-commands": "catalog:",
+    "@statewalker/shared-registry": "catalog:",
+    "@statewalker/shared-slots": "catalog:",
+    "@statewalker/shell.core": "catalog:",
+    "@statewalker/shell.view.react": "catalog:",
+    "@statewalker/ui.view.react": "catalog:",
+    "@statewalker/ui.view.shadcn": "catalog:",
+    "@statewalker/webrun-files": "catalog:",
+    "@statewalker/workspace.browser": "catalog:",
+    "@statewalker/workspace.core": "catalog:",
+    "@statewalker/workspace.view.react": "catalog:",
+    "@tanstack/react-query": "catalog:",
+    "ai": "catalog:",
+    "class-variance-authority": "catalog:",
+    "lucide-react": "catalog:",
+    "react-markdown": "catalog:",
+    "use-stick-to-bottom": "catalog:",
+    "zod": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:peers",
+    "react-dom": "catalog:peers"
+  },
+  "devDependencies": {
+    "@statewalker/webrun-files-mem": "catalog:",
+    "@testing-library/jest-dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "jsdom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ]
 }

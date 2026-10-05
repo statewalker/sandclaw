@@ -10,10 +10,8 @@ import { ChatManager } from "../internal/chat.manager.js";
  * Catalog registration is the responsibility of `chat-views`'s init,
  * which runs after all logic fragments per ADR 0002.
  */
-export default function initChat(
-	ctx: Record<string, unknown>,
-): () => Promise<void> {
-	const workspace = getWorkspace(ctx);
-	const manager = new ChatManager({ workspace });
-	return () => manager.close();
+export default function initChat(ctx: Record<string, unknown>): () => Promise<void> {
+  const workspace = getWorkspace(ctx);
+  const manager = new ChatManager({ workspace });
+  return () => manager.close();
 }

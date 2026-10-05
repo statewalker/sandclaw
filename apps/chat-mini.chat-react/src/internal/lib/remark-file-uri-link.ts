@@ -7,10 +7,10 @@
 const FILE_URI_RE = /file:\/\/[^\s<>()[\]"'`,]+/g;
 
 interface MdNode {
-	type: string;
-	value?: string;
-	url?: string;
-	children?: MdNode[];
+  type: string;
+  value?: string;
+  url?: string;
+  children?: MdNode[];
 }
 
 /**
@@ -25,53 +25,53 @@ interface MdNode {
  * and stateless, so a single shared instance is safe.
  */
 export function remarkFileUriLink() {
-	return (tree: MdNode): void => {
-		walk(tree);
-	};
+  return (tree: MdNode): void => {
+    walk(tree);
+  };
 }
 
 function walk(node: MdNode): void {
-	if (!node.children || node.children.length === 0) return;
-	const next: MdNode[] = [];
-	for (const child of node.children) {
-		if (child.type === "code" || child.type === "inlineCode") {
-			next.push(child);
-			continue;
-		}
-		if (child.type === "text" && typeof child.value === "string") {
-			next.push(...splitTextNode(child.value));
-			continue;
-		}
-		walk(child);
-		next.push(child);
-	}
-	node.children = next;
+  if (!node.children || node.children.length === 0) return;
+  const next: MdNode[] = [];
+  for (const child of node.children) {
+    if (child.type === "code" || child.type === "inlineCode") {
+      next.push(child);
+      continue;
+    }
+    if (child.type === "text" && typeof child.value === "string") {
+      next.push(...splitTextNode(child.value));
+      continue;
+    }
+    walk(child);
+    next.push(child);
+  }
+  node.children = next;
 }
 
 function splitTextNode(text: string): MdNode[] {
-	const out: MdNode[] = [];
-	let lastIndex = 0;
-	FILE_URI_RE.lastIndex = 0;
-	let match: RegExpExecArray | null = FILE_URI_RE.exec(text);
-	while (match) {
-		const start = match.index;
-		const url = match[0];
-		if (start > lastIndex) {
-			out.push({ type: "text", value: text.slice(lastIndex, start) });
-		}
-		out.push({
-			type: "link",
-			url,
-			children: [{ type: "text", value: url }],
-		});
-		lastIndex = start + url.length;
-		match = FILE_URI_RE.exec(text);
-	}
-	if (out.length === 0) {
-		return [{ type: "text", value: text }];
-	}
-	if (lastIndex < text.length) {
-		out.push({ type: "text", value: text.slice(lastIndex) });
-	}
-	return out;
+  const out: MdNode[] = [];
+  let lastIndex = 0;
+  FILE_URI_RE.lastIndex = 0;
+  let match: RegExpExecArray | null = FILE_URI_RE.exec(text);
+  while (match) {
+    const start = match.index;
+    const url = match[0];
+    if (start > lastIndex) {
+      out.push({ type: "text", value: text.slice(lastIndex, start) });
+    }
+    out.push({
+      type: "link",
+      url,
+      children: [{ type: "text", value: url }],
+    });
+    lastIndex = start + url.length;
+    match = FILE_URI_RE.exec(text);
+  }
+  if (out.length === 0) {
+    return [{ type: "text", value: text }];
+  }
+  if (lastIndex < text.length) {
+    out.push({ type: "text", value: text.slice(lastIndex) });
+  }
+  return out;
 }

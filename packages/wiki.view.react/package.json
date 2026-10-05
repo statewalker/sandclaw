@@ -1,82 +1,82 @@
 {
-	"name": "@statewalker/wiki.view.react",
-	"version": "0.1.1",
-	"private": false,
-	"type": "module",
-	"description": "Wiki renderer fragment: search panel, indexer panel, and browsing/citation views (DockView specs / slot contributions) consuming the React-free @statewalker/wiki adapters.",
-	"bugs": {
-		"url": "https://github.com/statewalker/sandclaw/issues"
-	},
-	"homepage": "https://github.com/statewalker/sandclaw/tree/main/packages/wiki.view.react#readme",
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/statewalker/sandclaw.git",
-		"directory": "packages/wiki.view.react"
-	},
-	"exports": {
-		".": {
-			"source": "./src/index.ts",
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js",
-			"default": "./dist/index.js"
-		},
-		"./fragment": {
-			"source": "./src/fragment.ts",
-			"types": "./dist/fragment.d.ts",
-			"import": "./dist/fragment.js",
-			"default": "./dist/fragment.js"
-		},
-		"./styles": "./src/styles.css"
-	},
-	"files": [
-		"dist",
-		"src"
-	],
-	"scripts": {
-		"test": "vitest run --passWithNoTests",
-		"test:watch": "vitest --passWithNoTests",
-		"typecheck": "tsc --noEmit",
-		"lint": "biome check --write .",
-		"format": "biome format --write .",
-		"build": "tsdown"
-	},
-	"dependencies": {
-		"@json-render/core": "catalog:",
-		"@statewalker/mime.view.markdown": "catalog:",
-		"@statewalker/mime.core": "catalog:",
-		"@statewalker/render.core": "catalog:",
-		"@statewalker/render.view.react": "catalog:",
-		"@statewalker/shared-commands": "catalog:",
-		"@statewalker/shared-registry": "catalog:",
-		"@statewalker/shared-slots": "catalog:",
-		"@statewalker/shell.core": "catalog:",
-		"@statewalker/shell.view.react": "catalog:",
-		"@statewalker/ui.view.react": "catalog:",
-		"@statewalker/ui.view.shadcn": "catalog:",
-		"@statewalker/wiki.core": "workspace:^",
-		"@statewalker/workspace.core": "catalog:",
-		"lucide-react": "catalog:",
-		"zod": "catalog:"
-	},
-	"peerDependencies": {
-		"react": "catalog:peers",
-		"react-dom": "catalog:peers"
-	},
-	"devDependencies": {
-		"@testing-library/react": "catalog:",
-		"@types/react": "catalog:",
-		"@types/react-dom": "catalog:",
-		"react": "catalog:",
-		"react-dom": "catalog:",
-		"tsdown": "catalog:",
-		"typescript": "catalog:",
-		"vitest": "catalog:"
-	},
-	"sideEffects": [
-		"**/*.css"
-	],
-	"publishConfig": {
-		"access": "public"
-	}
+  "name": "@statewalker/wiki.view.react",
+  "version": "0.1.1",
+  "private": false,
+  "type": "module",
+  "description": "Wiki renderer fragment: search panel, indexer panel, and browsing/citation views (DockView specs / slot contributions) consuming the React-free @statewalker/wiki adapters.",
+  "bugs": {
+    "url": "https://github.com/statewalker/sandclaw/issues"
+  },
+  "homepage": "https://github.com/statewalker/sandclaw/tree/main/packages/wiki.view.react#readme",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/statewalker/sandclaw.git",
+    "directory": "packages/wiki.view.react"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./fragment": {
+      "source": "./src/fragment.ts",
+      "types": "./dist/fragment.d.ts",
+      "import": "./dist/fragment.js",
+      "default": "./dist/fragment.js"
+    },
+    "./styles": "./src/styles.css"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check --write .",
+    "format": "biome format --write .",
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@json-render/core": "catalog:",
+    "@statewalker/mime.view.markdown": "catalog:",
+    "@statewalker/mime.core": "catalog:",
+    "@statewalker/render.core": "catalog:",
+    "@statewalker/render.view.react": "catalog:",
+    "@statewalker/shared-commands": "catalog:",
+    "@statewalker/shared-registry": "catalog:",
+    "@statewalker/shared-slots": "catalog:",
+    "@statewalker/shell.core": "catalog:",
+    "@statewalker/shell.view.react": "catalog:",
+    "@statewalker/ui.view.react": "catalog:",
+    "@statewalker/ui.view.shadcn": "catalog:",
+    "@statewalker/wiki.core": "workspace:^",
+    "@statewalker/workspace.core": "catalog:",
+    "lucide-react": "catalog:",
+    "zod": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:peers",
+    "react-dom": "catalog:peers"
+  },
+  "devDependencies": {
+    "@testing-library/react": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }

@@ -10,22 +10,22 @@
  */
 
 interface HypothesizeInput {
-	question: string;
-	constraints: { kind: string; tokens: string[]; text: string }[];
-	consumedRivals: string[];
+  question: string;
+  constraints: { kind: string; tokens: string[]; text: string }[];
+  consumedRivals: string[];
 }
 
 /** The default `hypothesize` stub output: claim = question, probe = constraint tokens + question. */
 export function stubHypothesize(input: HypothesizeInput) {
-	const tokens = input.constraints.flatMap((c) => c.tokens);
-	return {
-		claim: input.question,
-		ftsQueries: [...tokens, input.question],
-		synonyms: [] as string[],
-	};
+  const tokens = input.constraints.flatMap((c) => c.tokens);
+  return {
+    claim: input.question,
+    ftsQueries: [...tokens, input.question],
+    synonyms: [] as string[],
+  };
 }
 
 /** The default `score` stub output: advisory `narrow` (kept-hypothesis, widen-search). */
 export function stubScore() {
-	return { failureMode: "narrow" as const };
+  return { failureMode: "narrow" as const };
 }

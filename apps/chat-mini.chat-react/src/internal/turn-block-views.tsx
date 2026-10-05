@@ -13,21 +13,21 @@ import { ToolCallsBlock } from "./tool-calls-block.js";
  */
 
 export function UserMessageBlock({ props }: { props: unknown }): ReactElement {
-	const { message } = props as { message: Message };
-	return <MessageView message={message} />;
+  const { message } = props as { message: Message };
+  return <MessageView message={message} />;
 }
 
 export function AgentMessageBlock({ props }: { props: unknown }): ReactElement {
-	const { message } = props as { message: Message };
-	return <MessageView message={message} />;
+  const { message } = props as { message: Message };
+  return <MessageView message={message} />;
 }
 
 export function ToolCallsRunBlock({ props }: { props: unknown }): ReactElement {
-	const { calls } = props as { calls: ToolCall[] };
-	return <ToolCallsBlock calls={calls} />;
+  const { calls } = props as { calls: ToolCall[] };
+  return <ToolCallsBlock calls={calls} />;
 }
 
 export function ErrorTurnBlock({ props }: { props: unknown }): ReactElement {
-	const { text } = props as { text: string };
-	return <ErrorBlock text={text} />;
+  const { text } = props as { text: string };
+  return <ErrorBlock text={text} />;
 }
