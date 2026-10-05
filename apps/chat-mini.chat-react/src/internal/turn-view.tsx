@@ -1,38 +1,28 @@
+import { type Message, NodeType, type ToolCall, type Turn } from "@statewalker/ai-agent.core/state";
 import {
-	STANDARD_TURN_BLOCK_KINDS,
-	type TurnBlockContribution,
-	turnBlocksSlot,
+  STANDARD_TURN_BLOCK_KINDS,
+  type TurnBlockContribution,
+  turnBlocksSlot,
 } from "@statewalker/chat-mini.chat";
-import {
-	type Message,
-	NodeType,
-	type ToolCall,
-	type Turn,
-} from "@statewalker/ai-agent.core/state";
-import {
-	coreViewsSlot,
-	useAdapter,
-	useKeyedSlot,
-	useSlot,
-} from "@statewalker/ui.view.react";
 import { Slots } from "@statewalker/shared-slots";
+import { coreViewsSlot, useAdapter, useKeyedSlot, useSlot } from "@statewalker/ui.view.react";
 import { type ComponentType, type ReactElement, useMemo } from "react";
 import { useNodeChildren } from "./hooks/use-session-node.js";
 
 type TurnChild = Turn["children"][number];
 
 interface ToolCallsRun {
-	kind: typeof STANDARD_TURN_BLOCK_KINDS.TOOL_CALLS;
-	/** Stable key derived from the first call's id — keeps React reconciliation
-	 *  happy when more tool calls join the run mid-stream. */
-	key: string;
-	payload: { calls: ToolCall[] };
+  kind: typeof STANDARD_TURN_BLOCK_KINDS.TOOL_CALLS;
+  /** Stable key derived from the first call's id — keeps React reconciliation
+   *  happy when more tool calls join the run mid-stream. */
+  key: string;
+  payload: { calls: ToolCall[] };
 }
 
 interface SingleItem {
-	kind: string;
-	key: string;
-	payload: unknown;
+  kind: string;
+  key: string;
+  payload: unknown;
 }
 
 type RenderItem = ToolCallsRun | SingleItem;
@@ -45,42 +35,41 @@ type RenderItem = ToolCallsRun | SingleItem;
  * a renderer without editing this dispatch.
  */
 function groupChildren(children: readonly TurnChild[]): RenderItem[] {
-	const items: RenderItem[] = [];
-	let run: ToolCallsRun | null = null;
-	for (const child of children) {
-		if (child.type === NodeType.toolCall) {
-			const call = child as ToolCall;
-			if (run) {
-				run.payload.calls.push(call);
-			} else {
-				run = {
-					kind: STANDARD_TURN_BLOCK_KINDS.TOOL_CALLS,
-					key: `tools:${call.id}`,
-					payload: { calls: [call] },
-				};
-				items.push(run);
-			}
-			continue;
-		}
-		run = null;
-		const kind =
-			child.type === NodeType.userMessage
-				? STANDARD_TURN_BLOCK_KINDS.USER_MESSAGE
-				: child.type === NodeType.agentMessage
-					? STANDARD_TURN_BLOCK_KINDS.AGENT_MESSAGE
-					: child.type === NodeType.error
-						? STANDARD_TURN_BLOCK_KINDS.ERROR
-						: `chat:turn-block:${child.type}`;
-		const payload =
-			child.type === NodeType.userMessage ||
-			child.type === NodeType.agentMessage
-				? { message: child as Message }
-				: child.type === NodeType.error
-					? { text: child.content ?? "" }
-					: { node: child };
-		items.push({ kind, key: child.id, payload });
-	}
-	return items;
+  const items: RenderItem[] = [];
+  let run: ToolCallsRun | null = null;
+  for (const child of children) {
+    if (child.type === NodeType.toolCall) {
+      const call = child as ToolCall;
+      if (run) {
+        run.payload.calls.push(call);
+      } else {
+        run = {
+          kind: STANDARD_TURN_BLOCK_KINDS.TOOL_CALLS,
+          key: `tools:${call.id}`,
+          payload: { calls: [call] },
+        };
+        items.push(run);
+      }
+      continue;
+    }
+    run = null;
+    const kind =
+      child.type === NodeType.userMessage
+        ? STANDARD_TURN_BLOCK_KINDS.USER_MESSAGE
+        : child.type === NodeType.agentMessage
+          ? STANDARD_TURN_BLOCK_KINDS.AGENT_MESSAGE
+          : child.type === NodeType.error
+            ? STANDARD_TURN_BLOCK_KINDS.ERROR
+            : `chat:turn-block:${child.type}`;
+    const payload =
+      child.type === NodeType.userMessage || child.type === NodeType.agentMessage
+        ? { message: child as Message }
+        : child.type === NodeType.error
+          ? { text: child.content ?? "" }
+          : { node: child };
+    items.push({ kind, key: child.id, payload });
+  }
+  return items;
 }
 
 /**
@@ -92,39 +81,37 @@ function groupChildren(children: readonly TurnChild[]): RenderItem[] {
  * built-in dispatch inside this component.
  */
 export function TurnView({ turn }: { turn: Turn }): ReactElement {
-	// Structural subscription only — token streaming into existing messages
-	// does NOT re-render this component, only the affected MessageView.
-	useNodeChildren(turn);
+  // Structural subscription only — token streaming into existing messages
+  // does NOT re-render this component, only the affected MessageView.
+  useNodeChildren(turn);
 
-	const slots = useAdapter(Slots);
-	// Subscribed adapter — re-renders when a late-registered viewKey
-	// arrives (plug-in extensibility path).
-	const registry = useKeyedSlot(slots, coreViewsSlot);
-	const turnBlocks = useSlot(slots, turnBlocksSlot);
-	const viewByKind = useMemo(() => indexByKind(turnBlocks), [turnBlocks]);
+  const slots = useAdapter(Slots);
+  // Subscribed adapter — re-renders when a late-registered viewKey
+  // arrives (plug-in extensibility path).
+  const registry = useKeyedSlot(slots, coreViewsSlot);
+  const turnBlocks = useSlot(slots, turnBlocksSlot);
+  const viewByKind = useMemo(() => indexByKind(turnBlocks), [turnBlocks]);
 
-	const items = groupChildren(turn.children);
-	return (
-		<div className="flex flex-col gap-3">
-			{items.map((item) => {
-				const viewKey = viewByKind.get(item.kind);
-				const Component = viewKey ? registry.get(viewKey) : null;
-				if (!Component) return null;
-				const Cast = Component as ComponentType<{ props: unknown }>;
-				return <Cast key={item.key} props={item.payload} />;
-			})}
-		</div>
-	);
+  const items = groupChildren(turn.children);
+  return (
+    <div className="flex flex-col gap-3">
+      {items.map((item) => {
+        const viewKey = viewByKind.get(item.kind);
+        const Component = viewKey ? registry.get(viewKey) : null;
+        if (!Component) return null;
+        const Cast = Component as ComponentType<{ props: unknown }>;
+        return <Cast key={item.key} props={item.payload} />;
+      })}
+    </div>
+  );
 }
 
-function indexByKind(
-	contributions: readonly TurnBlockContribution[],
-): Map<string, string> {
-	const out = new Map<string, string>();
-	// First-claim-wins to mirror the Commands convention; plug-in
-	// fragments register before built-ins to override.
-	for (const c of contributions) {
-		if (!out.has(c.kind)) out.set(c.kind, c.viewKey);
-	}
-	return out;
+function indexByKind(contributions: readonly TurnBlockContribution[]): Map<string, string> {
+  const out = new Map<string, string>();
+  // First-claim-wins to mirror the Commands convention; plug-in
+  // fragments register before built-ins to override.
+  for (const c of contributions) {
+    if (!out.has(c.kind)) out.set(c.kind, c.viewKey);
+  }
+  return out;
 }

@@ -9,17 +9,11 @@ import { useNodeProp } from "./hooks/use-session-node.js";
  * vertically. Subscribes to `session.title` so renames reflect
  * live without a remount.
  */
-export function ChatHeader({
-	session,
-}: {
-	session: SessionState;
-}): ReactElement {
-	const title = useNodeProp(session, (s) => s.title) ?? "Untitled session";
-	return (
-		<div className="flex h-12 shrink-0 items-center border-b border-border bg-background">
-			<div className="mx-auto w-full max-w-[768px] truncate px-5 text-sm font-medium">
-				{title}
-			</div>
-		</div>
-	);
+export function ChatHeader({ session }: { session: SessionState }): ReactElement {
+  const title = useNodeProp(session, (s) => s.title) ?? "Untitled session";
+  return (
+    <div className="flex h-12 shrink-0 items-center border-b border-border bg-background">
+      <div className="mx-auto w-full max-w-[768px] truncate px-5 text-sm font-medium">{title}</div>
+    </div>
+  );
 }

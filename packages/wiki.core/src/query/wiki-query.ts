@@ -13,18 +13,18 @@ export { QueryProgress } from "./progress.js";
  * adapters (`llmOf` / `wikiConfigOf`); no model deps are injected here.
  */
 export class WikiQuery extends ProjectAdapter {
-	/**
-	 * Ask a question. An optional `{ paths }` scope (project-relative path prefixes)
-	 * restricts retrieval to matching resources on both front-ends; omitting it keeps
-	 * the whole-corpus behaviour.
-	 */
-	ask(question: string, opts?: { paths?: string[] }): QueryProgress {
-		return runQuery(this.project, question, opts);
-	}
+  /**
+   * Ask a question. An optional `{ paths }` scope (project-relative path prefixes)
+   * restricts retrieval to matching resources on both front-ends; omitting it keeps
+   * the whole-corpus behaviour.
+   */
+  ask(question: string, opts?: { paths?: string[] }): QueryProgress {
+    return runQuery(this.project, question, opts);
+  }
 }
 
 /** Register `WikiQuery` (project-level). */
 export function registerQuery(_workspace: Workspace): () => void {
-	// WikiQuery self-hosts on a Project — no registration required.
-	return () => {};
+  // WikiQuery self-hosts on a Project — no registration required.
+  return () => {};
 }

@@ -7,12 +7,10 @@ import { useCallback, useRef, useSyncExternalStore } from "react";
  * `removeChild` allocate a new array, so referential equality via
  * `Object.is` is the structural-change signal.
  */
-export function useNodeChildren<T extends TreeNode>(
-	node: T,
-): readonly TreeEntry[] | undefined {
-	const subscribe = useCallback((cb: () => void) => node.onUpdate(cb), [node]);
-	const getSnapshot = useCallback(() => node.data.children, [node]);
-	return useSyncExternalStore(subscribe, getSnapshot);
+export function useNodeChildren<T extends TreeNode>(node: T): readonly TreeEntry[] | undefined {
+  const subscribe = useCallback((cb: () => void) => node.onUpdate(cb), [node]);
+  const getSnapshot = useCallback(() => node.data.children, [node]);
+  return useSyncExternalStore(subscribe, getSnapshot);
 }
 
 /**
@@ -20,25 +18,20 @@ export function useNodeChildren<T extends TreeNode>(
  * streaming bubble — `appendDelta` reassigns `content`, so the snapshot
  * differs each token.
  */
-export function useNodeContent<T extends TreeNode>(
-	node: T,
-): string | undefined {
-	const subscribe = useCallback((cb: () => void) => node.onUpdate(cb), [node]);
-	const getSnapshot = useCallback(() => node.content, [node]);
-	return useSyncExternalStore(subscribe, getSnapshot);
+export function useNodeContent<T extends TreeNode>(node: T): string | undefined {
+  const subscribe = useCallback((cb: () => void) => node.onUpdate(cb), [node]);
+  const getSnapshot = useCallback(() => node.content, [node]);
+  return useSyncExternalStore(subscribe, getSnapshot);
 }
 
 /**
  * Re-render only when `select(node)` changes by `Object.is` comparison.
  * Use for typed accessors (e.g., `useNodeProp(session, s => s.isStreaming)`).
  */
-export function useNodeProp<T extends TreeNode, K>(
-	node: T,
-	select: (n: T) => K,
-): K {
-	const subscribe = useCallback((cb: () => void) => node.onUpdate(cb), [node]);
-	const getSnapshot = useCallback(() => select(node), [node, select]);
-	return useSyncExternalStore(subscribe, getSnapshot);
+export function useNodeProp<T extends TreeNode, K>(node: T, select: (n: T) => K): K {
+  const subscribe = useCallback((cb: () => void) => node.onUpdate(cb), [node]);
+  const getSnapshot = useCallback(() => select(node), [node, select]);
+  return useSyncExternalStore(subscribe, getSnapshot);
 }
 
 /**
@@ -47,15 +40,15 @@ export function useNodeProp<T extends TreeNode, K>(
  * the selector hooks above are usually what you want.
  */
 export function useNode<T extends TreeNode>(node: T): number {
-	const counterRef = useRef(0);
-	const subscribe = useCallback(
-		(cb: () => void) =>
-			node.onUpdate(() => {
-				counterRef.current += 1;
-				cb();
-			}),
-		[node],
-	);
-	const getSnapshot = useCallback(() => counterRef.current, []);
-	return useSyncExternalStore(subscribe, getSnapshot);
+  const counterRef = useRef(0);
+  const subscribe = useCallback(
+    (cb: () => void) =>
+      node.onUpdate(() => {
+        counterRef.current += 1;
+        cb();
+      }),
+    [node],
+  );
+  const getSnapshot = useCallback(() => counterRef.current, []);
+  return useSyncExternalStore(subscribe, getSnapshot);
 }
