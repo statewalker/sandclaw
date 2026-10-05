@@ -1,5 +1,5 @@
-import { useAppWorkspace } from "@statewalker/ui.view.react";
 import { DockHost } from "@statewalker/shell.core";
+import { useAppWorkspace } from "@statewalker/ui.view.react";
 import { useCallback, useRef, useSyncExternalStore } from "react";
 
 const PANEL_ID_PREFIX = "chat:";
@@ -14,35 +14,32 @@ const PANEL_ID_PREFIX = "chat:";
  * doesn't infinite-loop on a fresh-Set-per-call snapshot.
  */
 export function useOpenChatTabs(): ReadonlySet<string> {
-	const workspace = useAppWorkspace();
-	const dockHost = workspace.requireAdapter(DockHost);
-	const cacheRef = useRef<{ key: string; value: ReadonlySet<string> }>({
-		key: "",
-		value: new Set(),
-	});
+  const workspace = useAppWorkspace();
+  const dockHost = workspace.requireAdapter(DockHost);
+  const cacheRef = useRef<{ key: string; value: ReadonlySet<string> }>({
+    key: "",
+    value: new Set(),
+  });
 
-	const subscribe = useCallback(
-		(onChange: () => void) => dockHost.onLayoutChange(onChange),
-		[dockHost],
-	);
+  const subscribe = useCallback(
+    (onChange: () => void) => dockHost.onLayoutChange(onChange),
+    [dockHost],
+  );
 
-	const getSnapshot = useCallback((): ReadonlySet<string> => {
-		const ids: string[] = [];
-		for (const panelId of dockHost.getPanelIds()) {
-			if (
-				panelId.startsWith(PANEL_ID_PREFIX) &&
-				panelId.length > PANEL_ID_PREFIX.length
-			) {
-				ids.push(panelId.slice(PANEL_ID_PREFIX.length));
-			}
-		}
-		ids.sort();
-		const key = ids.join("\n");
-		if (cacheRef.current.key !== key) {
-			cacheRef.current = { key, value: new Set(ids) };
-		}
-		return cacheRef.current.value;
-	}, [dockHost]);
+  const getSnapshot = useCallback((): ReadonlySet<string> => {
+    const ids: string[] = [];
+    for (const panelId of dockHost.getPanelIds()) {
+      if (panelId.startsWith(PANEL_ID_PREFIX) && panelId.length > PANEL_ID_PREFIX.length) {
+        ids.push(panelId.slice(PANEL_ID_PREFIX.length));
+      }
+    }
+    ids.sort();
+    const key = ids.join("\n");
+    if (cacheRef.current.key !== key) {
+      cacheRef.current = { key, value: new Set(ids) };
+    }
+    return cacheRef.current.value;
+  }, [dockHost]);
 
-	return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

@@ -1,9 +1,5 @@
 import type { ToolCall } from "@statewalker/ai-agent.core/state";
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@statewalker/ui.view.shadcn";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@statewalker/ui.view.shadcn";
 import { ChevronDown, Wrench } from "lucide-react";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 import { ToolCallView } from "./tool-call-view";
@@ -15,23 +11,22 @@ import { ToolCallView } from "./tool-call-view";
  * present (degenerate case — block never auto-closes from empty).
  */
 function useAllToolCallsReady(calls: ToolCall[]): boolean {
-	const computeReady = (): boolean =>
-		calls.length > 0 && calls.every((c) => !!c.response);
-	const [ready, setReady] = useState<boolean>(computeReady);
-	useEffect(() => {
-		setReady(computeReady());
-		if (calls.length === 0) return;
-		const unsubs = calls.map((call) =>
-			call.onUpdate(() => {
-				setReady(computeReady());
-			}),
-		);
-		return () => {
-			for (const u of unsubs) u();
-		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [calls]);
-	return ready;
+  const computeReady = (): boolean => calls.length > 0 && calls.every((c) => !!c.response);
+  const [ready, setReady] = useState<boolean>(computeReady);
+  useEffect(() => {
+    setReady(computeReady());
+    if (calls.length === 0) return;
+    const unsubs = calls.map((call) =>
+      call.onUpdate(() => {
+        setReady(computeReady());
+      }),
+    );
+    return () => {
+      for (const u of unsubs) u();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calls]);
+  return ready;
 }
 
 /**
@@ -47,28 +42,27 @@ function useAllToolCallsReady(calls: ToolCall[]): boolean {
  * toggles after that are respected.
  */
 export function ToolCallsBlock({ calls }: { calls: ToolCall[] }): ReactElement {
-	const allReady = useAllToolCallsReady(calls);
-	const [open, setOpen] = useState(() => !allReady);
-	const wasReady = useRef(allReady);
-	useEffect(() => {
-		if (allReady && !wasReady.current) setOpen(false);
-		wasReady.current = allReady;
-	}, [allReady]);
+  const allReady = useAllToolCallsReady(calls);
+  const [open, setOpen] = useState(() => !allReady);
+  const wasReady = useRef(allReady);
+  useEffect(() => {
+    if (allReady && !wasReady.current) setOpen(false);
+    wasReady.current = allReady;
+  }, [allReady]);
 
-	const label =
-		calls.length === 1 ? "Tool call" : `Tool calls (${calls.length})`;
-	return (
-		<Collapsible open={open} onOpenChange={setOpen} className="group/tools">
-			<CollapsibleTrigger className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
-				<Wrench className="size-3.5" />
-				<span>{label}</span>
-				<ChevronDown className="size-3.5 transition-transform group-data-[state=open]/tools:rotate-180" />
-			</CollapsibleTrigger>
-			<CollapsibleContent className="mt-2 space-y-2 overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
-				{calls.map((call) => (
-					<ToolCallView key={call.id} call={call} />
-				))}
-			</CollapsibleContent>
-		</Collapsible>
-	);
+  const label = calls.length === 1 ? "Tool call" : `Tool calls (${calls.length})`;
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="group/tools">
+      <CollapsibleTrigger className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        <Wrench className="size-3.5" />
+        <span>{label}</span>
+        <ChevronDown className="size-3.5 transition-transform group-data-[state=open]/tools:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-2 space-y-2 overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+        {calls.map((call) => (
+          <ToolCallView key={call.id} call={call} />
+        ))}
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }

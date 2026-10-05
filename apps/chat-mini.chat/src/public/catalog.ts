@@ -17,10 +17,10 @@ import { z } from "zod";
  * independently.
  */
 export const chatCatalog = defineCatalog(schema, {
-	components: {
-		ChatRoot: { props: z.object({ sessionId: z.string() }) },
-	},
-	actions: {},
+  components: {
+    ChatRoot: { props: z.object({ sessionId: z.string() }) },
+  },
+  actions: {},
 });
 
 export const CHAT_CATALOG_ID = "chat";
@@ -31,22 +31,22 @@ export const CHAT_CATALOG_ID = "chat";
  * same session from anywhere yields the same tab.
  */
 export function makeChatSpec(sessionId: string): Spec {
-	return {
-		root: "chat",
-		elements: {
-			chat: {
-				type: "ChatRoot",
-				props: { sessionId },
-				children: [],
-			},
-		},
-	} as Spec;
+  return {
+    root: "chat",
+    elements: {
+      chat: {
+        type: "ChatRoot",
+        props: { sessionId },
+        children: [],
+      },
+    },
+  } as Spec;
 }
 
 export function chatPanelId(sessionId: string): string {
-	return `chat:${sessionId}`;
+  return `chat:${sessionId}`;
 }
 
 export function chatSpecId(sessionId: string): string {
-	return `spec:chat:${sessionId}`;
+  return `spec:chat:${sessionId}`;
 }

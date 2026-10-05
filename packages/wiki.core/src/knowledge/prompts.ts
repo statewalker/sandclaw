@@ -1,17 +1,12 @@
 const CORPUS_PURPOSE_PLACEHOLDER = "{{corpus_purpose}}";
 const DEFAULT_CORPUS_PURPOSE =
-	"a general-purpose knowledge base; summarise faithfully at a uniform level of detail.";
+  "a general-purpose knowledge base; summarise faithfully at a uniform level of detail.";
 
 /** Substitute the corpus-purpose placeholder in a system prompt. */
-export function fillCorpusPurpose(
-	prompt: string,
-	corpusPurpose?: string,
-): string {
-	const purpose =
-		corpusPurpose && corpusPurpose.trim().length > 0
-			? corpusPurpose
-			: DEFAULT_CORPUS_PURPOSE;
-	return prompt.split(CORPUS_PURPOSE_PLACEHOLDER).join(purpose);
+export function fillCorpusPurpose(prompt: string, corpusPurpose?: string): string {
+  const purpose =
+    corpusPurpose && corpusPurpose.trim().length > 0 ? corpusPurpose : DEFAULT_CORPUS_PURPOSE;
+  return prompt.split(CORPUS_PURPOSE_PLACEHOLDER).join(purpose);
 }
 
 /** L2 summarizer prompt: sections a block and, for each section, emits a

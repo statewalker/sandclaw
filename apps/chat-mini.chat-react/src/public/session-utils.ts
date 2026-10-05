@@ -11,8 +11,8 @@ import type { Session } from "@statewalker/ai-agent.core/runtime";
  * field directly. The controller's model is meant to be settable.
  */
 export function setSessionModel(session: Session, model: string): void {
-	const internal = session as unknown as { _controller: { model: string } };
-	if (internal._controller && typeof internal._controller.model === "string") {
-		internal._controller.model = model;
-	}
+  const internal = session as unknown as { _controller: { model: string } };
+  if (internal._controller && typeof internal._controller.model === "string") {
+    internal._controller.model = model;
+  }
 }
