@@ -1,64 +1,78 @@
 # sandclaw
 
-Public home of the StateWalker **chat** and **wiki** applications, and of the packages
-they are built from.
+## What it is
 
-This repository is the **staging ground for the product tier**: the applications and
-their supporting libraries are gathered here so they can be extracted together into the
-[sandclaw-ai](https://github.com/sandclaw-ai) organisation, which is where end-user
-applications live with their own CI/CD. The `statewalker` organisation holds the
-low-level libraries; this repository is the boundary between the two.
+The StateWalker chat and wiki applications, and the packages they are built from. Two web apps live here: `chat-mini.app`, a browser chat client with an AI agent, file viewers and self-indexing wikis, and `wiki-viewer.app`, a server-rendered viewer for wiki reports and live wiki questions. Two packages are published to npm: `@statewalker/wiki.core` (the wiki engine) and `@statewalker/wiki.view.react` (its React panel). Everything else is private to this workspace.
 
-## Applications
+## Layout
 
-| Package | Path | What |
-| --- | --- | --- |
-| `@statewalker/chat-mini-app` | [`apps/chat-mini.app`](apps/chat-mini.app) | The chat web app (Vite, dev `:3460`). |
-| `@statewalker/wiki-viewer-app` | [`apps/wiki-viewer.app`](apps/wiki-viewer.app) | The wiki viewer web app (HonoX, Vite `:5173`). |
-
-## Packages
-
-| Package | Path | What |
-| --- | --- | --- |
-| `@statewalker/app-shell` | [`packages/app-shell`](packages/app-shell) | Shared application shell both apps boot from. |
-| `@statewalker/wiki.core` | [`packages/wiki.core`](packages/wiki.core) | Wiki domain logic (React-free). Moved here from `statewalker-workbench`. |
-| `@statewalker/wiki.view.react` | [`packages/wiki.view.react`](packages/wiki.view.react) | Wiki renderer (React). Moved with `wiki.core`, which was its only remaining consumer outside this repo. |
-| `@statewalker/chat-mini.chat` | [`apps/chat-mini.chat`](apps/chat-mini.chat) | Chat fragment (React-free). A library, still located under `apps/`. |
-| `@statewalker/chat-mini.chat-react` | [`apps/chat-mini.chat-react`](apps/chat-mini.chat-react) | Chat fragment renderer (React). Also a library under `apps/`. |
-
-Each moved package kept its history, both in `main`'s ancestry and on a `history/*`
-branch (`history/wiki.core`, `history/wiki.view.react`, `history/content-extractors`).
-`content-extractors` has since been removed here: it was a byte-identical copy of the one
-in `statewalker-search`, which is now its only home.
-
-## Building
-
-The repository installs, builds and tests on its own: other StateWalker packages come
-from the registry.
-
-```sh
-pnpm install
-pnpm run build
-pnpm run test
+```
+packages/
+  wiki.core/            @statewalker/wiki.core         (npm)
+  wiki.view.react/      @statewalker/wiki.view.react   (npm)
+  app-shell/            @statewalker/app-shell         (private)
+apps/
+  chat-mini.app/        @statewalker/chat-mini-app     (private app)
+  chat-mini.chat/       @statewalker/chat-mini.chat        (private library)
+  chat-mini.chat-react/ @statewalker/chat-mini.chat-react  (private library)
+  wiki-viewer.app/      @statewalker/wiki-viewer-app   (private app)
 ```
 
-## Cross-repo dependencies
+| Package | What | Published |
+| --- | --- | --- |
+| [`@statewalker/wiki.core`](packages/wiki.core) | LLM-curated wiki on the workspace model: ingestion pipeline, hybrid full-text + vector search, cited query answers, generated sites, CLI. React-free. | [npm](https://www.npmjs.com/package/@statewalker/wiki.core) |
+| [`@statewalker/wiki.view.react`](packages/wiki.view.react) | React renderer fragment: dock panel that browses generated wiki sites. | [npm](https://www.npmjs.com/package/@statewalker/wiki.view.react) |
+| [`@statewalker/app-shell`](packages/app-shell) | `bootShell` / `bootHeadless`: boots the workbench substrate in a fixed order under an app. | private |
+| [`@statewalker/chat-mini.chat`](apps/chat-mini.chat) | Chat logic fragment: `chat:open-session`, chat catalog, turn-block and composer slots. | private |
+| [`@statewalker/chat-mini.chat-react`](apps/chat-mini.chat-react) | Chat renderer fragment: chat panel, turn views, sessions panel, deep links. | private |
+| [`@statewalker/chat-mini-app`](apps/chat-mini.app) | The chat web app (Vite, port 3460). | private app |
+| [`@statewalker/wiki-viewer-app`](apps/wiki-viewer.app) | The wiki viewer web app (HonoX, Vite port 5173). | private app |
 
-This repository depends on:
+```
+chat-mini.app ──▶ app-shell, chat-mini.chat(-react), wiki.core, wiki.view.react
+wiki-viewer.app ─▶ wiki.core
+wiki.view.react ─▶ wiki.core
+```
 
-| Repository | Packages used |
+## How to run it
+
+Requirements: Node 24 and pnpm 10 through corepack (the root `package.json` pins `pnpm@10.16.1`).
+
+1. `corepack enable`
+2. `pnpm install`
+3. `pnpm run build`
+4. Start an app: `pnpm --filter @statewalker/chat-mini-app dev` or `pnpm --filter @statewalker/wiki-viewer-app dev`. Each app's README has the details.
+
+Run one package's scripts with `pnpm --filter <name> <script>`, for example `pnpm --filter @statewalker/wiki.core test`.
+
+## Why it is the way it is
+
+- **Logic and React are split into separate packages.** `wiki.core` and `chat-mini.chat` hold commands, state and slot definitions; `wiki.view.react` and `chat-mini.chat-react` hold the components. Code that only dispatches commands (other fragments, the CLI, the HonoX server) does not pull in chat or wiki components.
+- **Published packages ship sources next to `dist/`.** Their `exports` point at `dist/` for consumers and add a `source` condition pointing at `src/`. The apps' Vite and Vitest configs resolve the `source` condition first, so in development they use the TypeScript sources of workspace packages directly.
+- **Other StateWalker packages come from npm.** External dependencies are declared with `catalog:` ranges in `pnpm-workspace.yaml`; packages of this workspace reference each other with `workspace:^`. The workspace installs, builds and tests on its own.
+
+## What will surprise you
+
+- **`chat-mini.chat` and `chat-mini.chat-react` are libraries under `apps/`.** They are consumed only by `chat-mini.app` and are not published.
+- **Some packages have no build step.** `app-shell`, `chat-mini.chat` and `chat-mini.chat-react` export `src/*.ts` directly; the app bundler compiles them.
+- **`pnpm run lint` rewrites files** (`biome check --write`). Use `pnpm run lint:check` to only check.
+
+## Reference
+
+### Commands
+
+| Command | What it does |
 | --- | --- |
-| [`statewalker-ai`](https://github.com/statewalker/statewalker-ai) | `@statewalker/ai-agent-runtime.core`, `@statewalker/ai-agent.core`, `@statewalker/ai-config.core`, `@statewalker/ai-local-models.browser`, `@statewalker/ai-local-models.core` |
-| [`statewalker-fsm`](https://github.com/statewalker/statewalker-fsm) | `@statewalker/fsm` |
-| [`statewalker-kernel`](https://github.com/statewalker/statewalker-kernel) | `@statewalker/explorer.core`, `@statewalker/inline.core`, `@statewalker/mime.core`, `@statewalker/platform.browser`, `@statewalker/platform.core`, `@statewalker/platform.node`, `@statewalker/render.core`, `@statewalker/settings.core`, `@statewalker/shell.core`, `@statewalker/workspace.browser`, `@statewalker/workspace.core` |
-| [`statewalker-search`](https://github.com/statewalker/statewalker-search) | `@statewalker/content-extractors`, `@statewalker/indexer-api`, `@statewalker/indexer-fulltext`, `@statewalker/indexer-mem-flexsearch`, `@statewalker/indexer-vector` |
-| [`statewalker-shared`](https://github.com/statewalker/statewalker-shared) | `@statewalker/shared-adapters`, `@statewalker/shared-baseclass`, `@statewalker/shared-commands`, `@statewalker/shared-logger`, `@statewalker/shared-registry`, `@statewalker/shared-slots` |
-| [`statewalker-workbench`](https://github.com/statewalker/statewalker-workbench) | `@statewalker/ai-config.view.react`, `@statewalker/ai-local-models.view.react`, `@statewalker/explorer.view.react`, `@statewalker/inline.view.react`, `@statewalker/mime.view.image`, `@statewalker/mime.view.markdown`, `@statewalker/mime.view.pdf`, `@statewalker/mime.view.video`, `@statewalker/render.view.react`, `@statewalker/settings.view.react`, `@statewalker/shell.view.react`, `@statewalker/ui.view.react`, `@statewalker/ui.view.shadcn`, `@statewalker/workspace.view.react` |
-| [`webrun-files`](https://github.com/statewalker/webrun-files) | `@statewalker/webrun-files`, `@statewalker/webrun-files-browser`, `@statewalker/webrun-files-node` |
+| `pnpm run build` | `pnpm -r run build` in every package that has a build script. |
+| `pnpm run test` | `pnpm -r run test`. |
+| `pnpm run typecheck` | `pnpm -r run typecheck`. |
+| `pnpm run lint` / `pnpm run lint:check` | Biome check, with or without writing fixes. |
+| `pnpm run format` / `pnpm run format:check` | Biome format, with or without writing. |
 
-Cross-repo dependencies are declared `catalog:` with ranges on the released versions (see
-`pnpm-workspace.yaml`); packages of this repository reference each other with `workspace:^`.
+### Releases
 
-## License
+`@statewalker/wiki.core` and `@statewalker/wiki.view.react` are published to npm from CI with changesets. To choose the version bump or the changelog text yourself, add a changeset with `pnpm changeset`.
 
-MIT.
+### License
+
+MIT. See [LICENSE](LICENSE).

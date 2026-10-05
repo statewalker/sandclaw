@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Workbench-substrate boot helper shared by chat-mini.app and explorer.app.",
+  "description": "Workbench-substrate boot helper (bootShell, bootHeadless) for the apps in this repository.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/statewalker/sandclaw.git",
