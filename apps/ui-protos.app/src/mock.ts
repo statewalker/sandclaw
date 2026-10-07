@@ -42,3 +42,35 @@ export function initials(name: string): string {
     .join("")
     .slice(0, 2);
 }
+
+/** The group running Sandclaw: a name chosen at setup, and its admin. */
+export const group = {
+  name: "Atelier Morel",
+  admin: "Claire",
+};
+
+export interface FolderEntry {
+  name: string;
+  children?: FolderEntry[];
+}
+
+/** The user's folder: the assistant's working context. */
+export const folder: FolderEntry[] = [
+  {
+    name: "Clients",
+    children: [
+      { name: "contracts" },
+      { name: "Dupont — offer.docx" },
+      { name: "Leroy — brief.pdf" },
+    ],
+  },
+  { name: "Finance", children: [{ name: "2026-Q3.xlsx" }, { name: "invoices" }] },
+  { name: "Notes", children: [{ name: "todo.md" }, { name: "meeting 2026-10-02.md" }] },
+  { name: "Outputs", children: [{ name: "contacts.xlsx" }] },
+];
+
+export const todos = [
+  { text: "Call Hugo about the Dupont offer", done: false },
+  { text: "Send Q3 figures to the accountant", done: false },
+  { text: "Renew the insurance contract", done: true },
+];

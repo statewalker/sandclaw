@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@statewalker/ui.view.shadcn": "catalog:",
+    "dockview-react": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"

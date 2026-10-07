@@ -1,0 +1,27 @@
+/*
+ * Binds dockview's chrome to the shadcn theme tokens, so the dock follows the
+ * light/dark switch and reads as part of the app rather than an IDE.
+ * Applied with `dockview-theme-light dockview-theme-sandclaw` on the dock root.
+ */
+.dockview-theme-sandclaw {
+  --dv-background-color: var(--background);
+  --dv-group-view-background-color: var(--background);
+  --dv-tabs-and-actions-container-background-color: var(--muted);
+  --dv-tabs-and-actions-container-font-size: 13px;
+  --dv-tabs-and-actions-container-height: 34px;
+  --dv-activegroup-visiblepanel-tab-background-color: var(--background);
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--background);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-color: var(--foreground);
+  --dv-activegroup-hiddenpanel-tab-color: var(--muted-foreground);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--foreground);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--muted-foreground);
+  --dv-tab-divider-color: transparent;
+  --dv-separator-border: var(--border);
+  --dv-paneview-header-border-color: var(--border);
+  --dv-drag-over-background-color: color-mix(in oklch, var(--primary) 12%, transparent);
+  --dv-drag-over-border-color: var(--ring);
+  --dv-active-sash-color: var(--ring);
+  font-family: inherit;
+}

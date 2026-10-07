@@ -1,0 +1,51 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./workspace-layout.stories.tsx";
+
+<Meta of={Stories} />
+
+# Workspace layout
+
+Sandclaw is an assistant over the user's folder, so the screen puts the documents in front and
+the assistant beside them. The question here: can **one dockview** give a fixed, Cowork-like
+layout to people who never touch it, and still let anyone unlock it and rearrange panels?
+
+The stories run the real `dockview-react`. Open one on its own page (not here in the docs
+page) to try the controls in the top bar.
+
+## The contract
+
+- A plugin contributes a **panel to a zone**: `left`, `center`, `right` or `bottom`. It never
+  sees dockview positions.
+- A **preset** is data: which panels go in which zone, and the zone sizes. `applyPreset` is the
+  only code that maps zones onto the dock.
+- **Locked** (the default) turns drag and drop off (`disableDnd`) and hides the tab strip of
+  single-panel side zones, so they read as fixed areas. Zones can still be resized: dockview's
+  own `locked` option freezes the resize handles too, which is not what "locked layout" means
+  here.
+- **Unlocked** shows every tab strip; any panel can be dragged into any zone or split.
+- **Switching presets** keeps your arrangement of the one you leave. **Reset** forgets it and
+  lays the preset out again.
+- A preset that names a panel whose plugin is **not installed** leaves it out and says so. A
+  saved arrangement that names one is dropped and the preset is used instead.
+
+## Assistant preset
+
+Folder and todos on the left, documents in the center, the assistant on the right, running
+tasks along the bottom.
+
+<Story of={Stories.Assistant} inline={false} height="560px" />
+
+## Reading preset
+
+The folder and the documents; no assistant, no task strip.
+
+<Story of={Stories.Reading} inline={false} height="480px" />
+
+## Open questions
+
+- Should "unlocked" be a mode at all, or should drag and drop always be on, with only the side
+  zones' headers hidden?
+- Is dropping a saved arrangement when a plugin disappears acceptable, or should the shell
+  repair it (remove the panel, keep the rest)?
+- Where does a panel go when a plugin is installed later: its default zone in every preset, or
+  only in presets that name it?
