@@ -17,7 +17,7 @@ it("the Assistant preset places every panel in its target zone", () => {
   expect(todo()).toBeTruthy();
   expect(screen.getByText("Offer — Dupont & Fils")).toBeTruthy();
   expect(assistant()).toBeTruthy();
-  expect(screen.getByText(/Clients deck · 2 of 4/)).toBeTruthy();
+  expect(screen.getByText(/Q3 spending summary · 2 of 4/)).toBeTruthy();
 });
 
 it("a preset without a right zone leaves the assistant out", () => {

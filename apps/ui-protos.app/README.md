@@ -13,6 +13,7 @@ A Storybook of Sandclaw UI prototypes: alternative designs of the same screen, s
 src/
   index.css          Tailwind entry, theme tokens, shadcn base rules
   welcome.mdx        landing page: what the site is and how to add a prototype
+  zone-title.tsx     the heading a zone panel shows when its tab strip is hidden
   mock.ts            invented group, its folder, team and invites
   <topic>/
     <topic>.tsx          one exported component per variant
@@ -25,7 +26,7 @@ test/
 vite.config.ts       Tailwind + React; Storybook reuses it
 ```
 
-Current prototypes: **Workspace layout** (one dockview with zones and presets; panels name their target zones; two lock options; layout repair when a plugin is uninstalled), **Assistant panel** (tasks with steps and output files; approval before changing a file and consent before using a connector, inline or pinned), **Join from invite** (minimal vs three promises; then choosing a folder; machine offline; invite already used), **Group status** (pill only vs pill and offline banner), **Invite colleague** (link dialog vs team panel; to be reworked into the admin Team section).
+Current prototypes: **Workspace layout** (one dockview with zones and presets; panels name their target zones; two lock options; layout repair when a plugin is uninstalled), **Assistant panel** (tasks with steps and output files; approval before changing a file and consent before using a connector, inline or pinned), **Join from invite** (minimal vs three promises; then choosing a folder; machine offline; invite already used), **Group status** (pill only vs pill and offline banner), **Folder zone** (search; reconnect after a restart; indexing as a progress bar vs dimmed unread files), **Notes and todos** (todos collected from Markdown checklists across the folder, grouped by file vs one list), **Invite colleague** (link dialog vs team panel; to be reworked into the admin Team section).
 
 ## How to run it
 

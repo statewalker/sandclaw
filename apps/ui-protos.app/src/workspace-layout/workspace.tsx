@@ -12,15 +12,15 @@ import { type DockviewApi, DockviewReact, type DockviewReadyEvent } from "dockvi
 import { Lock, LockOpen } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AssistantPanel } from "../assistant-panel/assistant-panel.js";
+import { FolderZone } from "../folder-zone/folder-zone.js";
 import { GroupPill } from "../group-status/group-status.js";
+import { TodosView } from "../notes-todos/todos-view.js";
 import {
   DocumentPanel,
-  FolderPanel,
   MissingPanel,
   OutlinePanel,
   SpreadsheetPanel,
   TasksPanel,
-  TodosPanel,
 } from "./panels.js";
 import {
   applyPreset,
@@ -36,8 +36,8 @@ import {
 const MISSING = "missing";
 
 const components = {
-  folder: FolderPanel,
-  todos: TodosPanel,
+  folder: () => <FolderZone />,
+  todos: () => <TodosView />,
   outline: OutlinePanel,
   document: DocumentPanel,
   spreadsheet: SpreadsheetPanel,

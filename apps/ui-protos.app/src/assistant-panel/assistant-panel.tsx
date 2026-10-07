@@ -6,6 +6,7 @@ import {
   FilePlus,
   Loader2,
   Mail,
+  NotebookPen,
   RotateCcw,
   SendHorizontal,
   ShieldCheck,
@@ -245,6 +246,7 @@ export function AssistantPanel({
   const [queue, setQueue] = useState<ScriptEvent[]>(scenarios[scenario]);
   const [next, setNext] = useState(0);
   const [items, setItems] = useState<Item[]>([]);
+  const [saved, setSaved] = useState("");
   const pending = items.find((i) => i.kind === "request" && !i.answer);
 
   useEffect(() => {
@@ -268,6 +270,7 @@ export function AssistantPanel({
     setQueue(scenarios[scenario]);
     setItems([]);
     setNext(0);
+    setSaved("");
   };
 
   return (
@@ -276,10 +279,21 @@ export function AssistantPanel({
         <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
           Assistant
         </span>
-        <Button variant="ghost" size="xs" onClick={replay} title="Prototype only">
-          <RotateCcw /> Replay
-        </Button>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="xs"
+            disabled={items.length === 0}
+            onClick={() => setSaved("Notes/conversation 2026-10-07.md")}
+          >
+            <NotebookPen /> Save as note
+          </Button>
+          <Button variant="ghost" size="xs" onClick={replay} title="Prototype only">
+            <RotateCcw /> Replay
+          </Button>
+        </div>
       </div>
+      {saved && <p className="text-muted-foreground px-3 pb-1 text-xs">Saved as {saved}</p>}
       <ScrollArea className="min-h-0 flex-1">
         <div className="grid gap-3 px-3 pb-3 text-sm">
           {items.map((item, index) => {

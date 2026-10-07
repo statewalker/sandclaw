@@ -1,98 +1,8 @@
 // Static stand-ins for the plugin panels. They only need to look like the real
 // thing so the layout can be judged; none of them does any work.
 import { ScrollArea } from "@statewalker/ui.view.shadcn";
-import {
-  ChevronDown,
-  ChevronRight,
-  CircleCheck,
-  FileSpreadsheet,
-  FileText,
-  Folder,
-  Loader2,
-  Presentation,
-  Square,
-  SquareCheck,
-} from "lucide-react";
-import type { ReactNode } from "react";
-import { type FolderEntry, folder, todos } from "../mock.js";
-
-function ZoneTitle({ children }: { children: ReactNode }) {
-  return (
-    <div className="text-muted-foreground px-3 pt-3 pb-1 text-xs font-medium tracking-wide uppercase">
-      {children}
-    </div>
-  );
-}
-
-function FileIcon({ name }: { name: string }) {
-  if (name.endsWith(".xlsx")) return <FileSpreadsheet className="size-4" />;
-  if (name.endsWith(".pptx")) return <Presentation className="size-4" />;
-  return <FileText className="text-muted-foreground size-4" />;
-}
-
-function Entry({ entry, depth }: { entry: FolderEntry; depth: number }) {
-  const isFolder = entry.children !== undefined || !entry.name.includes(".");
-  return (
-    <>
-      <div
-        className="hover:bg-accent flex h-8 items-center gap-1.5 rounded-md pr-2 text-sm"
-        style={{ paddingLeft: 8 + depth * 14 }}
-      >
-        {isFolder ? (
-          entry.children ? (
-            <ChevronDown className="text-muted-foreground size-3.5" />
-          ) : (
-            <ChevronRight className="text-muted-foreground size-3.5" />
-          )
-        ) : (
-          <span className="w-3.5" />
-        )}
-        {isFolder ? (
-          <Folder className="text-muted-foreground size-4" />
-        ) : (
-          <FileIcon name={entry.name} />
-        )}
-        <span className="truncate">{entry.name}</span>
-      </div>
-      {entry.children?.map((child) => (
-        <Entry key={child.name} entry={child} depth={depth + 1} />
-      ))}
-    </>
-  );
-}
-
-export function FolderPanel() {
-  return (
-    <ScrollArea className="h-full">
-      <ZoneTitle>Folder</ZoneTitle>
-      <div className="px-1 pb-3">
-        {folder.map((entry) => (
-          <Entry key={entry.name} entry={entry} depth={0} />
-        ))}
-      </div>
-    </ScrollArea>
-  );
-}
-
-export function TodosPanel() {
-  return (
-    <ScrollArea className="h-full">
-      <ZoneTitle>Todos</ZoneTitle>
-      <ul className="grid gap-1 px-3 pb-3">
-        {todos.map((t) => (
-          <li key={t.text} className="flex items-start gap-2 text-sm">
-            {t.done ? (
-              <SquareCheck className="text-muted-foreground mt-0.5 size-4 shrink-0" />
-            ) : (
-              <Square className="mt-0.5 size-4 shrink-0" />
-            )}
-            <span className={t.done ? "text-muted-foreground line-through" : ""}>{t.text}</span>
-          </li>
-        ))}
-      </ul>
-    </ScrollArea>
-  );
-}
+import { CircleCheck, Loader2 } from "lucide-react";
+import { ZoneTitle } from "../zone-title.js";
 
 export function DocumentPanel() {
   return (
@@ -149,7 +59,7 @@ export function TasksPanel() {
         Tasks
       </span>
       <span className="flex items-center gap-1.5">
-        <Loader2 className="size-3.5 animate-spin" /> Clients deck · 2 of 4
+        <Loader2 className="size-3.5 animate-spin" /> Q3 spending summary · 2 of 4
       </span>
       <span className="flex items-center gap-1.5">
         <CircleCheck className="size-3.5" /> Contacts → Outputs/contacts.xlsx

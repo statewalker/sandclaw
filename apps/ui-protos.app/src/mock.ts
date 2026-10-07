@@ -45,7 +45,10 @@ export const group = {
 
 export interface FolderEntry {
   name: string;
+  /** Present for folders. */
   children?: FolderEntry[];
+  /** Text of a Markdown file, where the prototypes need it (notes, todos). */
+  text?: string;
 }
 
 /** The user's folder: the assistant's working context. */
@@ -53,18 +56,34 @@ export const folder: FolderEntry[] = [
   {
     name: "Clients",
     children: [
-      { name: "contracts" },
+      { name: "contracts", children: [{ name: "Dupont — signed.pdf" }] },
       { name: "Dupont — offer.docx" },
+      {
+        name: "Dupont — notes.md",
+        text: "# Dupont\n\n- [ ] Confirm the start date with Mr Dupont\n- [x] Visit the workshop\n",
+      },
       { name: "Leroy — brief.pdf" },
     ],
   },
-  { name: "Finance", children: [{ name: "2026-Q3.xlsx" }, { name: "invoices" }] },
-  { name: "Notes", children: [{ name: "todo.md" }, { name: "meeting 2026-10-02.md" }] },
+  {
+    name: "Finance",
+    children: [
+      { name: "2026-Q3.xlsx" },
+      { name: "invoices", children: [{ name: "INV-0412.pdf" }] },
+    ],
+  },
+  {
+    name: "Notes",
+    children: [
+      {
+        name: "todo.md",
+        text: "- [ ] Call Hugo about the Dupont offer\n- [ ] Send Q3 figures to the accountant\n- [x] Renew the insurance contract\n",
+      },
+      {
+        name: "meeting 2026-10-02.md",
+        text: "# Meeting with Dupont\n\nFollow-ups:\n- [ ] Send Dupont the revised phase 1 schedule\n- [ ] Ask Bois Lyonnais for the beam quote\n",
+      },
+    ],
+  },
   { name: "Outputs", children: [{ name: "contacts.xlsx" }] },
-];
-
-export const todos = [
-  { text: "Call Hugo about the Dupont offer", done: false },
-  { text: "Send Q3 figures to the accountant", done: false },
-  { text: "Renew the insurance contract", done: true },
 ];
