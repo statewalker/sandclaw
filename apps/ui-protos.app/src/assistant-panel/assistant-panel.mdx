@@ -1,0 +1,53 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./assistant-panel.stories.tsx";
+
+<Meta of={Stories} />
+
+# Assistant panel
+
+The right-hand zone of the workspace. Sandclaw is an assistant that *does* things with the
+user's folder, so a request that does work becomes a **task**: its steps, then the files it
+produced, as chips that open in the center. The stories play a scripted conversation; **Replay**
+starts it again.
+
+## The permission ladder
+
+| Action | Rule |
+| --- | --- |
+| Read inside the folder | Free |
+| Create a new file | Free; shown as a new-file chip |
+| Change or delete an existing file | Ask each time, with a preview of the file after the change (not a code diff); *Allow for this task* stops further questions for the same task |
+| Reach outside the folder (Mail, the web) | Ask on first use per connector; revocable in Settings |
+
+## A task with an output
+
+<Story of={Stories.Deck} inline={false} height="520px" />
+
+## Where does a question go? A — inline
+
+The approval appears in the conversation, where the work happened. The preview is there, in
+context. With a long thread the user has to notice it scrolled into view.
+
+<Story of={Stories.ApprovalInline} inline={false} height="560px" />
+
+## B — pinned above the message box
+
+The pending question sits where the user's attention already is, and the conversation keeps
+only a one-line record of the answer. The preview gets less room.
+
+<Story of={Stories.ApprovalPinned} inline={false} height="560px" />
+
+## Connector consent
+
+The first time a request needs something outside the folder, the assistant says which connector,
+what for, and what it can do (read-only), before doing anything.
+
+<Story of={Stories.ConsentInline} inline={false} height="480px" />
+
+## Open questions
+
+- A or B — or B only while a task is waiting, and A otherwise?
+- Does *Allow for this task* need to be visible in the task card afterwards ("may change files
+  without asking")?
+- Should a declined change still offer the result as a new file ("save the follow-ups to
+  Outputs instead")?

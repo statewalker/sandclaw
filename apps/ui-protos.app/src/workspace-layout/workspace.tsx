@@ -11,9 +11,9 @@ import {
 import { type DockviewApi, DockviewReact, type DockviewReadyEvent } from "dockview-react";
 import { Lock, LockOpen } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { AssistantPanel } from "../assistant-panel/assistant-panel.js";
 import { group } from "../mock.js";
 import {
-  AssistantPanel,
   DocumentPanel,
   FolderPanel,
   MissingPanel,
@@ -41,7 +41,7 @@ const components = {
   outline: OutlinePanel,
   document: DocumentPanel,
   spreadsheet: SpreadsheetPanel,
-  assistant: AssistantPanel,
+  assistant: () => <AssistantPanel scenario="deck" />,
   tasks: TasksPanel,
   [MISSING]: MissingPanel,
 };

@@ -1,6 +1,6 @@
 // Static stand-ins for the plugin panels. They only need to look like the real
 // thing so the layout can be judged; none of them does any work.
-import { Button, Input, ScrollArea } from "@statewalker/ui.view.shadcn";
+import { ScrollArea } from "@statewalker/ui.view.shadcn";
 import {
   ChevronDown,
   ChevronRight,
@@ -10,7 +10,6 @@ import {
   Folder,
   Loader2,
   Presentation,
-  SendHorizontal,
   Square,
   SquareCheck,
 } from "lucide-react";
@@ -139,39 +138,6 @@ export function SpreadsheetPanel() {
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-export function AssistantPanel() {
-  return (
-    <div className="flex h-full flex-col">
-      <ZoneTitle>Assistant</ZoneTitle>
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="grid gap-3 px-3 pb-3 text-sm">
-          <div className="bg-muted ml-6 rounded-lg px-3 py-2">
-            Summarize the Clients folder as a deck for Monday.
-          </div>
-          <div className="grid gap-2 rounded-lg border p-3">
-            <div className="text-xs font-medium">Clients deck</div>
-            <div className="flex items-center gap-2 text-xs">
-              <CircleCheck className="size-3.5" /> Read 34 files
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <Loader2 className="size-3.5 animate-spin" /> Drafting slides
-            </div>
-            <div className="flex items-center gap-1.5 text-xs">
-              <Presentation className="size-3.5" /> Outputs/clients.pptx
-            </div>
-          </div>
-        </div>
-      </ScrollArea>
-      <div className="flex gap-2 border-t p-3">
-        <Input placeholder="Ask about your folder…" aria-label="Ask the assistant" />
-        <Button size="icon" aria-label="Send">
-          <SendHorizontal />
-        </Button>
-      </div>
     </div>
   );
 }

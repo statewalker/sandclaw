@@ -19,8 +19,8 @@ const labels: Record<LinkState, string> = {
 };
 
 const dotColor: Record<LinkState, string> = {
-  connected: "bg-emerald-500",
-  connecting: "bg-amber-500 animate-pulse",
+  connected: "bg-success",
+  connecting: "bg-warning animate-pulse",
   offline: "bg-destructive",
 };
 
