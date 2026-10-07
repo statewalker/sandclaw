@@ -25,7 +25,7 @@ test/
 vite.config.ts       Tailwind + React; Storybook reuses it
 ```
 
-Current prototypes: **Assistant panel** (tasks with steps and output files; approval for changing a file and consent for a connector, inline or pinned), **Workspace layout** (one dockview with zones and presets; panels name their target zones; two lock options; layout repair when a plugin is uninstalled), **Invite colleague** (link dialog vs. team panel), **Join from invite** (single card vs. explain-then-join, with connecting and offline states), **Office link status** (dot vs. pill vs. banner).
+Current prototypes: **Workspace layout** (one dockview with zones and presets; panels name their target zones; two lock options; layout repair when a plugin is uninstalled), **Assistant panel** (tasks with steps and output files; approval before changing a file and consent before using a connector, inline or pinned), **Join from invite** (minimal vs three promises; then choosing a folder; machine offline; invite already used), **Group status** (pill only vs pill and offline banner), **Invite colleague** (link dialog vs team panel; to be reworked into the admin Team section).
 
 ## How to run it
 

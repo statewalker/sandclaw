@@ -12,7 +12,7 @@ import { type DockviewApi, DockviewReact, type DockviewReadyEvent } from "dockvi
 import { Lock, LockOpen } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AssistantPanel } from "../assistant-panel/assistant-panel.js";
-import { group } from "../mock.js";
+import { GroupPill } from "../group-status/group-status.js";
 import {
   DocumentPanel,
   FolderPanel,
@@ -166,9 +166,7 @@ export function Workspace({
   return (
     <div className="flex h-screen flex-col">
       <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-        <span className="bg-secondary flex items-center gap-2 rounded-full px-3 py-1 text-xs">
-          <span className="bg-primary size-2 rounded-full" /> {group.name} · connected
-        </span>
+        <GroupPill state="connected" />
         <div className="flex-1" />
         <Select
           value=""

@@ -7,88 +7,158 @@ import {
   CardHeader,
   CardTitle,
 } from "@statewalker/ui.view.shadcn";
-import { HardDrive, Loader2, Lock, ShieldCheck, TriangleAlert } from "lucide-react";
+import { FolderOpen, HardDrive, Loader2, Lock, MonitorSmartphone, ShieldCheck } from "lucide-react";
 import { useState } from "react";
-import { officeMachine } from "../mock.js";
+import { group } from "../mock.js";
 
-/** What the browser is doing with the invite. */
-export type JoinState = "ready" | "connecting" | "failed";
+/**
+ * How the invite page explains itself:
+ * - `minimal`: one card, one button, privacy in one line;
+ * - `promises`: the three promises first, then join.
+ */
+export type JoinVariant = "minimal" | "promises";
 
-function JoinAction({ state }: { state: JoinState }) {
-  if (state === "connecting") {
-    return (
-      <Button className="w-full" disabled>
-        <Loader2 className="animate-spin" /> Connecting to {officeMachine.name}…
-      </Button>
-    );
-  }
-  return (
-    <Button className="w-full">
-      {state === "failed" ? "Try again" : "Join and start chatting"}
-    </Button>
-  );
-}
+/** What happens when the browser tries to join. */
+export type JoinOutcome = "joined" | "machine-offline" | "invite-used";
 
-function FailureNote() {
-  return (
-    <div className="border-destructive/40 text-destructive flex gap-2 rounded-md border p-3 text-sm">
-      <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-      <span>
-        The office machine did not answer. It may be switched off or asleep — ask whoever invited
-        you to check it.
-      </span>
-    </div>
-  );
-}
+type Stage = "invite" | "joining" | JoinOutcome | "opening";
 
-/** Variant A: one card, one button; the privacy story is a single line. */
-export function JoinCard({ state = "ready" }: { state?: JoinState }) {
-  return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Join {officeMachine.owner}</CardTitle>
-        <CardDescription>
-          Your browser will connect directly to the team&apos;s AI on {officeMachine.name}.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3">
-        {state === "failed" && <FailureNote />}
-        <p className="text-muted-foreground flex items-center gap-2 text-xs">
-          <Lock className="size-3.5" /> End-to-end encrypted. Nothing to install.
-        </p>
-      </CardContent>
-      <CardFooter>
-        <JoinAction state={state} />
-      </CardFooter>
-    </Card>
-  );
+export interface JoinFlowProps {
+  variant?: JoinVariant;
+  outcome?: JoinOutcome;
+  /** Where the story starts; the flow then runs on its own. */
+  start?: "invite" | "joined";
+  /** How long joining takes, in ms. */
+  joinMs?: number;
 }
 
 const promises = [
   {
     icon: HardDrive,
-    title: "The AI runs in your office",
-    text: `${officeMachine.model} on ${officeMachine.name}. Questions never leave the company.`,
+    title: "The assistant runs on your group's Sandclaw machine",
+    text: "Your questions never go to an outside AI company.",
   },
   {
-    icon: Lock,
-    title: "Your files stay in this browser",
-    text: "Documents and chats are stored on this device, not on a server.",
+    icon: MonitorSmartphone,
+    title: "Your files stay on this device",
+    text: "Documents and chats are kept in this browser, not on a server.",
   },
   {
     icon: ShieldCheck,
-    title: "Only your company's machines can read the link",
-    text: "Traffic is end-to-end encrypted, even over public Wi-Fi.",
+    title: "Only your group's devices can read the connection",
+    text: "It is end-to-end encrypted, even on public Wi-Fi.",
   },
 ];
 
-/** Variant B: explain the three promises first, then join. */
-export function JoinExplainer({ state = "ready" }: { state?: JoinState }) {
-  const [step, setStep] = useState<"explain" | "join">("explain");
+function Frame({ children }: { children: React.ReactNode }) {
+  return <Card className="w-full max-w-md">{children}</Card>;
+}
+
+export function JoinFlow({
+  variant = "minimal",
+  outcome = "joined",
+  start = "invite",
+  joinMs = 1200,
+}: JoinFlowProps) {
+  const [stage, setStage] = useState<Stage>(start);
+  const join = () => {
+    setStage("joining");
+    setTimeout(() => setStage(outcome), joinMs);
+  };
+
+  if (stage === "joined" || stage === "opening") {
+    return (
+      <Frame>
+        <CardHeader>
+          <CardTitle>You&apos;re in {group.name}</CardTitle>
+          <CardDescription>
+            Choose the folder the assistant works with. It can read what is in it, and it asks
+            before changing anything.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          <Button disabled={stage === "opening"} onClick={() => setStage("opening")}>
+            {stage === "opening" ? <Loader2 className="animate-spin" /> : <FolderOpen />} Open a
+            folder on this computer
+          </Button>
+          <Button
+            variant="outline"
+            disabled={stage === "opening"}
+            onClick={() => setStage("opening")}
+          >
+            Start with an empty folder in this browser
+          </Button>
+        </CardContent>
+      </Frame>
+    );
+  }
+
+  if (stage === "invite-used") {
+    return (
+      <Frame>
+        <CardHeader>
+          <CardTitle>This invite link has already been used</CardTitle>
+          <CardDescription>
+            Each invite works once. Ask {group.admin} for a new link.
+          </CardDescription>
+        </CardHeader>
+      </Frame>
+    );
+  }
+
+  const offline = stage === "machine-offline";
+  const joining = stage === "joining";
+  const action = (
+    <Button className="w-full" disabled={joining} onClick={join}>
+      {joining ? (
+        <>
+          <Loader2 className="animate-spin" /> Joining {group.name}…
+        </>
+      ) : offline ? (
+        "Try again"
+      ) : (
+        `Join ${group.name}`
+      )}
+    </Button>
+  );
+  const offlineNote = offline && (
+    <p className="border-warning/60 rounded-md border p-3 text-sm">
+      The Sandclaw machine isn&apos;t answering. Ask {group.admin} to check it&apos;s switched on,
+      then try again.
+    </p>
+  );
+
+  if (variant === "minimal") {
+    return (
+      <Frame>
+        <CardHeader>
+          <CardTitle>
+            {group.admin} invited you to {group.name}
+          </CardTitle>
+          <CardDescription>
+            A private assistant for your documents. Nothing to install.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {offlineNote}
+          <p className="text-muted-foreground flex items-center gap-2 text-xs">
+            <Lock className="size-3.5" /> Your files and questions stay within {group.name}.
+          </p>
+        </CardContent>
+        <CardFooter>{action}</CardFooter>
+      </Frame>
+    );
+  }
+
   return (
-    <Card className="w-full max-w-md">
+    <Frame>
       <CardHeader>
-        <CardTitle>You&apos;re invited to {officeMachine.owner}&apos;s private AI</CardTitle>
+        <CardTitle>
+          {group.admin} invited you to {group.name}
+        </CardTitle>
+        <CardDescription>
+          A private assistant for your documents. Nothing to install.
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         {promises.map(({ icon: Icon, title, text }) => (
@@ -100,17 +170,9 @@ export function JoinExplainer({ state = "ready" }: { state?: JoinState }) {
             </div>
           </div>
         ))}
-        {state === "failed" && <FailureNote />}
+        {offlineNote}
       </CardContent>
-      <CardFooter>
-        {step === "explain" && state === "ready" ? (
-          <Button className="w-full" onClick={() => setStep("join")}>
-            Continue
-          </Button>
-        ) : (
-          <JoinAction state={state} />
-        )}
-      </CardFooter>
-    </Card>
+      <CardFooter>{action}</CardFooter>
+    </Frame>
   );
 }

@@ -3,9 +3,9 @@ import { cleanup, render } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { afterEach, expect, it } from "vitest";
 import * as assistant from "../src/assistant-panel/assistant-panel.stories.js";
+import * as status from "../src/group-status/group-status.stories.js";
 import * as invite from "../src/invite-colleague/invite-colleague.stories.js";
 import * as join from "../src/join-invite/join-invite.stories.js";
-import * as link from "../src/link-status/link-status.stories.js";
 import * as workspace from "../src/workspace-layout/workspace-layout.stories.js";
 
 afterEach(cleanup);
@@ -16,7 +16,7 @@ const stories: [string, ComponentType][] = [
   ...Object.entries(composeStories(assistant)),
   ...Object.entries(composeStories(invite)),
   ...Object.entries(composeStories(join)),
-  ...Object.entries(composeStories(link)),
+  ...Object.entries(composeStories(status)),
   ...Object.entries(composeStories(workspace)),
 ];
 

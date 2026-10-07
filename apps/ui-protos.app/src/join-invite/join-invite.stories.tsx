@@ -1,35 +1,36 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { JoinCard, JoinExplainer } from "./join-invite.js";
+import { JoinFlow } from "./join-invite.js";
 
 const meta = {
   title: "Prototypes/Join from invite",
+  component: JoinFlow,
   parameters: { layout: "centered" },
-} satisfies Meta;
+} satisfies Meta<typeof JoinFlow>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Card: Story = {
-  name: "A — Single card",
-  render: () => <JoinCard />,
+export const Minimal: Story = {
+  name: "A — Minimal",
+  args: { variant: "minimal" },
 };
 
-export const CardConnecting: Story = {
-  name: "A — Connecting",
-  render: () => <JoinCard state="connecting" />,
+export const Promises: Story = {
+  name: "B — Three promises",
+  args: { variant: "promises" },
 };
 
-export const CardFailed: Story = {
-  name: "A — Machine offline",
-  render: () => <JoinCard state="failed" />,
+export const ChooseFolder: Story = {
+  name: "After joining: choose a folder",
+  args: { start: "joined" },
 };
 
-export const Explainer: Story = {
-  name: "B — Explain, then join",
-  render: () => <JoinExplainer />,
+export const MachineOffline: Story = {
+  name: "Sandclaw machine offline (press Join)",
+  args: { outcome: "machine-offline" },
 };
 
-export const ExplainerFailed: Story = {
-  name: "B — Machine offline",
-  render: () => <JoinExplainer state="failed" />,
+export const InviteUsed: Story = {
+  name: "Invite already used (press Join)",
+  args: { outcome: "invite-used" },
 };

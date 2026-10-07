@@ -1,39 +1,45 @@
-import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import { Meta, Story } from "@storybook/addon-docs/blocks";
 import * as Stories from "./join-invite.stories.tsx";
 
 <Meta of={Stories} />
 
 # Join from an invite
 
-The first screen a colleague sees after opening an invite link. It has two jobs: get them
-connected in one click, and make them trust that "connected" does not mean "uploaded".
+What someone sees after opening an invite link. An invite gives full access: no password, no
+key, nothing to install. One click joins the group; the next step is choosing the folder the
+assistant works with.
 
-## A — Single card
+## A — Minimal
 
-The shortest path. Privacy is one line under the button.
+One card, one button; privacy in one line.
 
-<Canvas of={Stories.Card} />
+<Story of={Stories.Minimal} inline={false} height="360px" />
 
-While the browser dials the office machine the button becomes the progress indicator:
+## B — Three promises
 
-<Canvas of={Stories.CardConnecting} />
+Where the assistant runs, where the files stay, who can read the connection. It costs reading
+time, and it is the part that sets Sandclaw apart from a cloud chatbot.
 
-## B — Explain, then join
+<Story of={Stories.Promises} inline={false} height="480px" />
 
-Three promises before the button: the AI is in the office, files stay in the browser, the
-link is encrypted. One extra click buys the explanation that sets Sandclaw apart from a
-cloud chatbot.
+## After joining: choose a folder
 
-<Canvas of={Stories.Explainer} />
+The folder is the assistant's working context. "Start with an empty folder in this browser"
+lets someone try it without giving access to their disk.
 
-## When the office machine is offline
+<Story of={Stories.ChooseFolder} inline={false} height="360px" />
 
-The likeliest failure is mundane: the Mac Mini is asleep. The message names that cause and
-who can fix it, instead of a network error the colleague cannot act on.
+## When it fails
 
-<Canvas of={Stories.CardFailed} />
+Both failures name the person who can fix them, never a network error.
+
+<Story of={Stories.MachineOffline} inline={false} height="380px" />
+
+<Story of={Stories.InviteUsed} inline={false} height="260px" />
 
 ## Open questions
 
-- Is B's explanation worth showing on every join, or only the first one per browser?
-- Should the failure state poll and join automatically once the machine wakes?
+- A or B? Or B the first time, A on every later device of the same person?
+- Should "machine offline" retry by itself and join as soon as the machine answers?
+- Is "Start with an empty folder in this browser" worth offering, given browsers can evict
+  that storage?

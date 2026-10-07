@@ -17,12 +17,6 @@ export interface PendingInvite {
   expires: string;
 }
 
-export const officeMachine = {
-  name: "Mac Mini — Lyon office",
-  model: "Mistral Small 3.2 (24B)",
-  owner: "Atelier Morel SARL",
-};
-
 export const colleagues: Colleague[] = [
   { name: "Claire Morel", email: "claire@atelier-morel.fr", role: "admin", lastSeen: "now" },
   { name: "Hugo Benali", email: "hugo@atelier-morel.fr", role: "member", lastSeen: "12 min ago" },
