@@ -13,7 +13,7 @@ A Storybook of Sandclaw UI prototypes: alternative designs of the same screen, s
 src/
   index.css          Tailwind entry, theme tokens, shadcn base rules
   welcome.mdx        landing page: what the site is and how to add a prototype
-  mock.ts            invented company, office machine, team and invites
+  mock.ts            invented group, its folder, team and invites
   <topic>/
     <topic>.tsx          one exported component per variant
     <topic>.stories.tsx  one story per variant or state, titled "Prototypes/<Topic>"
