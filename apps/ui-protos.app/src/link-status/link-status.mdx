@@ -1,0 +1,38 @@
+import { Canvas, Controls, Meta } from "@storybook/addon-docs/blocks";
+import * as Stories from "./link-status.stories.tsx";
+
+<Meta of={Stories} />
+
+# Office link status
+
+Every question travels from the browser to the office machine over an encrypted
+peer-to-peer link. When the link is healthy nobody should have to think about it; when it is
+not, the user must understand that their data is fine and the machine is the problem.
+
+Use the `state` control to switch any variant between connected, connecting and offline.
+
+## A — Dot
+
+Quiet. The machine name and a coloured dot; the tooltip carries the rest.
+
+<Canvas of={Stories.Dot} />
+<Controls of={Stories.Dot} />
+
+## B — Pill
+
+Shows the encryption promise while healthy and becomes a retry button when not.
+
+<Canvas of={Stories.PillOffline} />
+
+## C — Banner
+
+Invisible while connected. When the link drops, a banner says what still works (local
+chats) and what waits (new questions).
+
+<Canvas of={Stories.Banner} />
+
+## Open questions
+
+- Is "offline" one state, or do "asleep" and "unreachable from this network" deserve
+  different words?
+- Does the encryption promise belong in the status at all, or only on the join screen?

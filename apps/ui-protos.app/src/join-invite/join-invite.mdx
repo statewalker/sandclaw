@@ -1,0 +1,39 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import * as Stories from "./join-invite.stories.tsx";
+
+<Meta of={Stories} />
+
+# Join from an invite
+
+The first screen a colleague sees after opening an invite link. It has two jobs: get them
+connected in one click, and make them trust that "connected" does not mean "uploaded".
+
+## A — Single card
+
+The shortest path. Privacy is one line under the button.
+
+<Canvas of={Stories.Card} />
+
+While the browser dials the office machine the button becomes the progress indicator:
+
+<Canvas of={Stories.CardConnecting} />
+
+## B — Explain, then join
+
+Three promises before the button: the AI is in the office, files stay in the browser, the
+link is encrypted. One extra click buys the explanation that sets Sandclaw apart from a
+cloud chatbot.
+
+<Canvas of={Stories.Explainer} />
+
+## When the office machine is offline
+
+The likeliest failure is mundane: the Mac Mini is asleep. The message names that cause and
+who can fix it, instead of a network error the colleague cannot act on.
+
+<Canvas of={Stories.CardFailed} />
+
+## Open questions
+
+- Is B's explanation worth showing on every join, or only the first one per browser?
+- Should the failure state poll and join automatically once the machine wakes?
