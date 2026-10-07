@@ -1,30 +1,50 @@
 import { composeStories } from "@storybook/react-vite";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import * as stories from "../src/workspace-layout/workspace-layout.stories.js";
 
-const { Assistant, Reading, PluginMissing } = composeStories(stories);
+const { LockToggle, Reading } = composeStories(stories);
 
 afterEach(cleanup);
 
-it("the Assistant preset fills all four zones", () => {
-  render(<Assistant />);
+const assistant = () => screen.queryByPlaceholderText("Ask about your folder…");
+const todo = () => screen.queryByText("Call Hugo about the Dupont offer");
+const plugin = (name: string) => screen.getByRole("button", { name });
+
+it("the Assistant preset places every panel in its target zone", () => {
+  render(<LockToggle />);
   expect(screen.getByText("Clients")).toBeTruthy();
-  expect(screen.getByText("Call Hugo about the Dupont offer")).toBeTruthy();
+  expect(todo()).toBeTruthy();
   expect(screen.getByText("Offer — Dupont & Fils")).toBeTruthy();
-  expect(screen.getByPlaceholderText("Ask about your folder…")).toBeTruthy();
+  expect(assistant()).toBeTruthy();
   expect(screen.getByText(/Clients deck · 2 of 4/)).toBeTruthy();
 });
 
-it("the Reading preset leaves the assistant and tasks out", () => {
+it("a preset without a right zone leaves the assistant out", () => {
   render(<Reading />);
   expect(screen.getByText("Offer — Dupont & Fils")).toBeTruthy();
-  expect(screen.queryByPlaceholderText("Ask about your folder…")).toBeNull();
-  expect(screen.queryByText(/Clients deck · 2 of 4/)).toBeNull();
+  expect(assistant()).toBeNull();
 });
 
-it("a panel whose plugin is not installed is left out and reported", () => {
-  render(<PluginMissing />);
-  expect(screen.getByText("Not installed, left out of this layout: todos")).toBeTruthy();
-  expect(screen.queryByText("Call Hugo about the Dupont offer")).toBeNull();
+it("uninstalling a plugin repairs the layout and keeps the rest", () => {
+  render(<LockToggle />);
+  fireEvent.click(plugin("Todos"));
+  expect(screen.getByText(/Removed from your layout: todos/)).toBeTruthy();
+  expect(todo()).toBeNull();
+  expect(screen.getByText("Clients")).toBeTruthy();
+  expect(assistant()).toBeTruthy();
+});
+
+it("a reinstalled plugin returns to its preferred zone", () => {
+  render(<LockToggle />);
+  fireEvent.click(plugin("Todos"));
+  fireEvent.click(plugin("Todos"));
+  expect(todo()).toBeTruthy();
+});
+
+it("a plugin with no target zone waits to be opened", () => {
+  render(<LockToggle />);
+  fireEvent.click(plugin("Outline"));
+  expect(screen.getByText(/Outline installed — it has no default place/)).toBeTruthy();
+  expect(screen.queryByText("Phase 1 — structure", { selector: "li" })).toBeNull();
 });

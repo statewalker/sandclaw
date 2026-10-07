@@ -25,3 +25,13 @@
   --dv-active-sash-color: var(--ring);
   font-family: inherit;
 }
+
+/* `hover` side zones: the tab strip folds away and comes back under the pointer. */
+.dockview-theme-sandclaw .sc-zone-hover .dv-tabs-and-actions-container {
+  height: 0;
+  overflow: hidden;
+  transition: height 120ms ease-out;
+}
+.dockview-theme-sandclaw .sc-zone-hover:hover .dv-tabs-and-actions-container {
+  height: var(--dv-tabs-and-actions-container-height);
+}

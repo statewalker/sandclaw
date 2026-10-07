@@ -25,7 +25,7 @@ test/
 vite.config.ts       Tailwind + React; Storybook reuses it
 ```
 
-Current prototypes: **Workspace layout** (one dockview with zones and presets: Assistant and Reading, locked or unlocked, reset), **Invite colleague** (link dialog vs. team panel), **Join from invite** (single card vs. explain-then-join, with connecting and offline states), **Office link status** (dot vs. pill vs. banner).
+Current prototypes: **Workspace layout** (one dockview with zones and presets; panels name their target zones; two lock options; layout repair when a plugin is uninstalled), **Invite colleague** (link dialog vs. team panel), **Join from invite** (single card vs. explain-then-join, with connecting and offline states), **Office link status** (dot vs. pill vs. banner).
 
 ## How to run it
 
@@ -40,7 +40,7 @@ To add a prototype, create the three files of a `src/<topic>/` folder as describ
 - **Storybook, not a hand-built site.** A prototype is mostly variants and states of one screen. Storybook gives each one an isolated URL, controls for switching state (`args`), and a light/dark switch, and its MDX pages hold the discussion with `<Canvas of={…}>` embeds — so prose sits next to the variants without writing a variant-display layout or one React root per interactive island.
 - **Primitives come from `@statewalker/ui.view.shadcn`, not a local shadcn copy.** The prototypes then stay in step with the components the app actually ships. A primitive that package does not export yet (badges, popovers) is drawn with plain Tailwind classes in the prototype.
 - **Prototype components live next to their stories, outside any package.** They are throwaway: when a direction wins it is rebuilt in the real packages, against real models, and the prototype folder is deleted or kept as the record of the alternatives.
-- **The workspace prototype runs the real `dockview-react`.** Its question is technical as much as visual: whether one dock can look fixed until the user unlocks it. Plugins contribute panels to zones (`left`, `center`, `right`, `bottom`); a preset maps zones to panels and sizes; `applyPreset` in `src/workspace-layout/zones.ts` is the only code that touches dock positions.
+- **The workspace prototype runs the real `dockview-react`.** Its question is technical as much as visual: whether one dock can look fixed until the user unlocks it. Each panel names its target zones (`left`, `center`, `right`, `bottom`) in order of preference; a preset says which zones exist and their sizes. `src/workspace-layout/zones.ts` is the only code that touches dock positions.
 - **The output directory is `dist/`**, like every other package of this workspace, so turbo caches it and `.gitignore` already covers it.
 
 ## What will surprise you
@@ -49,7 +49,8 @@ To add a prototype, create the three files of a `src/<topic>/` folder as describ
 - **Borders look black.** The `* { @apply border-border }` base rule in `src/index.css` is missing; without it Tailwind 4 draws borders in `currentColor`.
 - **The build warns `Some chunks are larger than 500 kB`.** That is Storybook's own manager and docs bundle. The site still works; the warning is expected.
 - **"Layout locked" still lets zones be resized.** It is dockview's `disableDnd` plus hidden side-zone tab strips. Dockview's own `locked` option freezes the resize handles as well, so it is deliberately not used.
-- **A preset's zone sizes are ignored.** They must be set after every zone exists (`applyPreset` does it last): dockview rebalances sizes each time a zone is added, and a group's default minimum height is 100px, so the bottom strip also needs its constraint lowered.
+- **A preset's zone sizes are ignored.** They must be set after every zone exists (`applyPreset` does it last): dockview rebalances sizes each time a zone is added, and a group's default minimum height is 100px, so the bottom strip also needs its constraint lowered. Dockview does not save constraints in a layout snapshot, so `syncZones` sets it again after every change.
+- **The page freezes after a layout change.** `syncZones` runs on every layout change, and setting a header's visibility or a constraint fires another one. It must only touch what differs. jsdom does not fire these events, so the tests cannot catch this; check the built site in a browser.
 - **`ResizeObserver is not defined` in a test.** jsdom lacks it; `test/setup.ts` stubs it for dockview.
 - **A new prototype is not tested.** `test/stories.test.tsx` imports each stories module by name; a prototype is not covered until it is added there.
 

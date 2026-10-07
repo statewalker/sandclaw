@@ -8,161 +8,225 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@statewalker/ui.view.shadcn";
-import {
-  type DockviewApi,
-  DockviewReact,
-  type DockviewReadyEvent,
-  type SerializedDockview,
-} from "dockview-react";
-import { Lock, LockOpen, RotateCcw } from "lucide-react";
+import { type DockviewApi, DockviewReact, type DockviewReadyEvent } from "dockview-react";
+import { Lock, LockOpen } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { group } from "../mock.js";
 import {
   AssistantPanel,
   DocumentPanel,
   FolderPanel,
+  MissingPanel,
+  OutlinePanel,
   SpreadsheetPanel,
   TasksPanel,
   TodosPanel,
 } from "./panels.js";
 import {
   applyPreset,
-  canRestore,
+  openPanel,
   type PanelContribution,
   type Preset,
-  setZoneHeaders,
+  placePanel,
+  restoreLayout,
+  syncZones,
+  type ZoneHeaders,
 } from "./zones.js";
+
+const MISSING = "missing";
 
 const components = {
   folder: FolderPanel,
   todos: TodosPanel,
+  outline: OutlinePanel,
   document: DocumentPanel,
   spreadsheet: SpreadsheetPanel,
   assistant: AssistantPanel,
   tasks: TasksPanel,
+  [MISSING]: MissingPanel,
 };
 
-/** What a typical install contributes: one panel per plugin, each with its default zone. */
-export const installedPanels: PanelContribution[] = [
-  { id: "folder", title: "Folder", component: "folder", zone: "left" },
-  { id: "todos", title: "Todos", component: "todos", zone: "left" },
-  { id: "offer", title: "Dupont — offer.docx", component: "document", zone: "center" },
-  { id: "q3", title: "2026-Q3.xlsx", component: "spreadsheet", zone: "center" },
-  { id: "assistant", title: "Assistant", component: "assistant", zone: "right" },
-  { id: "tasks", title: "Tasks", component: "tasks", zone: "bottom" },
+/** One panel per plugin; each names the zones it prefers, in order. */
+export const allPanels: PanelContribution[] = [
+  { id: "folder", title: "Folder", component: "folder", targets: ["left"] },
+  { id: "todos", title: "Todos", component: "todos", targets: ["left"] },
+  { id: "offer", title: "Dupont — offer.docx", component: "document", targets: ["center"] },
+  { id: "q3", title: "2026-Q3.xlsx", component: "spreadsheet", targets: ["center"] },
+  { id: "assistant", title: "Assistant", component: "assistant", targets: ["right"] },
+  { id: "tasks", title: "Tasks", component: "tasks", targets: ["bottom"] },
+  { id: "outline", title: "Outline", component: "outline", targets: [] },
 ];
 
 export const presets: Preset[] = [
   {
     id: "assistant",
     label: "Assistant",
-    zones: {
-      left: ["folder", "todos"],
-      center: ["offer", "q3"],
-      right: ["assistant"],
-      bottom: ["tasks"],
-    },
-    sizes: { left: 260, right: 360, bottom: 48 },
+    zones: { left: { size: 260 }, right: { size: 360 }, bottom: { size: 48 } },
   },
-  {
-    id: "reading",
-    label: "Reading",
-    zones: { left: ["folder"], center: ["offer", "q3"] },
-    sizes: { left: 220 },
-  },
+  { id: "reading", label: "Reading", zones: { left: { size: 220 } } },
 ];
 
+/**
+ * How the layout resists change:
+ * - `lock-toggle`: locked by default (no drag and drop, side tab strips
+ *   hidden); a button unlocks it.
+ * - `always-on`: drag and drop always works; side tab strips stay hidden until
+ *   the pointer is over the zone.
+ */
+export type LockMode = "lock-toggle" | "always-on";
+
 export interface WorkspaceProps {
-  installed?: PanelContribution[];
+  lockMode?: LockMode;
   initialPreset?: string;
-  initiallyLocked?: boolean;
+  /** Plugins installed at start (ids from `allPanels`). */
+  initialPlugins?: string[];
 }
 
 export function Workspace({
-  installed = installedPanels,
+  lockMode = "lock-toggle",
   initialPreset = "assistant",
-  initiallyLocked = true,
+  initialPlugins = allPanels.filter((p) => p.id !== "outline").map((p) => p.id),
 }: WorkspaceProps) {
   const api = useRef<DockviewApi | null>(null);
-  // The user's own arrangement of each preset, kept while switching presets.
-  const saved = useRef(new Map<string, SerializedDockview>());
-  const [presetId, setPresetId] = useState(initialPreset);
-  const [locked, setLocked] = useState(initiallyLocked);
-  const [missing, setMissing] = useState<string[]>([]);
-  const lockedRef = useRef(locked);
-  lockedRef.current = locked;
+  const [plugins, setPlugins] = useState(initialPlugins);
+  const [locked, setLocked] = useState(lockMode === "lock-toggle");
+  const [openIds, setOpenIds] = useState<string[]>([]);
+  const [notice, setNotice] = useState("");
+  const installed = allPanels.filter((p) => plugins.includes(p.id));
+  const headers: ZoneHeaders = lockMode === "always-on" ? "hover" : locked ? "hidden" : "visible";
+  const headersRef = useRef(headers);
+  headersRef.current = headers;
 
-  const load = (id: string) => {
+  const refresh = () => {
     const dock = api.current;
-    const preset = presets.find((p) => p.id === id);
-    if (!dock || !preset) return;
-    const layout = saved.current.get(id);
-    if (layout && canRestore(layout, installed)) {
-      dock.fromJSON(layout);
-      setMissing([]);
-    } else {
-      saved.current.delete(id);
-      setMissing(applyPreset(dock, preset, installed));
-    }
-    setZoneHeaders(dock, lockedRef.current);
+    if (!dock) return;
+    syncZones(dock, headersRef.current);
+    setOpenIds(dock.panels.map((p) => p.id));
+  };
+
+  const presetId = useRef(initialPreset);
+
+  const restorePreset = (id: string) => {
+    const preset = presets.find((t) => t.id === id);
+    if (!api.current || !preset) return;
+    presetId.current = id;
+    applyPreset(api.current, preset, installed);
+    setNotice("");
+    refresh();
   };
 
   const onReady = (event: DockviewReadyEvent) => {
     api.current = event.api;
-    load(presetId);
+    event.api.onDidLayoutChange(refresh);
+    event.api.onDidMovePanel(refresh);
+    restorePreset(initialPreset);
   };
 
-  const switchPreset = (id: string) => {
-    if (api.current) saved.current.set(presetId, api.current.toJSON());
-    setPresetId(id);
-    load(id);
+  // Prototype control: installing or removing a plugin while the app runs.
+  // Removing one goes through the same repair as loading a saved layout.
+  const togglePlugin = (panel: PanelContribution) => {
+    const dock = api.current;
+    if (!dock) return;
+    if (plugins.includes(panel.id)) {
+      const next = plugins.filter((id) => id !== panel.id);
+      setPlugins(next);
+      const removed = restoreLayout(
+        dock,
+        dock.toJSON(),
+        allPanels.filter((p) => next.includes(p.id)),
+        MISSING,
+      );
+      // A restore loads the strip at dockview's default minimum; give it its preset height back.
+      syncZones(dock, headersRef.current);
+      const strip = presets.find((t) => t.id === presetId.current)?.zones.bottom?.size;
+      const bottom = dock.groups.find(
+        (g) => (g.panels[0]?.params as { zone?: string } | undefined)?.zone === "bottom",
+      );
+      if (strip && bottom) bottom.api.setSize({ height: strip });
+      setNotice(
+        removed.length
+          ? `Removed from your layout: ${removed.join(", ")} (plugin uninstalled)`
+          : "",
+      );
+    } else {
+      setPlugins([...plugins, panel.id]);
+      setNotice(
+        placePanel(dock, panel)
+          ? ""
+          : `${panel.title} installed — it has no default place; open it from “Open panel”.`,
+      );
+    }
+    refresh();
   };
 
-  const reset = () => {
-    saved.current.delete(presetId);
-    load(presetId);
-  };
+  useEffect(refresh, [headers]);
 
-  useEffect(() => {
-    if (api.current) setZoneHeaders(api.current, locked);
-  }, [locked]);
+  const closed = installed.filter((p) => !openIds.includes(p.id));
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b px-4">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
         <span className="bg-secondary flex items-center gap-2 rounded-full px-3 py-1 text-xs">
           <span className="bg-primary size-2 rounded-full" /> {group.name} · connected
         </span>
         <div className="flex-1" />
-        <Select value={presetId} onValueChange={switchPreset}>
-          <SelectTrigger className="h-8 w-36" aria-label="Layout">
-            <SelectValue />
+        <Select
+          value=""
+          onValueChange={(id) => {
+            const panel = installed.find((p) => p.id === id);
+            if (api.current && panel) openPanel(api.current, panel);
+          }}
+          disabled={closed.length === 0}
+        >
+          <SelectTrigger className="h-8 w-36" aria-label="Open panel">
+            <SelectValue placeholder="Open panel" />
           </SelectTrigger>
           <SelectContent>
-            {presets.map((p) => (
+            {closed.map((p) => (
               <SelectItem key={p.id} value={p.id}>
-                {p.label}
+                {p.title}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Button variant="ghost" size="sm" onClick={() => setLocked(!locked)}>
-          {locked ? <Lock /> : <LockOpen />} {locked ? "Layout locked" : "Layout unlocked"}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={reset}>
-          <RotateCcw /> Reset
-        </Button>
+        <Select value="" onValueChange={restorePreset}>
+          <SelectTrigger className="h-8 w-44" aria-label="Restore preset">
+            <SelectValue placeholder="Restore preset" />
+          </SelectTrigger>
+          <SelectContent>
+            {presets.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {lockMode === "lock-toggle" && (
+          <Button variant="ghost" size="sm" onClick={() => setLocked(!locked)}>
+            {locked ? <Lock /> : <LockOpen />} {locked ? "Layout locked" : "Layout unlocked"}
+          </Button>
+        )}
       </header>
-      {missing.length > 0 && (
-        <div className="text-muted-foreground border-b px-4 py-2 text-xs">
-          Not installed, left out of this layout: {missing.join(", ")}
-        </div>
-      )}
+      <div className="text-muted-foreground flex flex-wrap items-center gap-2 border-b border-dashed px-4 py-1.5 text-xs">
+        <span>Prototype only — installed plugins:</span>
+        {allPanels.map((p) => (
+          <Button
+            key={p.id}
+            size="xs"
+            variant={plugins.includes(p.id) ? "secondary" : "ghost"}
+            aria-pressed={plugins.includes(p.id)}
+            onClick={() => togglePlugin(p)}
+          >
+            {p.title}
+          </Button>
+        ))}
+        {notice && <span className="text-foreground ml-2">{notice}</span>}
+      </div>
       <DockviewReact
         className="dockview-theme-light dockview-theme-sandclaw min-h-0 flex-1"
         components={components}
         onReady={onReady}
-        disableDnd={locked}
+        disableDnd={lockMode === "lock-toggle" && locked}
         disableFloatingGroups
       />
     </div>

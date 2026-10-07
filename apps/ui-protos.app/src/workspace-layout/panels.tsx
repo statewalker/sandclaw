@@ -191,3 +191,22 @@ export function TasksPanel() {
     </div>
   );
 }
+
+/** Contributed with no target zone: it appears only when the user opens it. */
+export function OutlinePanel() {
+  return (
+    <ScrollArea className="h-full">
+      <ZoneTitle>Outline</ZoneTitle>
+      <ul className="grid gap-1 px-3 pb-3 text-sm">
+        <li>Offer — Dupont & Fils</li>
+        <li className="text-muted-foreground pl-3">Phase 1 — structure</li>
+        <li className="text-muted-foreground pl-3">Phase 2 — finishes</li>
+      </ul>
+    </ScrollArea>
+  );
+}
+
+/** Stands in for a panel whose plugin is gone, for the instant before it is removed. */
+export function MissingPanel() {
+  return null;
+}

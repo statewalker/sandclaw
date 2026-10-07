@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { installedPanels, Workspace } from "./workspace.js";
+import { Workspace } from "./workspace.js";
 
 const meta = {
   title: "Prototypes/Workspace layout",
@@ -9,21 +9,16 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Assistant: Story = {
-  name: "Assistant preset (locked)",
+export const LockToggle: Story = {
+  name: "A — Lock toggle (locked by default)",
 };
 
-export const Unlocked: Story = {
-  name: "Assistant preset (unlocked)",
-  args: { initiallyLocked: false },
+export const AlwaysOn: Story = {
+  name: "B — Always movable, tab strips on hover",
+  args: { lockMode: "always-on" },
 };
 
 export const Reading: Story = {
   name: "Reading preset",
   args: { initialPreset: "reading" },
-};
-
-export const PluginMissing: Story = {
-  name: "Todos plugin not installed",
-  args: { installed: installedPanels.filter((p) => p.id !== "todos") },
 };
