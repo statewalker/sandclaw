@@ -23,13 +23,15 @@ import {
   TasksPanel,
 } from "./panels.js";
 import {
-  applyPreset,
+  applyLayout,
+  type Layout,
+  loadSavedLayout,
   openPanel,
   type PanelContribution,
-  type Preset,
   placePanel,
-  restoreLayout,
   syncZones,
+  vetoDragsFromFixedDocks,
+  type Zone,
   type ZoneHeaders,
 } from "./zones.js";
 
@@ -57,7 +59,7 @@ export const allPanels: PanelContribution[] = [
   { id: "outline", title: "Outline", component: "outline", targets: [] },
 ];
 
-export const presets: Preset[] = [
+export const layouts: Layout[] = [
   {
     id: "assistant",
     label: "Assistant",
@@ -72,19 +74,29 @@ export const presets: Preset[] = [
  *   hidden); a button unlocks it.
  * - `always-on`: drag and drop always works; side tab strips stay hidden until
  *   the pointer is over the zone.
+ * - `per-zone`: the center is always a free, tabbed dock; each side bar is
+ *   fixed by default (nothing dropped in, nothing dragged out, no tab strip)
+ *   and is unlocked on its own.
  */
-export type LockMode = "lock-toggle" | "always-on";
+export type LockMode = "lock-toggle" | "always-on" | "per-zone";
+
+type SideZone = Exclude<Zone, "center">;
+const SIDE_ZONES: { zone: SideZone; label: string }[] = [
+  { zone: "left", label: "Left bar" },
+  { zone: "right", label: "Right bar" },
+  { zone: "bottom", label: "Bottom bar" },
+];
 
 export interface WorkspaceProps {
   lockMode?: LockMode;
-  initialPreset?: string;
+  initialLayout?: string;
   /** Plugins installed at start (ids from `allPanels`). */
   initialPlugins?: string[];
 }
 
 export function Workspace({
   lockMode = "lock-toggle",
-  initialPreset = "assistant",
+  initialLayout = "assistant",
   initialPlugins = allPanels.filter((p) => p.id !== "outline").map((p) => p.id),
 }: WorkspaceProps) {
   const api = useRef<DockviewApi | null>(null);
@@ -93,9 +105,19 @@ export function Workspace({
   const [openIds, setOpenIds] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   const installed = allPanels.filter((p) => plugins.includes(p.id));
-  const headers: ZoneHeaders = lockMode === "always-on" ? "hover" : locked ? "hidden" : "visible";
-  const headersRef = useRef(headers);
-  headersRef.current = headers;
+  const [fixedZones, setFixedZones] = useState<Record<SideZone, boolean>>({
+    left: true,
+    right: true,
+    bottom: true,
+  });
+  const headersFor = (zone: Zone): ZoneHeaders => {
+    if (lockMode === "always-on") return "hover";
+    if (lockMode === "per-zone")
+      return zone !== "center" && fixedZones[zone] ? "hidden" : "visible";
+    return locked ? "hidden" : "visible";
+  };
+  const headersRef = useRef(headersFor);
+  headersRef.current = headersFor;
 
   const refresh = () => {
     const dock = api.current;
@@ -104,13 +126,13 @@ export function Workspace({
     setOpenIds(dock.panels.map((p) => p.id));
   };
 
-  const presetId = useRef(initialPreset);
+  const layoutId = useRef(initialLayout);
 
-  const restorePreset = (id: string) => {
-    const preset = presets.find((t) => t.id === id);
-    if (!api.current || !preset) return;
-    presetId.current = id;
-    applyPreset(api.current, preset, installed);
+  const restoreLayout = (id: string) => {
+    const layout = layouts.find((t) => t.id === id);
+    if (!api.current || !layout) return;
+    layoutId.current = id;
+    applyLayout(api.current, layout, installed);
     setNotice("");
     refresh();
   };
@@ -119,7 +141,8 @@ export function Workspace({
     api.current = event.api;
     event.api.onDidLayoutChange(refresh);
     event.api.onDidMovePanel(refresh);
-    restorePreset(initialPreset);
+    vetoDragsFromFixedDocks(event.api);
+    restoreLayout(initialLayout);
   };
 
   // Prototype control: installing or removing a plugin while the app runs.
@@ -130,15 +153,15 @@ export function Workspace({
     if (plugins.includes(panel.id)) {
       const next = plugins.filter((id) => id !== panel.id);
       setPlugins(next);
-      const removed = restoreLayout(
+      const removed = loadSavedLayout(
         dock,
         dock.toJSON(),
         allPanels.filter((p) => next.includes(p.id)),
         MISSING,
       );
-      // A restore loads the strip at dockview's default minimum; give it its preset height back.
+      // A restore loads the strip at dockview's default minimum; give it its layout height back.
       syncZones(dock, headersRef.current);
-      const strip = presets.find((t) => t.id === presetId.current)?.zones.bottom?.size;
+      const strip = layouts.find((t) => t.id === layoutId.current)?.zones.bottom?.size;
       const bottom = dock.groups.find(
         (g) => (g.panels[0]?.params as { zone?: string } | undefined)?.zone === "bottom",
       );
@@ -159,7 +182,7 @@ export function Workspace({
     refresh();
   };
 
-  useEffect(refresh, [headers]);
+  useEffect(refresh, [locked, fixedZones]);
 
   const closed = installed.filter((p) => !openIds.includes(p.id));
 
@@ -187,18 +210,33 @@ export function Workspace({
             ))}
           </SelectContent>
         </Select>
-        <Select value="" onValueChange={restorePreset}>
-          <SelectTrigger className="h-8 w-44" aria-label="Restore preset">
-            <SelectValue placeholder="Restore preset" />
+        <Select value="" onValueChange={restoreLayout}>
+          <SelectTrigger className="h-8 w-44" aria-label="Restore layout">
+            <SelectValue placeholder="Restore layout" />
           </SelectTrigger>
           <SelectContent>
-            {presets.map((t) => (
+            {layouts.map((t) => (
               <SelectItem key={t.id} value={t.id}>
                 {t.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {lockMode === "per-zone" &&
+          SIDE_ZONES.map(({ zone, label }) => (
+            <Button
+              key={zone}
+              variant="ghost"
+              size="sm"
+              aria-pressed={fixedZones[zone]}
+              title={
+                fixedZones[zone] ? `${label} is fixed — click to unlock` : `${label} can be moved`
+              }
+              onClick={() => setFixedZones({ ...fixedZones, [zone]: !fixedZones[zone] })}
+            >
+              {fixedZones[zone] ? <Lock /> : <LockOpen />} {label}
+            </Button>
+          ))}
         {lockMode === "lock-toggle" && (
           <Button variant="ghost" size="sm" onClick={() => setLocked(!locked)}>
             {locked ? <Lock /> : <LockOpen />} {locked ? "Layout locked" : "Layout unlocked"}

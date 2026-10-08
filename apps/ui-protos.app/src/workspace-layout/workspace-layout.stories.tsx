@@ -9,6 +9,11 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+export const PerZone: Story = {
+  name: "C — Fixed bars, each unlockable",
+  args: { lockMode: "per-zone" },
+};
+
 export const LockToggle: Story = {
   name: "A — Lock toggle (locked by default)",
 };
@@ -19,6 +24,6 @@ export const AlwaysOn: Story = {
 };
 
 export const Reading: Story = {
-  name: "Reading preset",
-  args: { initialPreset: "reading" },
+  name: "Reading layout",
+  args: { initialLayout: "reading" },
 };

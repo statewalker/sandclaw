@@ -19,14 +19,33 @@ while the app runs.
   `bottom`. The panel goes to the first zone the layout has. A plugin with **no target zones**
   is never placed automatically; the user opens it from **Open panel**, and it lands in the last
   active dock group.
-- **A preset** says which zones exist and how big they are. **Restore preset** lays the
-  workspace out again from one. A preset saved by the user would add a dockview snapshot;
-  nothing here depends on presets being built in.
+- **A layout** says which zones exist and how big they are. Layouts are **predefined**
+  (Assistant, Reading) or, later, **saved** by the user (a dockview snapshot). **Restore
+  layout** lays the workspace out again from one.
 - **Repair, not reset.** When a plugin is uninstalled, its panels are removed from the saved
   layout and everything else stays where the user put it. Reinstalling places the panel in its
   preferred zone again.
 - **A dragged panel takes the zone of the group it lands in**, so later placements follow
   where the user put things.
+
+## C — Fixed bars, each unlockable
+
+The center is always a free, tabbed dock: documents open there, and their tabs can be
+reordered or split. Each side bar (left, right, bottom) is **fixed** by default:
+- nothing can be dropped into it;
+- nothing can be dragged out of it, neither one of its tabs nor the whole bar;
+- a bar holding a single panel shows no tab strip.
+
+**Left bar**, **Right bar** and **Bottom bar** in the top bar unlock one bar at a time. An
+unlocked bar shows its tab strip: its tabs can be moved anywhere, and the whole bar can be
+dragged to another position by its strip. A fixed bar that holds several tabs keeps its
+strip so the tabs can still be switched, but they cannot be dragged out.
+
+How it works: dockview's own group lock only refuses drops (`locked: "no-drop-target"`);
+the workspace adds the other half by cancelling any drag that starts in a fixed bar
+(`onWillDragPanel` / `onWillDragGroup`).
+
+<Story of={Stories.PerZone} inline={false} height="600px" />
 
 ## A — Lock toggle
 
@@ -43,16 +62,16 @@ pointer is over the zone, which gives the user something to grab.
 
 <Story of={Stories.AlwaysOn} inline={false} height="600px" />
 
-## Reading preset
+## Reading layout
 
-The folder and the documents. The assistant's only target is `right`, which this preset does
+The folder and the documents. The assistant's only target is `right`, which this layout does
 not have, so it is left out.
 
 <Story of={Stories.Reading} inline={false} height="480px" />
 
 ## Open questions
 
-- A or B?
+- A, B or C?
 - Should a side zone with several stacked panels show a tab strip per panel (as now) when
   unlocked, or one zone header?
 - When a plugin is uninstalled and later reinstalled, should it go back to where the user had

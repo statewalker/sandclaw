@@ -1,5 +1,5 @@
 // The layout contract a plugin sees: each panel names the zones it prefers, in
-// order; presets say which zones exist and how big they are. The functions
+// order; layouts say which zones exist and how big they are. The functions
 // here are the only code that maps zones onto dockview positions.
 import type { DockviewApi, DockviewGroupPanel, SerializedDockview } from "dockview-react";
 
@@ -20,10 +20,10 @@ export interface PanelContribution {
 }
 
 /**
- * A layout preset: the zones it has and their sizes. The center always
- * exists. A preset saved by the user would add a dockview snapshot here.
+ * A predefined layout: the zones it has and their sizes. The center always
+ * exists. A layout saved by the user would add a dockview snapshot here.
  */
-export interface Preset {
+export interface Layout {
   id: string;
   label: string;
   zones: Partial<Record<Exclude<Zone, "center">, { size: number }>>;
@@ -56,14 +56,14 @@ function addToZone(api: DockviewApi, panel: PanelContribution, zone: Zone): void
   }
 }
 
-/** Lays out `preset` from scratch with every installed panel that has a target zone in it. */
-export function applyPreset(
+/** Lays out `layout` from scratch with every installed panel that has a target zone in it. */
+export function applyLayout(
   api: DockviewApi,
-  preset: Preset,
+  layout: Layout,
   installed: PanelContribution[],
 ): void {
   api.clear();
-  const has = (z: Zone) => z === "center" || z in preset.zones;
+  const has = (z: Zone) => z === "center" || z in layout.zones;
   const placed = new Map<Zone, PanelContribution[]>();
   for (const panel of installed) {
     const zone = panel.targets.find(has);
@@ -80,10 +80,10 @@ export function applyPreset(
     return id ? api.getPanel(id)?.group.api : undefined;
   };
   for (const zone of ["left", "right"] as const) {
-    const size = preset.zones[zone]?.size;
+    const size = layout.zones[zone]?.size;
     if (size) groupOf(zone)?.setSize({ width: size });
   }
-  const bottom = preset.zones.bottom?.size;
+  const bottom = layout.zones.bottom?.size;
   const strip = groupOf("bottom");
   if (bottom && strip) {
     strip.setConstraints({ minimumHeight: STRIP_MIN_HEIGHT });
@@ -116,7 +116,7 @@ export function openPanel(api: DockviewApi, panel: PanelContribution): void {
  * installed are removed and the rest of the arrangement is kept. Returns the
  * ids of the removed panels.
  */
-export function restoreLayout(
+export function loadSavedLayout(
   api: DockviewApi,
   layout: SerializedDockview,
   installed: PanelContribution[],
@@ -142,8 +142,8 @@ export function restoreLayout(
 }
 
 /**
- * How a single-panel side zone shows its tab strip: `hidden` (locked layout),
- * `hover` (shown while the pointer is over the zone, so it can be dragged), or
+ * How a side zone shows its tab strip: `hidden` (the zone is fixed), `hover`
+ * (shown while the pointer is over the zone, so it can be dragged), or
  * `visible`. The center always keeps its document tabs.
  */
 export type ZoneHeaders = "hidden" | "hover" | "visible";
@@ -152,15 +152,42 @@ export type ZoneHeaders = "hidden" | "hover" | "visible";
 const STRIP_MIN_HEIGHT = 32;
 
 /**
+ * A fixed dock: nothing can be dropped into it (`locked: "no-drop-target"`), and
+ * the workspace vetoes drags that start in it (see `vetoDragsFromFixedDocks`).
+ * Dockview's own lock only covers drops, so the drag veto is the other half.
+ */
+export function isFixed(group: DockviewGroupPanel): boolean {
+  return group.locked === "no-drop-target";
+}
+
+/**
+ * Cancels every drag that starts in a fixed dock: a tab (`onWillDragPanel`) or
+ * the whole dock (`onWillDragGroup`). Dockview's HTML5 backend skips a drag whose
+ * native event was default-prevented. Returns the disposers.
+ */
+export function vetoDragsFromFixedDocks(api: DockviewApi): Array<{ dispose(): void }> {
+  return [
+    api.onWillDragPanel((e) => {
+      if (e.panel.group && isFixed(e.panel.group)) e.nativeEvent.preventDefault();
+    }),
+    api.onWillDragGroup((e) => {
+      if (isFixed(e.group)) e.nativeEvent.preventDefault();
+    }),
+  ];
+}
+
+/**
  * Brings the dock back in line with the zone model after any change (a drag,
  * a restore, a new panel). Run it on every layout change:
  * - a panel moved into a group takes that group's zone, so later placements
  *   find the zone where the user put things;
- * - side-zone tab strips follow `headers`;
+ * - each side zone follows `headersFor(zone)`: `hidden` makes its docks fixed
+ *   (no drops in, no drags out) and hides a single panel's tab strip; a fixed
+ *   dock holding several tabs keeps its strip so the tabs can still be switched;
  * - the bottom zone gets its low minimum height back (dockview does not save
  *   size constraints in a layout snapshot).
  */
-export function syncZones(api: DockviewApi, headers: ZoneHeaders): void {
+export function syncZones(api: DockviewApi, headersFor: (zone: Zone) => ZoneHeaders): void {
   for (const group of api.groups) {
     const zone = zoneOf(group);
     for (const panel of group.panels) {
@@ -168,12 +195,15 @@ export function syncZones(api: DockviewApi, headers: ZoneHeaders): void {
         panel.api.updateParameters({ zone });
       }
     }
-    const side = zone !== "center" && group.panels.length === 1;
-    const hidden = side && headers === "hidden";
+    const headers = zone && zone !== "center" ? headersFor(zone) : "visible";
+    const fixed = headers === "hidden";
+    const single = group.panels.length === 1;
+    const locked = fixed ? "no-drop-target" : false;
     // Each change below fires another layout change, which runs this again:
     // touch only what differs, or the two keep triggering each other.
-    if (group.header.hidden !== hidden) group.header.hidden = hidden;
-    group.element.classList.toggle("sc-zone-hover", side && headers === "hover");
+    if (group.locked !== locked) group.locked = locked;
+    if (group.header.hidden !== (fixed && single)) group.header.hidden = fixed && single;
+    group.element.classList.toggle("sc-zone-hover", single && headers === "hover");
     if (zone === "bottom" && group.minimumHeight !== STRIP_MIN_HEIGHT) {
       group.api.setConstraints({ minimumHeight: STRIP_MIN_HEIGHT });
     }
