@@ -209,3 +209,107 @@ export function syncZones(api: DockviewApi, headersFor: (zone: Zone) => ZoneHead
     }
   }
 }
+
+/**
+ * Keeps the side bars' sizes when docks are moved, split, merged or closed; the
+ * center takes whatever space is left.
+ *
+ * Why it is needed: when a dock is removed (a tab dragged out of a split, the
+ * last tab closed) dockview spreads the freed space evenly over every sibling
+ * (`gridview.remove(group, Sizing.Distribute)`), so the left and right bars grow.
+ *
+ * Only the size that is the bar's own is kept: the width of a left or right
+ * bar, the height of the bottom bar. The other dimension is shared with the
+ * rest of the row or column, and forcing it pushes the whole grid around.
+ *
+ * How: those sizes are remembered while the layout is stable
+ * (a resize with a splitter is remembered too). Remembering pauses while a drag
+ * is in flight, and the remembered sizes are put back after a drop, a dock added
+ * or removed, or a panel moved — once the layout has settled: dockview re-lays
+ * the grid out proportionally over several layout passes, and a size set in the
+ * middle of them is scaled away. A dock dragged as a whole is not restored: it
+ * takes the size of its new place. Returns a function that stops it.
+ */
+export function keepSideSizes(api: DockviewApi): () => void {
+  let remembered = new Map<string, number>();
+  let dragging = false;
+  let pending = false;
+  let movedDock: string | undefined;
+  let frame = 0;
+  // The bar's own size: width across a left/right bar, height across the bottom bar.
+  const ownSize = (group: DockviewGroupPanel): "width" | "height" | undefined => {
+    const zone = zoneOf(group);
+    if (zone === "left" || zone === "right") return "width";
+    if (zone === "bottom") return "height";
+    return undefined;
+  };
+  const remember = () => {
+    remembered = new Map();
+    for (const group of api.groups) {
+      const dimension = ownSize(group);
+      if (dimension) remembered.set(group.id, group[dimension]);
+    }
+  };
+  const restore = () => {
+    frame = 0;
+    pending = false;
+    for (const group of api.groups) {
+      const size = remembered.get(group.id);
+      const dimension = ownSize(group);
+      if (size === undefined || !dimension || group.id === movedDock) continue;
+      if (Math.abs(group[dimension] - size) > 1) group.api.setSize({ [dimension]: size });
+    }
+    movedDock = undefined;
+    remember();
+  };
+  // Debounced to two frames after the last layout pass: when a dock is dropped on
+  // the window's edge, dockview builds a new outer row and finishes sizing it a
+  // frame after its last layout event; a size set before that is scaled away.
+  const settle = () => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(restore);
+    });
+  };
+  const schedule = () => {
+    pending = true;
+    settle();
+  };
+  const endDrag = () => {
+    if (!dragging) return;
+    dragging = false;
+    schedule();
+  };
+  const subscriptions = [
+    api.onWillDragPanel(() => {
+      dragging = true;
+    }),
+    api.onWillDragGroup((e) => {
+      dragging = true;
+      movedDock = e.group.id;
+    }),
+    api.onDidAddGroup(schedule),
+    api.onDidRemoveGroup(schedule),
+    api.onDidMovePanel(schedule),
+    // Deferred: a structural change fires its own event in the same call stack,
+    // and that scheduled restore must win over remembering the spread sizes.
+    api.onDidLayoutChange(() => {
+      if (pending) settle();
+      queueMicrotask(() => {
+        if (!dragging && !pending) remember();
+      });
+    }),
+  ];
+  // An HTML5 drag ends with `drop` (when something was dropped) or `dragend` (when it
+  // was cancelled). `dragend` alone is not enough: it fires on the dragged element,
+  // which a dock move has already detached from the page, so it never reaches the
+  // document. Dockview's pointer drag (touch) ends with `pointerup`.
+  const endEvents = ["drop", "dragend", "pointerup"] as const;
+  for (const type of endEvents) document.addEventListener(type, endDrag, true);
+  remember();
+  return () => {
+    for (const s of subscriptions) s.dispose();
+    for (const type of endEvents) document.removeEventListener(type, endDrag, true);
+    cancelAnimationFrame(frame);
+  };
+}

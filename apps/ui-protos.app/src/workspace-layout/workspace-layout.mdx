@@ -25,6 +25,11 @@ while the app runs.
 - **Repair, not reset.** When a plugin is uninstalled, its panels are removed from the saved
   layout and everything else stays where the user put it. Reinstalling places the panel in its
   preferred zone again.
+- **Moving tabs or docks never resizes the other bars.** When a tab is dragged into a
+  split of the center, merged back, or a dock is moved or closed, the left and right bars
+  keep their width and the bottom bar its height; the center takes whatever is left. A bar
+  resized with its splitter keeps that new size. A dock moved as a whole takes the size of
+  its new place.
 - **A dragged panel takes the zone of the group it lands in**, so later placements follow
   where the user put things.
 

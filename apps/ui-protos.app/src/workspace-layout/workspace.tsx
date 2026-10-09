@@ -24,6 +24,7 @@ import {
 } from "./panels.js";
 import {
   applyLayout,
+  keepSideSizes,
   type Layout,
   loadSavedLayout,
   openPanel,
@@ -143,6 +144,7 @@ export function Workspace({
     event.api.onDidMovePanel(refresh);
     vetoDragsFromFixedDocks(event.api);
     restoreLayout(initialLayout);
+    keepSideSizes(event.api);
   };
 
   // Prototype control: installing or removing a plugin while the app runs.
