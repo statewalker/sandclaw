@@ -7,6 +7,7 @@ import * as groundedAnswer from "../src/ask/grounded-answer.stories.js";
 import * as assistant from "../src/assistant-panel/assistant-panel.stories.js";
 import * as composer from "../src/composer/composer.stories.js";
 import * as conversations from "../src/conversations/conversations.stories.js";
+import * as fileManager from "../src/files/file-manager.stories.js";
 import * as folderZone from "../src/folder-zone/folder-zone.stories.js";
 import * as status from "../src/group-status/group-status.stories.js";
 import * as indexing from "../src/indexing/indexing.stories.js";
@@ -18,6 +19,8 @@ import * as todos from "../src/notes-todos/todos-view.stories.js";
 import * as services from "../src/services/services.stories.js";
 import * as tasksStrip from "../src/tasks/tasks-strip.stories.js";
 import * as team from "../src/team/team.stories.js";
+import * as noteEditor from "../src/viewers/note-editor.stories.js";
+import * as viewers from "../src/viewers/viewers.stories.js";
 import * as workspace from "../src/workspace-layout/workspace-layout.stories.js";
 
 afterEach(cleanup);
@@ -42,6 +45,9 @@ const stories: [string, ComponentType][] = [
   ...Object.entries(composeStories(tasksStrip)),
   ...Object.entries(composeStories(services)),
   ...Object.entries(composeStories(aiModels)),
+  ...Object.entries(composeStories(fileManager)),
+  ...Object.entries(composeStories(viewers)),
+  ...Object.entries(composeStories(noteEditor)),
 ];
 
 it.each(stories)("%s renders", (_, Story) => {
