@@ -24,6 +24,7 @@ import * as myIdentity from "../src/my-identity/my-identity.stories.js";
 import * as todos from "../src/notes-todos/todos-view.stories.js";
 import * as notifications from "../src/notifications/notifications.stories.js";
 import * as services from "../src/services/services.stories.js";
+import * as settings from "../src/settings/settings.stories.js";
 import * as tocEditor from "../src/site-toc/toc-editor.stories.js";
 import * as sites from "../src/sites/sites.stories.js";
 import * as tasksStrip from "../src/tasks/tasks-strip.stories.js";
@@ -66,6 +67,7 @@ const stories: [string, ComponentType][] = [
   ...Object.entries(composeStories(notifications)),
   ...Object.entries(composeStories(firstSteps)),
   ...Object.entries(composeStories(browserData)),
+  ...Object.entries(composeStories(settings)),
 ];
 
 it.each(stories)("%s renders", (_, Story) => {

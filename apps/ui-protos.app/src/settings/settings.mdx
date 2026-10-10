@@ -1,0 +1,104 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./settings.stories.tsx";
+
+<Meta of={Stories} />
+
+# Settings — one place for me and, for admins, the group
+
+Every setting lives in one place, split in two groups:
+
+- **You** — Me (name, devices, the browser lock, leaving), Appearance, Notifications,
+  Connectors, Agent tools, This browser (the data kept here), What the assistant reads.
+- **Your group — admin** — Team, Invitations, Services, AI models.
+
+A member does not see the admin group at all: not greyed out, not "ask your admin", just absent.
+The sections are the screens the other prototypes built, embedded unchanged; Appearance is the
+only new one.
+
+The section is a **deep link**: Settings opens at the section it is given (`section: "team"`),
+so a notification "Hugo joined" opens Settings at Team, and "This browser is nearly full" at
+This browser. A link the viewer may not open (a member sent to Team) or that names no section
+opens the first section, Me, instead of an error.
+
+## Indexing is the member's, not the admin's
+
+"What the assistant reads" sits under **You**. The assistant reads the folder in *this browser*:
+each person's browser reads its own copy, and turning a folder off only changes what *my*
+assistant answers from. Nothing on that screen changes anything for anyone else, so there is
+nothing for an admin to own. What is group-wide about reading — which model turns files into
+meaning (the embeddings model) — is already in AI models, which stays admin.
+
+## A — A full page
+
+Settings replaces the workspace; "← Workspace" goes back. Room for the wide screens (Team, AI
+models, Services) without a scroll inside a scroll, and the address is the deep link: a
+notification, a bookmark, a link pasted in chat all land on the right section. The cost: the
+document I was editing is out of sight while I change a setting about it.
+
+<Story of={Stories.Page} inline={false} height="820px" />
+
+## B — A dialog over the workspace
+
+The gear opens Settings in a large dialog; the workspace stays as it was underneath and comes
+back on Escape. Good for a quick change (dark theme, a connector's sign-in) and for the deep link
+from a notification, which should not throw away the layout. The cost: the wide admin screens
+are cramped, they scroll inside the dialog, and their own dialogs (remove a person, switch a
+model) open on top of a dialog.
+
+<Story of={Stories.InDialog} inline={false} height="820px" />
+
+**Leaning:** A. Most settings are visited rarely and the admin screens are pages in their own
+right. The third option, Settings as a tab in the workspace's center zone, was not built: it
+puts Settings among the documents, where it is closed by accident, opened twice, and saved into
+the dock layout; and on a phone the center zone is a single view anyway, which is A.
+
+## A member
+
+No admin group. Notifications hides the admin-only kinds by itself (`viewer`).
+
+<Story of={Stories.Member} inline={false} height="820px" />
+
+## Opened at a deep link
+
+<Story of={Stories.DeepLinkTeam} inline={false} height="820px" />
+
+## Search
+
+The search matches section names and a few words people use for what is inside: "lock" finds Me
+(the browser lock), "token" or "cost" finds AI models, "printer" finds Services, "dark" finds
+Appearance. A match by keyword says which word matched, so "Me" for "lock" is not a mystery. It
+matches the start of words ("lock" does not find Agent tools' "block"), ignores case and accents,
+and only searches sections the viewer can see. Enter opens the first result.
+
+<Story of={Stories.SearchLock} inline={false} height="820px" />
+
+"trash" finds nothing: the trash is in the folder (the file manager), not a setting.
+
+## On a phone
+
+The section list is a page; a section opens as a sub-page with Back to the list. The embedded
+screens are already built to fit 390 px.
+
+<Story of={Stories.PhoneList} inline={false} height="820px" />
+
+<Story of={Stories.PhoneSubPage} inline={false} height="820px" />
+
+## Appearance
+
+Theme (light, dark, same as this device), text size and density, for this browser only, with a
+sample that follows the choices. It is kept per browser because the right text size on a phone
+is not the right one on a laptop.
+
+<Story of={Stories.AppearanceSection} inline={false} height="520px" />
+
+## Open questions
+
+- A page or a dialog? Leaning: page, with the dialog reserved for nothing.
+- Should "trash" (and other words for things outside Settings) point to where they are, instead
+  of "No settings match"? Leaning: yes, a short "Not a setting — the trash is in Files" line.
+- Does Appearance follow me across devices? Leaning: no, per browser.
+- Is "Me" the right name, or "My identity and devices"? Leaning: "Me" in the list, the full title
+  on the page.
+- Should a member see a read-only Team (who is in the group)? Leaning: yes, but outside Settings,
+  in the group status.
+- Does searching also search *inside* sections (a connector's name, a person)? Leaning: not yet.
