@@ -31,11 +31,40 @@ lets someone try it without giving access to their disk.
 
 ## When it fails
 
-Both failures name the person who can fix them, never a network error.
+Every failure names the person who can fix it, never a network error. "Already used",
+"expired" and "declined" are one end-page component with different words: each says what
+happened and that a new link comes from the inviter.
 
 <Story of={Stories.MachineOffline} inline={false} height="380px" />
 
 <Story of={Stories.InviteUsed} inline={false} height="260px" />
+
+An expired invite is told apart from a used one: "used" can mean someone else opened the
+link, "expired" only means it waited too long. Both end at the same person.
+
+<Story of={Stories.InviteExpired} inline={false} height="260px" />
+
+## Declining
+
+*Decline* is a real answer, not closing the tab: the hub records it, the admin sees it in
+the invitations log, and the link stops working. So it sits under *Join* as a quiet text
+button and asks once, in place, saying exactly that. The note to the inviter is optional
+and kept in the prototype: a declined invite is often a wrong address or a wrong person,
+and one line saves the admin a message. It is the only thing the decline sends besides the
+answer itself.
+
+<Story of={Stories.Decline} inline={false} height="620px" />
+
+After declining the page ends calmly: nothing was stored in this browser, and if it was a
+mistake, the inviter can send a new link.
+
+<Story of={Stories.Declined} inline={false} height="300px" />
+
+Declining needs the Sandclaw machine, like joining. When it is off the page says the answer
+can't be recorded now and offers the honest way out: close the tab, and the invite expires
+by itself. Nothing is queued in the browser to send later, since nothing is stored there.
+
+<Story of={Stories.DeclineOffline} inline={false} height="460px" />
 
 ## Open questions
 
@@ -43,3 +72,8 @@ Both failures name the person who can fix them, never a network error.
 - Should "machine offline" retry by itself and join as soon as the machine answers?
 - Is "Start with an empty folder in this browser" worth offering, given browsers can evict
   that storage?
+- Should the page know an invite is used or expired as soon as it opens, instead of after
+  pressing Join? That needs the hub to answer on load, or the expiry in the link.
+- Should a decline that couldn't be sent be retried in the background while the tab stays
+  open?
+- Is the optional note worth its weight, or does a bare "declined" in the log suffice?

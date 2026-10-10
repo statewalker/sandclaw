@@ -4,7 +4,16 @@ import { JoinFlow } from "./join-invite.js";
 const meta = {
   title: "Prototypes/Join from invite",
   component: JoinFlow,
-  parameters: { layout: "centered" },
+  parameters: { layout: "fullscreen" },
+  // Centred by a grid, not by Storybook's "centered" layout: that one sizes the
+  // story to its content, so a phone-width viewport scrolls sideways.
+  decorators: [
+    (Story) => (
+      <div className="grid min-h-svh grid-cols-[minmax(0,1fr)] place-items-center p-4">
+        <Story />
+      </div>
+    ),
+  ],
 } satisfies Meta<typeof JoinFlow>;
 
 export default meta;
@@ -33,4 +42,24 @@ export const MachineOffline: Story = {
 export const InviteUsed: Story = {
   name: "Invite already used (press Join)",
   args: { outcome: "invite-used" },
+};
+
+export const InviteExpired: Story = {
+  name: "Invite expired (press Join)",
+  args: { outcome: "invite-expired" },
+};
+
+export const Decline: Story = {
+  name: "Decline: confirm",
+  args: { variant: "promises", start: "decline" },
+};
+
+export const Declined: Story = {
+  name: "After declining",
+  args: { start: "declined" },
+};
+
+export const DeclineOffline: Story = {
+  name: "Decline while the machine is offline (press Decline invite)",
+  args: { start: "decline", outcome: "machine-offline" },
 };
