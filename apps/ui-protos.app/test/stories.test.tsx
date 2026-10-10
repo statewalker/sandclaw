@@ -14,6 +14,7 @@ import * as join from "../src/join-invite/join-invite.stories.js";
 import * as linkDevice from "../src/link-device/link-device.stories.js";
 import * as myIdentity from "../src/my-identity/my-identity.stories.js";
 import * as todos from "../src/notes-todos/todos-view.stories.js";
+import * as tasksStrip from "../src/tasks/tasks-strip.stories.js";
 import * as team from "../src/team/team.stories.js";
 import * as workspace from "../src/workspace-layout/workspace-layout.stories.js";
 
@@ -36,6 +37,7 @@ const stories: [string, ComponentType][] = [
   ...Object.entries(composeStories(indexing)),
   ...Object.entries(composeStories(conversations)),
   ...Object.entries(composeStories(composer)),
+  ...Object.entries(composeStories(tasksStrip)),
 ];
 
 it.each(stories)("%s renders", (_, Story) => {

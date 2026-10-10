@@ -1,0 +1,94 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./tasks-strip.stories.tsx";
+
+<Meta of={Stories} />
+
+# Tasks and outputs
+
+The workspace's bottom strip, opened. A request that does work becomes a **task**: a plan, the
+steps it took, the files it made. The assistant panel shows a task where it was asked; this strip
+shows **all** of them, from every chat, so the user can see what is running, what waits for
+them, and what was made, without finding the right conversation first. Click the strip to open
+or close it.
+
+## One line while closed
+
+The closed strip says the one thing worth knowing, in this order:
+
+| Situation | The line |
+| --- | --- |
+| A task is running | `Q3 spending summary · step 2 of 4` |
+| A task waits for an answer | a **waiting for you** badge on the right (with or without a running task) |
+| Nothing running, tasks today | `3 tasks today · all done`, or `· 1 failed` |
+| Nothing today | `No tasks today` / `No tasks yet` |
+
+<Story of={Stories.CollapsedRunning} inline={false} height="140px" />
+<Story of={Stories.CollapsedBusy} inline={false} height="140px" />
+<Story of={Stories.CollapsedWaiting} inline={false} height="140px" />
+<Story of={Stories.CollapsedDone} inline={false} height="140px" />
+
+## A — a list
+
+One row per task: title, status, how long it took (or has been going), and the chat it came
+from. Running and waiting tasks open by default; the rest open on click to show the steps, the
+files and the actions. Today first, then earlier.
+
+<Story of={Stories.List} inline={false} height="640px" />
+
+## B — a timeline by day
+
+Denser: one line per task with its time, its steps as dots (grey done, hollow running, red
+failed) and a file count. Better for scanning a busy day; the details are one click further.
+Only a task waiting for an answer opens by default.
+
+<Story of={Stories.Timeline} inline={false} height="640px" />
+
+## What each task lets you do
+
+- **Cancel task** (running or waiting) asks first, and says what else it cancels: stopping a
+  task also cancels the requests sent after it **in the same chat**, which were waiting for it.
+  Files it already made stay.
+- **Retry** (failed or stopped) sends the same request again; a new task starts.
+- **Open the conversation** goes to the chat it came from.
+- Each produced file: **Open** (in the center), **Show in folder**, and, for a file the task
+  **created**, **Undo**, which deletes it after a confirmation. A file the task *changed* has
+  no Undo here.
+- A task **waiting for you** shows the change it wants to make, as a preview of the file after
+  the change, with **Allow** / **Allow for this task** / **Don't change it**, as in the
+  assistant panel.
+
+## Files produced
+
+Everything the assistant made in `Outputs/`, newest first, with the task that made it.
+
+<Story of={Stories.FilesProduced} inline={false} height="560px" />
+
+## States
+
+<Story of={Stories.Empty} inline={false} height="360px" />
+<Story of={Stories.Running} inline={false} height="560px" />
+<Story of={Stories.Waiting} inline={false} height="600px" />
+<Story of={Stories.Failed} inline={false} height="480px" />
+<Story of={Stories.AllDone} inline={false} height="480px" />
+
+## Where the tasks come from
+
+Nothing here is stored besides the chats' conversations; `tasksFromConversation` derives every
+task from them:
+
+| Task | Comes from |
+| --- | --- |
+| The task itself | one sent message (a submission) whose reply has a `data-task` part |
+| Title, plan, current step, files made | the `data-task` part, which the assistant rewrites in place |
+| Steps | the reply's `dynamic-tool` parts: tool name + input give the label, an error gives the reason |
+| Waiting for you | a `data-approval` part with no answer yet |
+| Done / failed / stopped | the settlement: `completed` / `failed` / `aborted`; no settlement means running |
+| Cancel | `abort()`, which stops the running request and those queued behind it |
+| An approval answer | a signal message (`sandclaw.approval`, attributes `id` and `answer`) |
+
+## Open questions
+
+- A or B?
+- Does Undo exist for a file the task **changed** (restore the version before the task)?
+- Retry: a new task next to the failed one (as now), or the failed one replaced?
+- Should the strip open by itself when a task starts waiting for an answer?
