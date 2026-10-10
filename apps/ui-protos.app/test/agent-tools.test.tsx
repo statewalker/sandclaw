@@ -116,5 +116,5 @@ it("reset to defaults drops every choice", () => {
   fireEvent.click(reset);
   expect(pressed("Read a file")).toBe("Allow");
   expect(pressed("Delete a file")).toBe("Ask");
-  expect(pressed("Files")).toBeUndefined();
+  expect(pressed("Files")).toBe("Allow");
 });

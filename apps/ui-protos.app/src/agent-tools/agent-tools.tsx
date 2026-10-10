@@ -26,6 +26,7 @@ import {
   countAccess,
   effectiveAccess,
   filterSources,
+  groupAccess,
   isCustomized,
   newCommands,
   type Risk,
@@ -95,14 +96,14 @@ function usedText(at: Date, now: Date) {
   return days <= 0 ? "Used today" : days === 1 ? "Used yesterday" : `Used ${days} days ago`;
 }
 
-/** Allow / Ask / Block. Nothing is pressed when `value` is undefined. */
+/** Allow / Ask / Block. */
 function AccessControl({
   label,
   value,
   onChange,
 }: {
   label: string;
-  value: Access | undefined;
+  value: Access;
   onChange: (access: Access) => void;
 }) {
   return (
@@ -247,7 +248,11 @@ function GroupSection({
             </p>
           )}
         </div>
-        <AccessControl label={source.title} value={settings.groups[source.id]} onChange={onGroup} />
+        <AccessControl
+          label={source.title}
+          value={groupAccess(source, settings)}
+          onChange={onGroup}
+        />
       </div>
       {variant === "groups" && (
         <button

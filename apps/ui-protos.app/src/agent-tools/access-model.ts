@@ -51,7 +51,14 @@ export interface AccessSettings {
 /** The basic set is allowed; connectors, apps and risky commands ask. */
 export function defaultAccess(source: ToolSource, command: ToolCommand): Access {
   if (command.risk) return "ask";
-  return source.kind === "basic" ? "allow" : "ask";
+  return groupDefault(source);
+}
+
+const groupDefault = (source: ToolSource): Access => (source.kind === "basic" ? "allow" : "ask");
+
+/** The group's own setting, else its default: the basic set allows, the rest asks. */
+export function groupAccess(source: ToolSource, settings: AccessSettings): Access {
+  return settings.groups[source.id] ?? groupDefault(source);
 }
 
 /**
