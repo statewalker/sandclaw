@@ -5,6 +5,7 @@ import { afterEach, expect, it } from "vitest";
 import * as assistant from "../src/assistant-panel/assistant-panel.stories.js";
 import * as folderZone from "../src/folder-zone/folder-zone.stories.js";
 import * as status from "../src/group-status/group-status.stories.js";
+import * as invitationsLog from "../src/invitations-log/invitations-log.stories.js";
 import * as join from "../src/join-invite/join-invite.stories.js";
 import * as todos from "../src/notes-todos/todos-view.stories.js";
 import * as team from "../src/team/team.stories.js";
@@ -22,6 +23,7 @@ const stories: [string, ComponentType][] = [
   ...Object.entries(composeStories(todos)),
   ...Object.entries(composeStories(workspace)),
   ...Object.entries(composeStories(team)),
+  ...Object.entries(composeStories(invitationsLog)),
 ];
 
 it.each(stories)("%s renders", (_, Story) => {
