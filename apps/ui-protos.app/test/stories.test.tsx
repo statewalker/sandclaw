@@ -2,6 +2,7 @@ import { composeStories } from "@storybook/react-vite";
 import { cleanup, render } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { afterEach, expect, it } from "vitest";
+import * as groundedAnswer from "../src/ask/grounded-answer.stories.js";
 import * as assistant from "../src/assistant-panel/assistant-panel.stories.js";
 import * as folderZone from "../src/folder-zone/folder-zone.stories.js";
 import * as status from "../src/group-status/group-status.stories.js";
@@ -28,6 +29,7 @@ const stories: [string, ComponentType][] = [
   ...Object.entries(composeStories(invitationsLog)),
   ...Object.entries(composeStories(linkDevice)),
   ...Object.entries(composeStories(myIdentity)),
+  ...Object.entries(composeStories(groundedAnswer)),
 ];
 
 it.each(stories)("%s renders", (_, Story) => {
