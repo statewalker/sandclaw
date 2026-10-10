@@ -1,0 +1,98 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./indexing.stories.tsx";
+
+<Meta of={Stories} />
+
+# Ask — what the assistant reads, and how far
+
+To answer with references, the assistant reads ("indexes") the user's folder in this browser.
+The folder zone already says "Getting to know your folder"; this screen is the full answer to
+"what does the assistant know, and what doesn't it?". The UI never says index, embedding or
+chunk: it says **read**, **being read**, **changed — reading again**, **can't read**.
+
+Decided: every folder is read by default; a folder can be turned off and on again; progress is
+shown per folder; changed files are read again on their own; unreadable files are listed with the
+reason; the user can read again one file, one folder, or everything.
+
+The mock folder is the shared `folder` plus generated bulk: Clients 120, Finance 80, Notes 36,
+Outputs 24 and Photos 80 — 340 files. Five of them can't be read, one of each reason. In the
+live stories a scripted reader reads three files every second.
+
+## A — A settings page: "What the assistant reads"
+
+Everything on one page: the summary with its bar, time left and a pause; files changed since
+they were read; one row per top-level folder with its own bar and a "Read by the assistant"
+switch; the files that can't be read; and a search to find one file and read it again.
+
+<Story of={Stories.SettingsPage} inline={false} height="900px" />
+
+## B — Inside the folder zone tree
+
+The same facts where the files are: folders carry a mark (a percentage while reading, a tick
+when done, a warning count, a crossed-out eye when off); files being read spin, changed files
+show the re-read arrow, unread files are dimmed. A row's "…" button (or a right-click) opens
+its actions inline: read this file or folder again, "Don't let the assistant read this
+folder", or for a file it can't read, why and "Try again". The footer is the folder zone's
+"Getting to know your folder" line; "Details…" opens A in a dialog on the same state.
+
+<Story of={Stories.InTree} inline={false} height="700px" />
+
+## Turning a folder off forgets it
+
+Turning off a folder the assistant has read from asks first, because it is not just "stop":
+what the assistant learnt from those files is forgotten, and it won't answer from them. The
+files themselves stay untouched. Turned-off folders are dimmed and say what that means; the
+totals drop to the files it still reads. Turning the folder on again queues every file in it —
+it is read from the start. A folder with nothing read yet is turned off without asking.
+
+## When the Sandclaw machine is offline
+
+Reading the files happens in this browser; understanding their meaning needs the Sandclaw
+machine. Offline, reading goes on and the bar gets a second colour: read and understood, and
+read but waiting for the machine. The summary says what that costs: answers can miss what is in
+the waiting files.
+
+<Story of={Stories.Offline} inline={false} height="900px" />
+
+<Story of={Stories.InTreeOffline} inline={false} height="700px" />
+
+## Everything read
+
+<Story of={Stories.AllRead} inline={false} height="760px" />
+
+## Files it can't read, and files that changed
+
+Each reason is said the way the user would say it, with what they can do about it: protected
+by a password, a scan with no text, too large, a kind of file it can't read yet, a damaged
+file. "Try again" queues the file (a password-protected file fails again until the user saves
+an unprotected copy). "Open file" hands it to the computer. Changed files are listed under
+"3 files changed since they were read — reading again"; until then answers use the old text.
+
+<Story of={Stories.WithFailures} inline={false} height="1100px" />
+
+<Story of={Stories.InTreeFailures} inline={false} height="700px" />
+
+## Open questions
+
+- **A, B, or both?** A answers "what does it know?" in one place; B answers it where the files
+  are, and is the only place to act on one file without searching. Leaning: B in the folder
+  zone, with A behind "Details…" (as built), not as a separate settings entry.
+- **Overlap with the folder zone's T13** (progress bar at the bottom vs unread files dimmed): B
+  does both — the bar in the footer and unread files dimmed — and adds per-folder marks. If B
+  is chosen, T13 is answered as "both"; if A alone, T13 still needs an answer for the zone.
+- **Does "can't read" count against progress?** Here the bar counts only read files, so a
+  folder with failures never reaches 100% ("335 of 340 · 5 can't be read"). The other option:
+  count them as done and show the warning separately. Leaning: count them as done in the
+  bar, keep the warning — a bar stuck at 98% looks like a stall.
+- **Pause: needed?** A user may pause on a slow laptop; nobody may ever press it. Options: a
+  pause button (as here), pause only on battery, no pause. Leaning: keep it, in A only.
+- **What does reading a photo mean?** Photos (80 JPEGs) count as read like any file; without
+  text, the assistant only learns what the machine can describe. Options: read them (as here),
+  off by default, or a separate "Photos: describe them" switch. Leaning: read, but say "described"
+  rather than "read" for images.
+- **Turning off a subfolder.** B lets any folder be turned off (prefix-based), A only top-level
+  folders. Is a subfolder switch needed in A (an expandable row), or is B enough?
+- **Where does "read this file again" live in A?** Here: a "Find a file" search. Alternative:
+  only in B's row menu and in the can't-read list. Leaning: search, since A has no tree.
+- **Offline: is one note enough?** The bar's second colour may be too subtle; the alternative
+  is a separate count "40 files waiting for the Sandclaw machine" in the summary line itself.

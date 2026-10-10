@@ -6,6 +6,7 @@ import * as groundedAnswer from "../src/ask/grounded-answer.stories.js";
 import * as assistant from "../src/assistant-panel/assistant-panel.stories.js";
 import * as folderZone from "../src/folder-zone/folder-zone.stories.js";
 import * as status from "../src/group-status/group-status.stories.js";
+import * as indexing from "../src/indexing/indexing.stories.js";
 import * as invitationsLog from "../src/invitations-log/invitations-log.stories.js";
 import * as join from "../src/join-invite/join-invite.stories.js";
 import * as linkDevice from "../src/link-device/link-device.stories.js";
@@ -30,6 +31,7 @@ const stories: [string, ComponentType][] = [
   ...Object.entries(composeStories(linkDevice)),
   ...Object.entries(composeStories(myIdentity)),
   ...Object.entries(composeStories(groundedAnswer)),
+  ...Object.entries(composeStories(indexing)),
 ];
 
 it.each(stories)("%s renders", (_, Story) => {
