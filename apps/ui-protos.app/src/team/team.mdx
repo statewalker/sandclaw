@@ -1,0 +1,61 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./team.stories.tsx";
+
+<Meta of={Stories} />
+
+# Team
+
+The admin's screen for who is in the group: people, their devices, and invites still
+waiting. Every change goes through the Sandclaw machine (`listPeople`, `invitePerson`,
+`revokeDevice`, `revokePerson`, `setRole`, `setGroupName`); the screen only has to make each
+one understandable to someone who has never heard of a key.
+
+The question: one list that shows everything at once, or a list and a details pane?
+
+## A — One list
+
+People in one column, their devices folded under each person, pending invites at the
+bottom. Everything on one page and one scroll; with a dozen people the devices stay folded
+and the list stays short. Actions sit on every row, so the page is busy.
+
+<Story of={Stories.OneList} inline={false} height="620px" />
+
+## B — Two panes
+
+People on the left; the selected person's role, actions and devices on the right. Pending
+invites get their own tab next to People. Calmer, and room for more per person (when they
+joined, who invited them), but invites are one click away and easy to forget.
+
+<Story of={Stories.TwoPanes} inline={false} height="560px" />
+
+## What admins can't do, and why it says so
+
+- The only admin can't be made a member: nobody could manage the group afterwards. The
+  button is disabled and the reason is written under it, not in a tooltip.
+- You can't remove yourself, and you can't remove the device you are using.
+- Removing a person or a device asks first and says what happens: access ends at once;
+  files and chats already in their browsers stay there but can't reach the Sandclaw machine.
+
+## Members
+
+Members see who is in the group and their roles. No devices, no actions, no invites.
+
+<Story of={Stories.MemberView} inline={false} height="360px" />
+
+## When the Sandclaw machine doesn't answer
+
+Changes need the machine, so every action is disabled with one line saying why. Copying an
+existing invite link still works: the link is already made.
+
+<Story of={Stories.MachineOffline} inline={false} height="620px" />
+
+## Open questions
+
+- A or B? A while the group is small, B once it isn't?
+- Should members see their own devices, to remove a lost phone without asking an admin?
+- Invite role and expiry: choices as buttons (as here) or one "Advanced" fold, with 7 days
+  and member as silent defaults?
+- When a person's last device is removed, do they stay in the list (and can come back with
+  a new device) or are they removed with it?
+- Should "Recent" grow into a full activity list (invites accepted, declined, expired,
+  people removed), or stay one line about new devices?
