@@ -75,6 +75,8 @@ workspace is embedded):
   the compact rendering of its content.
 - **No drag and drop on touch screens** (a coarse pointer): HTML5 drag and drop is unreliable
   there.
+- **Settled:** in compact mode the assistant is an overlay like the other side panels (for
+  now); on mobile all open documents share one Documents view with a tab row.
 
 <Story of={Stories.Compact} inline={false} height="560px" />
 
@@ -105,10 +107,6 @@ not have, so it is left out.
 ## Open questions
 
 - A, B or C?
-- In compact mode, should the assistant be an overlay, or keep a narrow docked column (it is
-  the panel people talk to most)?
-- On mobile, is "Documents" one view with a tab row, or should each open document be its own
-  view?
 - Should a side zone with several stacked panels show a tab strip per panel (as now) when
   unlocked, or one zone header?
 - When a plugin is uninstalled and later reinstalled, should it go back to where the user had
