@@ -1,0 +1,102 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./notifications.stories.tsx";
+
+<Meta of={Stories} />
+
+# Notifications
+
+Things happen while the person looks elsewhere: a task finishes or waits for an approval, a site
+is built, indexing ends or some files can't be read, the Sandclaw machine goes offline and comes
+back. Admins also hear about the team (an invite accepted or declined) and the services (one is
+down). One kind is different: **a device added to my identity**. It is the only sign that
+someone else may be using the person's keys, so it is always shown and cannot be silenced.
+
+## Where a notice shows
+
+Each kind has a setting: **Bell + toast**, **Bell only**, or **Off**.
+
+- **The bell list** keeps the notice. It is the record: the last 30 days, at most 100 notices,
+  kept in this browser only (another device keeps its own list).
+- **A toast** says it now, with one action ("Open", "Review", "Team"). In the app it leaves after
+  a few seconds, except a task waiting for you and a device added, which stay until answered or
+  dismissed. The prototype keeps every toast until dismissed.
+- **A system notification** replaces the toast when the tab is in the background and the browser
+  allows it; a toast in a hidden tab would be missed. Without permission the toast waits for the
+  person to come back. The settings show the ask and its states.
+
+The defaults put routine news in the bell only (indexing finished, files unreadable, an invite
+declined) and everything that changes what the person does next in a toast too.
+
+**Repeats merge.** Notices of one kind within an hour of each other become one line, "3 tasks
+finished", listing their titles; the same rule merges toasts. Security notices never merge: each
+device added is its own line.
+
+**Unread.** The badge counts unread lines (a merged line counts once) that arrived since the bell
+was last opened. Opening the bell clears the badge; the lines stay marked unread until opened or
+"Mark all read". Opening a line or a toast's action marks its notices read.
+
+## A — Bell dropdown, toasts bottom-right
+
+A bell next to the group's status opens a dropdown over the work, closed by Escape or a click
+outside. Toasts stack bottom-right, each with a title, a detail and its action. Familiar from
+every web app, and it keeps the workspace layout untouched; the list is a glance, not a place to
+work from.
+
+<Story of={Stories.BellAndToasts} inline={false} height="680px" />
+
+<Story of={Stories.BellOpen} inline={false} height="680px" />
+
+## B — Activity panel, minimal toasts
+
+The bell opens an **Activity** panel docked beside the documents (in the app, a dockview panel
+the person can move or keep open); at phone width it covers the work. Toasts are a single line
+at the bottom centre, and only for what needs the person: a task failed or waiting, a device
+added, the machine offline, a service down. The rest only bumps the badge.
+
+Fewer interruptions, and a list that can stay open while working. It costs a panel slot, and a
+finished task goes unnoticed until the person looks.
+
+<Story of={Stories.ActivityPanel} inline={false} height="680px" />
+
+<Story of={Stories.ActivityPanelOpen} inline={false} height="680px" />
+
+**Leaning: A**, with B's rule for which kinds toast by default. The dropdown needs no layout
+decision, and the list is short-lived reading, not a workspace.
+
+## Cases
+
+Nothing new: the list says so, and that notices from the last 30 days would show here.
+
+<Story of={Stories.NothingNew} inline={false} height="680px" />
+
+The machine was offline for two hours. The offline notice is in the list; on return, one toast
+says how long it was away and which tasks resumed, so nobody has to check them one by one.
+
+<Story of={Stories.BackOnline} inline={false} height="680px" />
+
+A member sees neither team nor service notices, and has no settings for them.
+
+<Story of={Stories.Member} inline={false} height="680px" />
+
+## Settings
+
+`NotificationSettings` is the block a Settings page embeds; the list's gear opens it too. The
+security row is disabled on "Bell + toast" and says why.
+
+<Story of={Stories.Settings} inline={false} height="900px" />
+
+<Story of={Stories.SettingsBlocked} inline={false} height="800px" />
+
+## Open questions
+
+- Should the badge count unread lines or only what needs the person (waiting, failed, security)?
+  Leaning: all unread lines, capped at "9+".
+- Is "kept in this browser" enough, or should the list follow the person across devices through
+  the machine? Leaning: this browser for now; a device added is also recorded on the identity.
+- Does "machine back online" need its own notice, or should it replace the "offline" line in
+  place? Leaning: replace it, one line "Offline 08:00–10:00 · 2 tasks resumed".
+- Should "Off" still keep the notice in the list (silent but recorded)? Leaning: no, Off means
+  not recorded; the tasks strip and logs keep the history.
+- Ask for browser notifications on first need (first toast in a hidden tab) or only from
+  settings? Leaning: from settings, plus a one-time hint on the first task waiting for you.
+- Should a task waiting for you also show in the tab title ("(1) Sandclaw")? Leaning: yes.
