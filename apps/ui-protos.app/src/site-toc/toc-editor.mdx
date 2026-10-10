@@ -1,0 +1,127 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./toc-editor.stories.tsx";
+
+<Meta of={Stories} />
+
+# Site table of contents
+
+A thematic site ("Dupont renovation", "How we work") is a static site the assistant writes from
+the folder, one page per section. The table of contents decides the pages: their titles, their
+order, which pages sit under which, and what each page is written **from**: topics that Ask's
+indexing found (*Kitchen works*, 14 documents) and specific files (*Dupont — offer.docx*).
+
+Common to both variants:
+
+- **A section is a page.** Two levels only, pages and the pages under them, because that is
+  what a site menu can show without a second menu. A move that would make a third level is
+  refused, and the line under the tree says why.
+- **A section with no sources can't be written.** Its row has a warning sign and its sources
+  say so in words: "The assistant has nothing to write this page from. Add a topic or a file."
+  It can still be saved (a placeholder page for later); *Save and rewrite* skips it and says so.
+- **Rename in place**: F2, a double click, or *Rename* in the "…" menu; an empty title is
+  refused under the field. **Add** goes after the selected section, or under it from the menu.
+- **Remove** asks first only when something would be lost: a section with pages under it
+  ("Remove “The works” and 2 pages under it?") or with sources. An empty section goes at once,
+  with *Undo*. The confirmation says the files and topics stay: only the page leaves the site.
+- **Reorder** by dragging: the upper or lower third of a row puts it before or after (a line
+  shows where), the middle puts it under (the row is outlined), and the line under the tree
+  says it in words ("Move “Photos” under “Schedule”"). Targets that would break the two levels,
+  or put a section inside itself, don't light up. By keyboard: Alt+↑ ↓ swap with the
+  neighbour, Alt+→ goes under the section above, Alt+← comes back out, right after its parent.
+- **Sources** are attached from a searchable picker: Ask's topics with their document counts,
+  or the folder's files with the folder they are in. Each click attaches or detaches; the page
+  shows them as chips with a × to remove.
+- **What saving changes.** A section whose title or sources changed, or a new one, is marked
+  *Will be rewritten*; a removed one is listed as "taken off the site". A move changes the menu
+  only, so it rewrites nothing. *Save* keeps the new contents and leaves those pages marked
+  until they are rewritten; *Save and rewrite 3 pages* starts the writing. Rewriting is the
+  slow, costly part, so it is never a side effect of saving.
+
+## A — Tree and details
+
+The tree on the left, the selected section's title and sources on the right; on a narrow screen
+the details go under the tree. The details have room to explain (the warning, "This page will
+be rewritten", the pages under it), and the title is an ordinary text field, which is what a
+non-technical user tries first. The cost: one section's sources at a time, and two places to
+look.
+
+<Story of={Stories.Split} inline={false} height="620px" />
+
+## B — Outline, sources in place
+
+One outline; a row opens in place to show its sources as chips. Several sections can be open
+at once, so comparing "Kitchen" with "The works" is one look. It is denser and closer to an
+outliner, which suits people who think in lists; a long site becomes a long scroll, and the
+title is edited only in place.
+
+<Story of={Stories.Outline} inline={false} height="620px" />
+
+**Leaning A** for members: the details pane is where the "why can't this page be written?"
+question gets answered, and its layout survives a phone by stacking.
+
+## Starting empty: Suggest from topics
+
+An empty contents offers to start from Ask's topics: one section per theme Ask grouped them in,
+written from those topics. On an empty contents there is nothing to lose, so the suggestion is
+applied at once, with *Undo*.
+
+<Story of={Stories.Empty} inline={false} height="420px" />
+
+## A suggestion over existing contents
+
+On contents the user already edited, *Suggest from topics* never replaces anything. It shows
+only what it would **add**, each accepted on its own or all together: topics for a section
+whose title matches (ignoring case and accents), or a new section. A topic the user already
+placed somewhere is not offered again, and a section the user renamed or made up stays as it
+is (renamed "Schedule" to "Planning" and the suggestion offers a new "Schedule"; that is the
+one rough edge, see the questions).
+
+<Story of={Stories.Suggestion} inline={false} height="720px" />
+
+## A section with nothing to write from
+
+<Story of={Stories.NoSources} inline={false} height="620px" />
+
+## Dragging
+
+<Story of={Stories.Dragging} inline={false} height="520px" />
+
+<Story of={Stories.DraggingInside} inline={false} height="520px" />
+
+## Attaching sources
+
+<Story of={Stories.TopicPicker} inline={false} height="620px" />
+
+<Story of={Stories.FilePicker} inline={false} height="620px" />
+
+## Unsaved changes: which pages will be rewritten
+
+"Kitchen" renamed, the invoices added to "Budget", "Suppliers" added, "Photos" removed,
+"Schedule" moved up. Three pages are rewritten; the move rewrites nothing.
+
+<Story of={Stories.Unsaved} inline={false} height="620px" />
+
+## Phone
+
+Touch screens have no drag and drop in the browser. The "…" is always visible, rows are taller,
+and its menu has *Move up*, *Move down* and *Move to…* (the top level, or under one of the
+top-level sections). The details stack under the tree.
+
+<Story of={Stories.Phone} inline={false} height="820px" />
+
+## Open questions
+
+- A or B? Leaning A, for the room to explain a page that can't be written.
+- Should a renamed page be rewritten, or only get its new title? Leaning: only the title and
+  the menu change; rewrite only when sources change, and say so.
+- When a suggested theme matches no title because the user renamed it, offer a new section or
+  try to match by the topics it shares? Leaning: match by shared topics first, then by title.
+- Can the same topic feed two pages ("Kitchen works" in "The works" and in "Kitchen")? Leaning
+  yes, but show "also used in …" on the chip, since it usually means a page repeats another.
+- A parent with pages under it: is it a page of its own, or only a heading in the menu?
+  Leaning: a page (an overview of its children), so it needs sources like any other.
+- Should the warning block *Save and rewrite*, or let the user save placeholder pages?
+  Leaning: allow, skip them, and say how many were skipped.
+- Alt+← is "Back" in some browsers when focus is outside the tree; is Alt+arrows the right
+  reorder shortcut, or Ctrl+Shift+arrows as in Google Docs outlines? Leaning keep Alt (Workflowy,
+  Notion), with the menu as the fallback.
