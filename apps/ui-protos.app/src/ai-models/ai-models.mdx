@@ -1,0 +1,88 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./ai-models.stories.tsx";
+
+<Meta of={Stories} />
+
+# AI models
+
+The admin's screen for the models LiteLLM serves, which model does which job (chat, summaries,
+the search index), and who uses how much. Members hold no LLM keys: the hub holds them and calls
+the models for everyone, tagging each call with the person and the device (peer) it came from.
+That tag is the point of the screen. It answers two questions a small team asks about AI:
+
+- **Privacy**: which machine sent what to which model. Every model is marked **Stays in the
+  office** (runs on the hub) or **Sent to Anthropic / OpenAI** (the text leaves the office), and
+  the daily bars split the tokens the same way.
+- **Cost**: tokens and an estimated price, per person, per device and per model. A person owns
+  several devices, so a person unfolds into their devices: the phone that sends little, the
+  laptop that indexes the folder.
+
+The screen stays basic. Everything else (providers, limits, logs, keys for programs outside the
+group) is in the full LiteLLM UI, which the hub proxies and an admin opens in its own tab.
+
+## A — One page
+
+Jobs, models and usage on one scroll; "Open LiteLLM admin" in the header opens the LiteLLM UI in
+a new browser tab. Everything is visible at once and the page reads top to bottom: what does
+what, then what it cost. With a period selector and two groupings the usage part gets long, and
+on a phone the bars are far below the jobs.
+
+<Story of={Stories.OnePage} inline={false} height="720px" />
+
+What the button opens: the hub's page around the LiteLLM iframe, in a browser tab of its own.
+
+<Story of={Stories.LiteLlmOwnTab} inline={false} height="480px" />
+
+## B — Tabs
+
+Models | Usage | LiteLLM admin. Each tab is short and fits a phone; the LiteLLM UI sits inside
+the screen, so the admin never leaves Sandclaw. But an iframe of a full admin app inside a card
+is cramped, and the usage tab, the one people look at most, is a click away.
+
+<Story of={Stories.WithTabs} inline={false} height="620px" />
+
+<Story of={Stories.LiteLlmTab} inline={false} height="520px" />
+
+## Changing which model does a job
+
+Picking another model never applies at once: a confirmation says what changes, in plain words.
+The search index is the expensive one: a new embedding model means indexing every file again,
+and moving it to a cloud model sends the text of every file out of the office. Moving chat to
+the hub's model says the opposite: text stays home, nothing to pay, slower answers.
+
+<Story of={Stories.SwitchEmbeddings} inline={false} height="620px" />
+
+<Story of={Stories.SwitchChatLocal} inline={false} height="620px" />
+
+## When a model does not answer
+
+LiteLLM's health check failed: the model is marked "Not answering", and the job it does says it
+is down and what to do.
+
+<Story of={Stories.Unreachable} inline={false} height="620px" />
+
+## Usage: drill-down, by model, empty
+
+A person unfolds into their devices, each with the models it used.
+
+<Story of={Stories.PersonDevices} inline={false} height="720px" />
+
+By model, over 90 days: chat ran on the hub's Llama until 20 days ago, then on Claude Sonnet;
+the bars change colour on that day.
+
+<Story of={Stories.ByModel} inline={false} height="620px" />
+
+An empty period names the period, so it does not read as "usage is broken".
+
+<Story of={Stories.NoUsage} inline={false} height="360px" />
+
+## Open questions
+
+- A or B? A keeps everything in sight; B fits a phone better and keeps LiteLLM inside Sandclaw.
+- Cost in dollars (what providers bill) or in euros (what the team pays)? Leaning dollars with a
+  "converted" hint later.
+- Should members see their own usage (their devices only), or is usage admin-only?
+- One model per job for the whole group, or may a person keep sensitive work on the hub's model?
+- Should the admin set a monthly budget that warns, or is the estimate enough?
+- When chat's model is down, should the hub fall back to another model on its own, or wait for
+  the admin?

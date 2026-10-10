@@ -2,6 +2,7 @@ import { composeStories } from "@storybook/react-vite";
 import { cleanup, render } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { afterEach, expect, it } from "vitest";
+import * as aiModels from "../src/ai-models/ai-models.stories.js";
 import * as groundedAnswer from "../src/ask/grounded-answer.stories.js";
 import * as assistant from "../src/assistant-panel/assistant-panel.stories.js";
 import * as composer from "../src/composer/composer.stories.js";
@@ -14,6 +15,7 @@ import * as join from "../src/join-invite/join-invite.stories.js";
 import * as linkDevice from "../src/link-device/link-device.stories.js";
 import * as myIdentity from "../src/my-identity/my-identity.stories.js";
 import * as todos from "../src/notes-todos/todos-view.stories.js";
+import * as services from "../src/services/services.stories.js";
 import * as tasksStrip from "../src/tasks/tasks-strip.stories.js";
 import * as team from "../src/team/team.stories.js";
 import * as workspace from "../src/workspace-layout/workspace-layout.stories.js";
@@ -38,6 +40,8 @@ const stories: [string, ComponentType][] = [
   ...Object.entries(composeStories(conversations)),
   ...Object.entries(composeStories(composer)),
   ...Object.entries(composeStories(tasksStrip)),
+  ...Object.entries(composeStories(services)),
+  ...Object.entries(composeStories(aiModels)),
 ];
 
 it.each(stories)("%s renders", (_, Story) => {
