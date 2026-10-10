@@ -36,6 +36,13 @@ export interface MockFlueSession {
   send(message: DeliveredMessage): { submissionId: string };
   /** `client.abort()`: stops the running submission and any queued behind it. */
   abort(): { aborted: boolean };
+  /**
+   * Prototype-only: whether the Sandclaw machine (where the AI runs) answers.
+   * While offline, `send` throws, the way `client.send()` rejects when the
+   * message cannot be admitted. Listeners are notified when it changes.
+   */
+  isOnline(): boolean;
+  setOnline(online: boolean): void;
 }
 
 export interface MockFlueSessionOptions {
@@ -44,12 +51,15 @@ export interface MockFlueSessionOptions {
   delay?: number;
   /** A conversation that already happened. */
   initial?: Partial<FlueState>;
+  /** Whether the Sandclaw machine answers; true by default. */
+  online?: boolean;
 }
 
 export function createMockFlueSession({
   agent,
   delay = 600,
   initial,
+  online = true,
 }: MockFlueSessionOptions): MockFlueSession {
   let state: FlueState = {
     messages: initial?.messages ?? [],
@@ -109,7 +119,13 @@ export function createMockFlueSession({
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    isOnline: () => online,
+    setOnline(next) {
+      online = next;
+      for (const l of listeners) l();
+    },
     send(message) {
+      if (!online) throw new Error("The Sandclaw machine isn't answering.");
       const submissionId = `sub_${++seq}_${Date.now()}`;
       update({
         messages: [
@@ -121,7 +137,18 @@ export function createMockFlueSession({
             display: message.kind === "user" ? "visible" : "hidden",
             submissionId,
             timestamp: now(),
-            parts: [{ type: "text", text: message.body, state: "done" }],
+            parts: [
+              { type: "text", text: message.body, state: "done" },
+              // Images and PDFs sent with the message, as Flue materializes them.
+              ...(message.kind === "user" ? (message.attachments ?? []) : []).map(
+                (a): FlueConversationPart => ({
+                  type: "file",
+                  mediaType: a.mimeType,
+                  filename: a.filename,
+                  url: `data:${a.mimeType};base64,${a.data}`,
+                }),
+              ),
+            ],
           },
         ],
       });
@@ -206,10 +233,18 @@ export function convertFlueMessage(message: FlueConversationMessage): ThreadMess
         return [{ type: part.type, data: (part as { data: unknown }).data }];
     }
   });
+  // A reply that was stopped or failed is shown incomplete (e.g. marked "Stopped").
+  const outcome = message.role === "assistant" ? message.settlement?.outcome : undefined;
   return {
     id: message.id,
     role: message.role,
     content,
+    ...(outcome && {
+      status: {
+        type: "incomplete" as const,
+        reason: outcome === "aborted" ? ("cancelled" as const) : ("error" as const),
+      },
+    }),
     createdAt: message.timestamp ? new Date(message.timestamp) : undefined,
   };
 }
@@ -227,10 +262,23 @@ const textOf = (message: AppendMessage) =>
  */
 export function useFlueRuntime(session: MockFlueSession) {
   const state = useSyncExternalStore(session.subscribe, session.getState);
-  const messages = useMemo(
-    () => state.messages.filter((m) => m.display === "visible"),
-    [state.messages],
-  );
+  const messages = useMemo(() => {
+    // A reply whose submission was aborted or failed carries that settlement, so
+    // the thread can mark it; the rest keep their identity.
+    const outcomes = new Map(
+      state.settlements
+        .filter((s) => s.outcome !== "completed")
+        .map((s) => [s.submissionId, s.outcome as "failed" | "aborted"]),
+    );
+    return state.messages
+      .filter((m) => m.display === "visible")
+      .map((m) => {
+        const outcome = m.submissionId && outcomes.get(m.submissionId);
+        return outcome && m.role === "assistant" && !m.settlement
+          ? { ...m, settlement: { outcome } }
+          : m;
+      });
+  }, [state.messages, state.settlements]);
   return useExternalStoreRuntime({
     messages,
     isRunning: isFlueRunning(state),

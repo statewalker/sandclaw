@@ -4,6 +4,7 @@ import type { ComponentType } from "react";
 import { afterEach, expect, it } from "vitest";
 import * as groundedAnswer from "../src/ask/grounded-answer.stories.js";
 import * as assistant from "../src/assistant-panel/assistant-panel.stories.js";
+import * as composer from "../src/composer/composer.stories.js";
 import * as folderZone from "../src/folder-zone/folder-zone.stories.js";
 import * as status from "../src/group-status/group-status.stories.js";
 import * as indexing from "../src/indexing/indexing.stories.js";
@@ -32,6 +33,7 @@ const stories: [string, ComponentType][] = [
   ...Object.entries(composeStories(myIdentity)),
   ...Object.entries(composeStories(groundedAnswer)),
   ...Object.entries(composeStories(indexing)),
+  ...Object.entries(composeStories(composer)),
 ];
 
 it.each(stories)("%s renders", (_, Story) => {
