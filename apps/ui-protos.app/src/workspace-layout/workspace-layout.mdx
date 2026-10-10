@@ -52,6 +52,34 @@ the workspace adds the other half by cancelling any drag that starts in a fixed 
 
 <Story of={Stories.PerZone} inline={false} height="600px" />
 
+## On narrow screens: three modes
+
+Dockview has no responsive mode of its own: it is a grid of docks, and a five-dock grid
+squeezed onto a phone is unusable. So the workspace switches between three **modes** by the
+width of its own container (a `ResizeObserver`, not a media query, so it also works when the
+workspace is embedded):
+
+| Width | Mode | What it shows |
+| --- | --- | --- |
+| 1024 px and wider | **desktop** | the full dock: side bars, center, task strip |
+| 640–1023 px | **compact** | the center and the task strip; an activity bar opens the folder, the todos and the assistant as **overlays** on the side they prefer |
+| below 640 px | **mobile** | no dock: one view at a time (Documents, Folder, Todos, Assistant, Tasks) with a bottom bar; nothing to drag |
+
+- **Each dock mode keeps its own arrangement.** Rearrange the desktop, narrow the window and
+  widen it again: the desktop comes back as you left it. A mode never seen before starts from
+  its default layout.
+- **Desktop ↔ compact keeps the same dock**, re-laid out, so panels are not remounted.
+  Entering mobile removes the dock; coming back rebuilds it from the saved arrangement.
+- **Panels adapt to their own width**, not the screen's: each panel sits in a size container,
+  and its content uses container queries (`@md:`). A narrow sidebar on a wide monitor gets
+  the compact rendering of its content.
+- **No drag and drop on touch screens** (a coarse pointer): HTML5 drag and drop is unreliable
+  there.
+
+<Story of={Stories.Compact} inline={false} height="560px" />
+
+<Story of={Stories.Mobile} inline={false} height="640px" />
+
 ## A — Lock toggle
 
 Locked by default: no drag and drop, and single-panel side zones have no tab strip, so they read
@@ -77,6 +105,10 @@ not have, so it is left out.
 ## Open questions
 
 - A, B or C?
+- In compact mode, should the assistant be an overlay, or keep a narrow docked column (it is
+  the panel people talk to most)?
+- On mobile, is "Documents" one view with a tab row, or should each open document be its own
+  view?
 - Should a side zone with several stacked panels show a tab strip per panel (as now) when
   unlocked, or one zone header?
 - When a plugin is uninstalled and later reinstalled, should it go back to where the user had

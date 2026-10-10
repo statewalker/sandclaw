@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { JSX } from "react";
 import { Workspace } from "./workspace.js";
 
 const meta = {
@@ -26,4 +27,23 @@ export const AlwaysOn: Story = {
 export const Reading: Story = {
   name: "Reading layout",
   args: { initialLayout: "reading" },
+};
+
+// The workspace follows its own width, so a narrow frame shows the narrow modes.
+const frame = (width: number) => (Story: () => JSX.Element) => (
+  <div style={{ width, margin: "0 auto", borderInline: "1px solid var(--border)" }}>
+    <Story />
+  </div>
+);
+
+export const Compact: Story = {
+  name: "Compact (800 px wide): side panels as overlays",
+  args: { lockMode: "per-zone" },
+  decorators: [frame(800)],
+};
+
+export const Mobile: Story = {
+  name: "Mobile (390 px wide): one panel at a time",
+  args: { lockMode: "per-zone" },
+  decorators: [frame(390)],
 };

@@ -7,8 +7,9 @@ import { ZoneTitle } from "../zone-title.js";
 export function DocumentPanel() {
   return (
     <ScrollArea className="h-full">
-      <article className="mx-auto max-w-2xl px-8 py-10 text-sm leading-6">
-        <h1 className="mb-1 text-xl font-semibold">Offer — Dupont & Fils</h1>
+      {/* Sized by its panel, not the screen: a container query (@md) widens the margins. */}
+      <article className="mx-auto max-w-2xl px-4 py-6 text-sm leading-6 @md:px-8 @md:py-10">
+        <h1 className="mb-1 text-lg font-semibold @md:text-xl">Offer — Dupont & Fils</h1>
         <p className="text-muted-foreground mb-6 text-xs">Clients / Dupont — offer.docx</p>
         <p className="mb-4">
           Following our meeting of 2 October, we propose to renovate the ground floor of the
@@ -34,7 +35,7 @@ export function SpreadsheetPanel() {
     ["Insurance", "280", "280", "280"],
   ];
   return (
-    <div className="p-4">
+    <div className="overflow-x-auto p-2 @md:p-4">
       <table className="w-full border-collapse text-sm">
         <tbody>
           {rows.map((row, i) => (
