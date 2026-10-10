@@ -4,3 +4,6 @@ globalThis.ResizeObserver ??= class {
   unobserve() {}
   disconnect() {}
 };
+
+// jsdom has no scrollTo; assistant-ui's thread viewport auto-scroll calls it.
+Element.prototype.scrollTo ??= () => {};
