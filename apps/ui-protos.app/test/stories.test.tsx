@@ -17,6 +17,7 @@ import * as firstSteps from "../src/first-steps/first-steps.stories.js";
 import * as folderZone from "../src/folder-zone/folder-zone.stories.js";
 import * as status from "../src/group-status/group-status.stories.js";
 import * as indexing from "../src/indexing/indexing.stories.js";
+import * as installer from "../src/installer/installer.stories.js";
 import * as invitationsLog from "../src/invitations-log/invitations-log.stories.js";
 import * as join from "../src/join-invite/join-invite.stories.js";
 import * as linkDevice from "../src/link-device/link-device.stories.js";
@@ -68,6 +69,7 @@ const stories: [string, ComponentType][] = [
   ...Object.entries(composeStories(firstSteps)),
   ...Object.entries(composeStories(browserData)),
   ...Object.entries(composeStories(settings)),
+  ...Object.entries(composeStories(installer)),
 ];
 
 it.each(stories)("%s renders", (_, Story) => {
