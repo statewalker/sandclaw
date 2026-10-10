@@ -1,0 +1,75 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./my-identity.stories.tsx";
+
+<Meta of={Stories} />
+
+# My identity and devices
+
+Where someone sees who they are in the group and manages their own devices: the name others
+see, the devices that can reach the group, a lock for this browser, and leaving. Everything
+that only happens in this browser (the lock, erasing files and chats) is kept apart from what
+the Sandclaw machine has to agree to (removing a device).
+
+## A — One settings page
+
+Four sections stacked: Me, My devices, This browser, Leave. Everything is visible at once;
+the danger zone sits at the bottom, behind a confirmation. It is a page people open rarely,
+so its length costs little.
+
+<Story of={Stories.SettingsPage} inline={false} height="900px" />
+
+## B — Compact card from the avatar
+
+The avatar in the top bar opens a small card: name, role, devices count, and "Lock now" once
+a lock is set. Everything else is one click away on the full page. It makes locking a
+one-click habit; it adds a second place to keep in step with the page.
+
+<Story of={Stories.CompactCard} inline={false} height="360px" />
+
+<Story of={Stories.CompactCardLockOn} inline={false} height="360px" />
+
+## Removing a lost device
+
+"Remove" sits on every device except this one; for this device the equivalent is "Leave the
+group on this device". The confirmation says what removing does and does not do: the device
+stops reaching the group, but what is kept on it stays there — the group cannot reach into a
+lost phone.
+
+## Lock this browser
+
+Off by default: there is no password to join. Turning it on asks for the password twice and
+says plainly that forgetting it means the files and chats in this browser can't be opened —
+membership can be recovered by linking again, the local files cannot. Locking happens in the
+browser, so it works while the Sandclaw machine is offline.
+
+<Story of={Stories.Locked} inline={false} height="480px" />
+
+## Leaving, and the only device
+
+Leaving cuts this browser off from the Sandclaw machine. Erasing the files and chats is a
+separate, unticked choice, and when ticked the dialog says it cannot be undone. If this is the
+person's only device, the dialog adds that coming back needs a new invite.
+
+<Story of={Stories.OnlyDevice} inline={false} height="900px" />
+
+## Sandclaw machine offline
+
+Removing a device needs the machine to record it, so "Remove" is disabled with the reason
+under the list. Renaming, locking and leaving stay available.
+
+<Story of={Stories.MachineOffline} inline={false} height="900px" />
+
+## Open questions
+
+- A or B? Or both: B for daily use (lock now, quick glance), A as the page it links to?
+- Renaming offline: queue the new name until the machine answers, or disable it like
+  "Remove"? The prototype allows it.
+- Leaving offline: the browser can forget the group on its own, but the machine never hears
+  that this device left. Allow it (the device just looks offline forever), or require the
+  machine?
+- What if Claire, the only admin, leaves on her only device? Block it, or ask her to name
+  another admin first?
+- Should "Lock this browser" also lock after some idle time, or only when the browser is
+  closed and on "Lock now"?
+- "Forgot it?" offers to empty the browser and start over. Is that too easy to press by
+  mistake on a shared computer — should it need a second confirmation?
