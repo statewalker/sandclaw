@@ -1,0 +1,73 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./browser-data.stories.tsx";
+
+<Meta of={Stories} />
+
+# Data kept in this browser
+
+The member's files stay in their folder on disk (the browser only has access to them). This
+browser keeps the rest: **chats**, **search indexes**, **settings**, the **identity** keys and
+**drafts**. A browser may clear a site's data on its own when the disk runs low, unless the site
+was granted persistent storage; and anyone can clear site data by hand. This panel answers: how
+much is here, what would be lost, what would come back, and how to keep a copy.
+
+`BrowserData` is one card, meant to sit on a Settings page.
+
+## The breakdown is grouped by what losing it costs
+
+The bar shows the space used against what the browser allows (`navigator.storage.estimate()`),
+one segment per kind. Below, the kinds are grouped by what happens if the browser clears them,
+so the breakdown and "what if" are one list, not two:
+
+- **Lost** — chats (unless copied), drafts, settings (back to defaults);
+- **Comes back on its own** — search indexes, rebuilt from the files (by far the largest part);
+- **Comes back by linking again** — identity: losing it means linking this browser again from
+  another device.
+
+Above 80% of the quota the card warns that the browser may clear data and reading new files stops.
+
+<Story of={Stories.NotProtected} inline={false} height="1250px" />
+
+## Protect from automatic clearing
+
+"Protect from automatic clearing" calls `navigator.storage.persist()`. The answer is the
+browser's: Chrome and Edge decide silently (engagement, installed app), Firefox asks the user,
+Safari mostly says no. **Granted**: the browser won't clear it on its own — clearing site data by
+hand still deletes it. **Not granted**: say why in plain words, offer "Ask again", and point to
+keeping a copy.
+
+<Story of={Stories.BrowserSaysNo} inline={false} height="1250px" />
+
+<Story of={Stories.Protected} inline={false} height="1250px" />
+
+## Keep a copy
+
+Notes need nothing: they are already files in the folder. Chats are saved as Markdown, one file
+per chat, named `2026-10-10 Dupont start date.md` (date first so they sort, no characters a file
+system refuses, " (2)" for duplicates) — either into the folder's `Chats/` or as a
+`sandclaw-chats-2026-10-10.zip` download.
+
+## Free up space
+
+"Rebuild search indexes" and "Delete chats older than 1 week / 1 month / 3 months" each ask
+first, saying what is lost and what is not. Removing everything (identity included) is not here:
+it is "Empty this browser" in My identity, where linking again is explained.
+
+<Story of={Stories.NearlyFull} inline={false} height="1250px" />
+
+## Open questions
+
+- Chats exported into the folder get read by the assistant: should `Chats/` be excluded from
+  reading by default? Leaning yes.
+- The conversations panel only archives a chat; here old chats are deleted for space. Is delete
+  acceptable in this one place? Leaning yes, with the confirmation and the copy offer.
+- Ask for persistent storage on first visit (right after joining) instead of waiting for the
+  member to find this page? Leaning ask once after the folder is read.
+- Should the browser lock's encrypted store change what an export contains (plain Markdown on
+  disk)? Leaning warn once on export when the lock is on.
+- Settings: worth keeping a copy too (or syncing from the Sandclaw machine), so they come back?
+  Leaning no, they are cheap to redo.
+- Show a "last copy saved 3 days ago" reminder, or nudge when chats grow without a copy? Leaning
+  a quiet "last copy" line only.
+- Should a member be told when the browser *did* clear data (on next visit), with what came
+  back? Leaning yes — a one-time notice.
