@@ -1,0 +1,71 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./explore.stories.tsx";
+
+<Meta of={Stories} />
+
+# Explore — what the indexes know (D3)
+
+A power-user view of the indexes built on this computer from the user's folder. The plain user
+asks questions and reads grounded answers (D1); this screen is for the person who wants to see
+*why* the assistant finds what it finds, or why it misses something. It shows three things:
+
+1. **Topics** — a tree of topics across all files (Clients ▸ Dupont ▸ Kitchen works / Oak beams /
+   Schedule …; Finance ▸ Q3 …). Each topic says how many documents and sections it covers; a leaf
+   opens to those documents and their sections. Opening one shows the document's contents.
+2. **A document's contents** — its sections as the index cut them, each with its first passage and
+   the topics it carries. A section filed under no topic says so: that is where a topic search
+   will never find it.
+3. **Search** — one query, run through the four indexes: **Words** (the same words), **Meaning**
+   (similar meaning, in other words), **Topics** (filed under a matching topic) and **Contents**
+   (under a matching heading). Results are merged into one list, each tagged with every index
+   that found it and its rank there ("Words #2 · Meaning #1"); chips filter by index, with
+   counts; "Why?" shows each index's score and reason.
+
+The mock maps 1:1 to what `@statewalker/indexer-search` reports: each index returns hits
+(`blockId`, `path`, `score`), merged into `PipelineEntry`s with a `citation` (`snippet`,
+`relevance`, `context` = the section). The merge is reciprocal-rank fusion: a passage found high
+by several indexes comes first. The search here is scripted over the mock documents (the "meaning"
+index is a few word families), so typing works.
+
+## A — Tabs: Topics | Contents | Search
+
+Three views, one at a time. Opening a passage from Topics or Search switches to Contents with its
+section marked. Each view is simple on a phone; the cost is that search and browse never sit
+together.
+
+<Story of={Stories.Tabs} inline={false} height="720px" />
+
+<Story of={Stories.TabsContents} inline={false} height="720px" />
+
+<Story of={Stories.TabsSearch} inline={false} height="820px" />
+
+## B — Search first, topics below
+
+One page: the search on top; while it is empty, "Or browse by topic" below it. Opening a passage
+shows the document's contents in place, with Back returning to the same search. Fewer controls,
+and it starts where most visits start (looking for one thing), but a document's contents are only
+reachable by opening something.
+
+<Story of={Stories.SearchFirst} inline={false} height="720px" />
+
+<Story of={Stories.SearchFirstQuery} inline={false} height="820px" />
+
+## Filtering by index, and nothing found
+
+"oak beams" filtered to Meaning shows what only meaning finds: the Leroy roof timber, which shares
+no word with the query. A query no index matches says so, per index when a filter is on.
+
+<Story of={Stories.OnlyMeaning} inline={false} height="620px" />
+
+<Story of={Stories.NothingFound} inline={false} height="420px" />
+
+## Open questions
+
+- **A or B?** Leaning B: a power user arrives with a query; Contents is a drill-down, not a
+  destination. A is better if browsing topics is the main use (auditing what was learnt).
+- **Scores in search results.** Here behind "Why?" (rank always visible, score on demand). Leaning
+  keep: ranks compare across indexes, raw scores don't.
+- **Can a user fix a topic** (rename, merge, move a section)? Out of scope here; if yes, the tree
+  becomes an editor and needs its own prototype.
+- **Should "Open" go to the D1 document preview** (dialog, passage highlighted) instead of to
+  Contents? Leaning: Contents in A, preview in B.
