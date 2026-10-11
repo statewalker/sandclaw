@@ -57,8 +57,8 @@ type Dialog =
       op: TransferOp;
       sources: string[];
       targets: TransferTarget[];
-      /** Desktop drop: the workspace plus the dropped files at `/.drop`. */
-      external?: FilesApi;
+      /** Desktop drop: the dropped files, and the workspace with them at `/.drop` for the preview. */
+      drop?: { files: FilesApi; view: FilesApi };
     }
   | { kind: "mkdir"; dir: string }
   | { kind: "rename"; path: string }
@@ -76,6 +76,9 @@ interface Viewer {
   size: number;
   text?: string;
 }
+
+/** Where the dialog's preview shows a desktop drop beside the storages. */
+const DROP = "/.drop";
 
 const TEXT_TYPES = [".md", ".txt", ".json", ".csv"];
 const NARROW = "(max-width: 639px)";
@@ -196,7 +199,7 @@ export function FileCommander(props: FileCommanderProps) {
 
   const running = Boolean(job && !job.result);
 
-  const transfer = async (source: FilesApi, request: TransferRequest) => {
+  const transfer = async (request: TransferRequest, source?: FilesApi) => {
     if (running) return;
     setDialog(undefined);
     const abort = new AbortController();
@@ -205,7 +208,7 @@ export function FileCommander(props: FileCommanderProps) {
     let result: TransferResult;
     try {
       const done = await ops.transfer(request, {
-        files: source,
+        source,
         signal: abort.signal,
         onProgress: (progress) => setJob((j) => j && { ...j, progress }),
       });
@@ -358,9 +361,12 @@ export function FileCommander(props: FileCommanderProps) {
               setDialog({
                 kind: "transfer",
                 op: "copy",
-                sources: dropped.paths.map((p) => `/.drop${p}`),
+                sources: dropped.paths.map((p) => `${DROP}${p}`),
                 targets: dropTargets(targetDir),
-                external: new CompositeFilesApi(files).mount("/.drop", dropped.files),
+                drop: {
+                  files: dropped.files,
+                  view: new CompositeFilesApi(files).mount(DROP, dropped.files),
+                },
               });
             }}
             onProblemAction={() => setNotice("Opens Settings → Storage")}
@@ -504,10 +510,16 @@ export function FileCommander(props: FileCommanderProps) {
           op={dialog.op}
           sources={dialog.sources}
           targets={dialog.targets}
-          files={dialog.external ?? files}
-          external={Boolean(dialog.external)}
+          files={dialog.drop?.view ?? files}
+          external={Boolean(dialog.drop)}
           busy={running}
-          onConfirm={(request) => transfer(dialog.external ?? files, request)}
+          onConfirm={(request) => {
+            const { drop } = dialog;
+            if (!drop) return transfer(request);
+            // The dialog previews against the workspace view; the run takes the drop's own paths.
+            const sources = request.sources.map((s) => s.slice(DROP.length));
+            return transfer({ ...request, sources }, drop.files);
+          }}
           onCancel={() => setDialog(undefined)}
           onProblemAction={() => setNotice("Opens Settings → Storage")}
         />

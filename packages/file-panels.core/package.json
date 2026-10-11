@@ -39,10 +39,10 @@
     "@statewalker/file-mounts.core": "workspace:^",
     "@statewalker/shared-baseclass": "catalog:",
     "@statewalker/webrun-files": "catalog:",
+    "@statewalker/webrun-files-composite": "catalog:",
     "@statewalker/webrun-files-mem": "catalog:"
   },
   "devDependencies": {
-    "@statewalker/webrun-files-composite": "catalog:",
     "@types/node": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

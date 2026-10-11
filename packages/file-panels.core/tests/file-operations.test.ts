@@ -1,4 +1,4 @@
-import { type FileChange, newFileChanges } from "@statewalker/file-mounts.core";
+import { type FileChange, MountUnavailable, newFileChanges } from "@statewalker/file-mounts.core";
 import { type FilesApi, readText, writeText } from "@statewalker/webrun-files";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import { describe, expect, it } from "vitest";
@@ -26,20 +26,6 @@ describe("FileOperations", () => {
     });
     expect(result.done).toEqual(["/docs/a.md"]);
     expect(await readText(files, "/out/a.md")).toBe("A");
-    expect(seen).toEqual([
-      [
-        { type: "added", path: "/out/a.md" },
-        { type: "deleted", path: "/docs/a.md" },
-      ],
-    ]);
-  });
-
-  it("a move from the operations' own files, passed explicitly, still reports the source as deleted", async () => {
-    const { files, ops, seen } = await setup();
-    await ops.transfer(
-      { op: "move", sources: ["/docs/a.md"], targetDir: "/out", clash: "skip" },
-      { files },
-    );
     expect(seen).toEqual([
       [
         { type: "added", path: "/out/a.md" },
@@ -161,15 +147,61 @@ describe("FileOperations", () => {
     ]);
   });
 
-  it("a transfer from another source reports no source-side paths", async () => {
-    const { ops, seen } = await setup();
+  it("a drop from another source lands in the operations' own files and reports only the target", async () => {
+    const { files, ops, seen } = await setup();
     const drop = new MemFilesApi();
-    await writeText(drop, "/d/x.md", "X");
-    await drop.mkdir("/out");
-    await ops.transfer(
-      { op: "move", sources: ["/d/x.md"], targetDir: "/out", clash: "skip" },
-      { files: drop },
+    await writeText(drop, "/drop/x.md", "X");
+    const { result } = await ops.transfer(
+      { op: "copy", sources: ["/drop/x.md"], targetDir: "/out", clash: "skip" },
+      { source: drop },
     );
+    expect(result.failed).toEqual([]);
+    expect(await readText(files, "/out/x.md")).toBe("X");
+    expect(await drop.exists("/out/x.md")).toBe(false);
     expect(seen).toEqual([[{ type: "added", path: "/out/x.md" }]]);
+  });
+
+  it("a target that goes away mid-move still returns the result and reports what may have changed", async () => {
+    const base = new MemFilesApi();
+    await writeText(base, "/docs/a.md", "A");
+    await writeText(base, "/docs/b.md", "B");
+    await base.mkdir("/out");
+    let gone = false;
+    const unavailable = () =>
+      new MountUnavailable("out", { cause: "unreachable", message: "Can't reach the storage." });
+    const files: FilesApi = new Proxy(base, {
+      get(target, prop) {
+        const value = Reflect.get(target, prop);
+        if (typeof value !== "function") return value;
+        return (...args: unknown[]) => {
+          const [path] = args;
+          if (gone && typeof path === "string" && path.startsWith("/out")) throw unavailable();
+          // The first file's source is cleaned up last: the target goes away right after.
+          if (prop === "remove" && path === "/docs/a.md") gone = true;
+          return value.apply(target, args);
+        };
+      },
+    });
+    const changes = newFileChanges();
+    const seen: FileChange[][] = [];
+    changes.subscribe((c) => seen.push([...c]));
+    const ops = new FileOperations(files, changes);
+    const { result } = await ops.transfer({
+      op: "move",
+      sources: ["/docs/a.md", "/docs/b.md"],
+      targetDir: "/out",
+      clash: "skip",
+    });
+    expect(result.done).toEqual(["/docs/a.md"]);
+    expect(result.failed.map((f) => f.path)).toEqual(["/docs/b.md"]);
+    expect(await readText(base, "/out/a.md")).toBe("A");
+    expect(seen).toEqual([
+      [
+        { type: "added", path: "/out/a.md" },
+        { type: "deleted", path: "/docs/a.md" },
+        { type: "updated", path: "/out/b.md" },
+        { type: "updated", path: "/docs/b.md" },
+      ],
+    ]);
   });
 });

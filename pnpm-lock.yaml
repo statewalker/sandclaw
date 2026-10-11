@@ -1279,13 +1279,13 @@ importers:
       '@statewalker/webrun-files':
         specifier: 'catalog:'
         version: 0.10.1
+      '@statewalker/webrun-files-composite':
+        specifier: 'catalog:'
+        version: 0.10.2
       '@statewalker/webrun-files-mem':
         specifier: 'catalog:'
         version: 0.10.2
     devDependencies:
-      '@statewalker/webrun-files-composite':
-        specifier: 'catalog:'
-        version: 0.10.2
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.4

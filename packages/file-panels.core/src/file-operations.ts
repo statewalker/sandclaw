@@ -3,6 +3,7 @@
 import type { FileChange, FileChangesHub } from "@statewalker/file-mounts.core";
 import type { FilesApi } from "@statewalker/webrun-files";
 import { dirname, joinPath } from "@statewalker/webrun-files";
+import { CompositeFilesApi } from "@statewalker/webrun-files-composite";
 import {
   planTransfer,
   type TransferPlan,
@@ -11,19 +12,26 @@ import {
 } from "./transfer-plan.js";
 import { runTransfer, type TransferProgress, type TransferResult } from "./transfer-run.js";
 
+/** Where a foreign source is mounted while a transfer runs. */
+const DROP = "/.drop";
+
 export class FileOperations {
   constructor(
     readonly files: FilesApi,
     readonly changes: FileChangesHub,
   ) {}
 
-  /** Plans and runs a copy or move; `files` is another source (a desktop drop). */
+  /**
+   * Plans and runs a copy or move. `source` is a foreign source (a desktop drop): its
+   * paths are taken from it, mounted at `/.drop` beside these files for the run.
+   */
   async transfer(
     request: TransferRequest,
-    opts: { files?: FilesApi; signal?: AbortSignal; onProgress?(p: TransferProgress): void } = {},
+    opts: { source?: FilesApi; signal?: AbortSignal; onProgress?(p: TransferProgress): void } = {},
   ): Promise<{ plan: TransferPlan; result: TransferResult }> {
-    const files = opts.files ?? this.files;
-    const foreign = files !== this.files;
+    const { source } = opts;
+    const files = source ? new CompositeFilesApi(this.files).mount(DROP, source) : this.files;
+    if (source) request = { ...request, sources: request.sources.map((s) => joinPath(DROP, s)) };
     const plan = await planTransfer(files, request);
     if (plan.invalid) throw new Error(plan.invalid);
     const result = await runTransfer(files, plan, opts);
@@ -32,15 +40,26 @@ export class FileOperations {
     for (const step of plan.steps) {
       const done = result.done.includes(step.from);
       // A failed step may have written its target or cleaned part of its source: look.
-      if (!done && !(failed.has(step.from) && (await this.files.exists(step.to)))) continue;
-      changes.push({ type: step.overwrite ? "updated" : "added", path: step.to });
-      // Source-side paths of a foreign source (a drop mount) mean nothing to listeners.
-      if (step.op !== "move" || foreign) continue;
-      const stays = !done && (await this.files.exists(step.from));
+      const target = done || !failed.has(step.from) ? done : await this.probe(step.to);
+      if (target === false) continue;
+      const written = step.overwrite ? "updated" : "added";
+      changes.push({ type: target === undefined ? "updated" : written, path: step.to });
+      // Source-side paths of a foreign source mean nothing to listeners.
+      if (step.op !== "move" || source) continue;
+      const stays = !done && (await this.probe(step.from)) !== false;
       changes.push({ type: stays ? "updated" : "deleted", path: step.from });
     }
     this.changes.emit(changes);
     return { plan, result };
+  }
+
+  /** Whether `path` exists; `undefined` when its storage went away mid-run and can't say. */
+  private async probe(path: string): Promise<boolean | undefined> {
+    try {
+      return await this.files.exists(path);
+    } catch {
+      return undefined;
+    }
   }
 
   async mkdir(dir: string, name: string): Promise<string> {

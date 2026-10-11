@@ -69,7 +69,9 @@ result.failed; // [{ path, problem: { message } }]: one entry per step that did 
 ```
 
 `transfer` throws `plan.invalid` (for example "A folder can't be copied or moved into itself.")
-before touching anything. To show the clash dialog first, call `planTransfer(files, request)`
+before touching anything, and throws when the target can't be listed for planning (a locked or
+unreachable storage). Once steps run it does not throw: a storage that goes away mid-run fails the
+remaining steps in `result.failed`, and the steps already done stay in `result.done`. To show the clash dialog first, call `planTransfer(files, request)`
 yourself: `plan.clashes` names the taken names.
 
 ### Folder operations
@@ -90,10 +92,15 @@ element.addEventListener("drop", async (event) => {
   const dropped = await importDropped(event.dataTransfer);   // { files, paths }
   await ops.transfer(
     { op: "copy", sources: dropped.paths, targetDir: panel.state.path, clash: "keep-both" },
-    { files: dropped.files },
+    { source: dropped.files },
   );
 });
 ```
+
+`sources` are paths in `source`, the target is in the operations' own files. For the run,
+`FileOperations` mounts `source` at `/.drop` beside its files, so the returned `plan` and `result`
+name the dropped items as `/.drop/drop/...`. Passing the drop's `MemFilesApi` as the operations'
+files instead would copy inside that throwaway storage and write nothing to the workspace.
 
 ### Persisting the layout
 
@@ -148,8 +155,14 @@ conditional writes (`If-None-Match`) from the storage itself, which `FilesApi` d
 
 `FileOperations` emits `FileChange` events (`added`, `updated`, `deleted`) on the hub it is given,
 reporting what is really on disk: a failed transfer step still reports a target that was written
-and a source that was partly cleaned. With `opts.files` (a drop) no source-side events are emitted,
-since those paths mean nothing to listeners. `PanelModel` subscribes to the optional `changes` and
+and a source that was partly cleaned. When the storage can't be asked any more (it became
+unavailable mid-run), the target and source of a failed step are reported as `updated`, so a panel
+refreshes and shows either the files or the storage's problem. With `opts.source` (a drop) no
+source-side events are emitted, since those paths mean nothing to listeners.
+
+After an unlock or a reconnect, the mount table's `apply` returns the changed mount roots; pass them
+on with `changes.emit(await table.apply(configs))`. Without that, a panel showing
+"Locked: unlock to use the S3 storages." keeps showing it until it is navigated again. `PanelModel` subscribes to the optional `changes` and
 refreshes when a change is inside the folder it was last asked to show, is that folder itself, or
 is one of its ancestors; any other change is ignored. The asked-for folder counts even while its
 listing is still loading, so a change in the previous folder never cancels the navigation; after a
@@ -179,13 +192,15 @@ the seam where a full-text index over the mounts plugs in later.
 
 ### Constraints and dependencies
 
-- `PanelModel` identifies a storage by the first path segment; `runTransfer` takes a `mountOf`
-  option to override that when the mount table differs.
+- `runTransfer` decides whether a step crosses storages by the first path segment (a cross-storage
+  step is streamed through a temporary sibling, an in-storage one delegated to the backend); its
+  `mountOf` option overrides that when the mount table differs.
 - The target folder must be inside a storage: `/` is refused ("Choose a folder inside a storage.").
 - Depends on `@statewalker/explorer.core` (the list model), `@statewalker/file-mounts.core`
   (`FileChanges`, `Problem`, `problemOf`), `@statewalker/shared-baseclass` (`BaseClass`),
-  `@statewalker/webrun-files` (`FilesApi`, path helpers) and `@statewalker/webrun-files-mem`
-  (the drop's in-memory storage).
+  `@statewalker/webrun-files` (`FilesApi`, path helpers), `@statewalker/webrun-files-mem`
+  (the drop's in-memory storage) and `@statewalker/webrun-files-composite` (mounting a drop beside
+  the storages for a transfer).
 
 ## License
 
