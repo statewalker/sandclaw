@@ -34,6 +34,8 @@ export interface TransferDialogProps {
   files: FilesApi;
   /** Dropped from the desktop: there is nothing to move. */
   external?: boolean;
+  /** Another transfer is still running: this one can't start yet. */
+  busy?: boolean;
   onConfirm(request: TransferRequest): void;
   onCancel(): void;
 }
@@ -72,25 +74,31 @@ export function TransferDialog(props: TransferDialogProps) {
     rename: one && name !== basename(first) ? name : undefined,
     clash: one ? "overwrite" : clash,
   };
-  const key = JSON.stringify(request);
+  // The clash choice is left out: picking one must not re-check (and so
+  // re-render) the choices themselves. The check plans with "keep both"; a
+  // plan only an overwrite makes invalid is refused by the run, in the summary.
+  const checked: TransferRequest = { ...request, clash: one ? "overwrite" : "keep-both" };
+  const key = JSON.stringify(checked);
 
-  // What the request would do, checked again on every change; a folder that
-  // cannot be read here fails in the run, with its reason in the summary.
-  // `key` stands for the request in the dependencies.
+  // What the request would do, checked again on every change. The previous
+  // result stays until the new one arrives, so nothing blinks while typing; a
+  // folder that cannot be read here fails in the run, with its reason in the summary.
+  // `key` stands for `checked` in the dependencies.
   useEffect(() => {
     let current = true;
-    setCheck({ exists: false, clashes: [] });
-    if (nameError || !request.targetDir) return;
+    if (nameError || !checked.targetDir) return;
     (async () => {
+      let next: Check = { exists: false, clashes: [] };
       try {
         const [plan, clashes] = await Promise.all([
-          planTransfer(files, request),
-          one ? [] : findClashes(files, sources, request.targetDir),
+          planTransfer(files, checked),
+          one ? [] : findClashes(files, sources, checked.targetDir),
         ]);
-        if (current) setCheck({ exists: plan.clashes.length > 0, clashes, invalid: plan.invalid });
+        next = { exists: plan.clashes.length > 0, clashes, invalid: plan.invalid };
       } catch {
         /* the run reports it */
       }
+      if (current) setCheck(next);
     })();
     return () => {
       current = false;
@@ -100,7 +108,7 @@ export function TransferDialog(props: TransferDialogProps) {
   const sameFolder =
     sources.some((s) => dirname(s) === request.targetDir) && (!one || name === basename(first));
   const verb = op === "copy" ? "Copy" : "Move";
-  const disabled = Boolean(nameError || check.invalid || !request.targetDir);
+  const disabled = Boolean(props.busy || nameError || check.invalid || !request.targetDir);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -207,6 +215,9 @@ export function TransferDialog(props: TransferDialogProps) {
           ) : null}
 
           {check.invalid ? <p className="text-destructive">{check.invalid}</p> : null}
+          {props.busy ? (
+            <p className="text-muted-foreground">Wait for the current transfer to finish.</p>
+          ) : null}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={props.onCancel}>

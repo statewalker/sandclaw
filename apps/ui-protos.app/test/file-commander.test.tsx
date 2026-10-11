@@ -110,6 +110,73 @@ describe("FileCommander", () => {
   });
 });
 
+describe("FileCommander, fix round 1", () => {
+  it("choosing a clash policy keeps the choices on screen", async () => {
+    const storages = newDemoStorages();
+    await storages.files.write("/archive/2026/todo.md", [new TextEncoder().encode("old")]);
+    render(<FileCommander storages={storages} panels={["/documents/notes", "/archive/2026"]} />);
+    const left = panel("notes");
+    fireEvent.click(await within(left).findByRole("row", { name: "meeting-2026-10-02.md" }));
+    fireEvent.click(within(left).getByRole("row", { name: "todo.md" }), { ctrlKey: true });
+    fireEvent.keyDown(within(left).getByRole("grid"), { key: "F5" });
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(await within(dialog).findByRole("radio", { name: "Skip" }));
+    expect(within(dialog).queryByRole("radio", { name: "Overwrite" })).not.toBeNull();
+    await act(async () => {});
+    expect(within(dialog).getByRole("radio", { name: "Skip" })).toHaveProperty("checked", true);
+  });
+
+  it("a copy keeps the source selection; the target selects the copy, trailing slash or not", async () => {
+    const storages = newDemoStorages();
+    render(<FileCommander storages={storages} panels={["/documents/notes", "/archive/2026"]} />);
+    const left = panel("notes");
+    fireEvent.click(await within(left).findByRole("row", { name: "todo.md" }));
+    fireEvent.keyDown(within(left).getByRole("grid"), { key: "F5" });
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Folder"), {
+      target: { value: "/archive/2026/" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Copy" }));
+    await screen.findByText("Done");
+    const copied = await within(panel("2026")).findByRole("row", { name: "todo.md" });
+    expect(copied.getAttribute("aria-selected")).toBe("true");
+    const source = within(left).getByRole("row", { name: "todo.md" });
+    expect(source.getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("refuses a second transfer while one runs", async () => {
+    const storages = newDemoStorages({ slowMs: 60_000 });
+    render(<FileCommander storages={storages} panels={["/archive/2025", "/documents/notes"]} />);
+    const left = panel("2025");
+    fireEvent.click(await within(left).findByRole("row", { name: "backup.zip" }));
+    fireEvent.keyDown(within(left).getByRole("grid"), { key: "F5" });
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "Copy" }),
+    );
+    await screen.findByRole("progressbar");
+    fireEvent.keyDown(within(left).getByRole("grid"), { key: "F5" });
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Wait for the current transfer to finish.")).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Copy" })).toHaveProperty("disabled", true);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+    expect(await screen.findByText("Cancelled")).toBeTruthy();
+  });
+
+  it("a desktop drop copies into the folder, without a Move choice", async () => {
+    const storages = newDemoStorages();
+    render(<FileCommander storages={storages} panels={["/documents/notes", "/browser/drafts"]} />);
+    const target = await within(panel("drafts")).findByRole("grid");
+    const data = { types: ["Files"], files: [new File(["dropped"], "note.txt")] };
+    fireEvent.drop(target, { dataTransfer: data });
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByRole("radio", { name: "Move" })).toBeNull();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Copy" }));
+    await screen.findByText("Done");
+    expect(await readText(storages.files, "/browser/drafts/note.txt")).toBe("dropped");
+  });
+});
+
 describe("readDropped", () => {
   it("reads plain dropped files under /drop", async () => {
     const data = { files: [new File(["hello"], "a.txt")] } as unknown as DataTransfer;

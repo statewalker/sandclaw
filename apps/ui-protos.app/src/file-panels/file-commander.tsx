@@ -11,6 +11,7 @@ import {
   dirname,
   extname,
   joinPath,
+  normalizePath,
   readFile,
   readText,
 } from "@statewalker/webrun-files";
@@ -191,7 +192,10 @@ export function FileCommander(props: FileCommanderProps) {
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
+  const running = Boolean(job && !job.result);
+
   const transfer = async (source: FilesApi, request: TransferRequest) => {
+    if (running) return;
     setDialog(undefined);
     const abort = new AbortController();
     setJob({ op: request.op, abort });
@@ -217,11 +221,14 @@ export function FileCommander(props: FileCommanderProps) {
     }
     setJob((j) => j && { ...j, result });
     // The target selects what was written; moved items leave their panel's selection.
+    const target = normalizePath(request.targetDir);
     setPanels((ps) =>
       ps.map((p) =>
-        p.path === request.targetDir
+        normalizePath(p.path) === target
           ? { ...p, selected: written }
-          : { ...p, selected: p.selected.filter((s) => !result.done.includes(s)) },
+          : request.op === "move"
+            ? { ...p, selected: p.selected.filter((s) => !result.done.includes(s)) }
+            : p,
       ),
     );
     refresh();
@@ -250,7 +257,8 @@ export function FileCommander(props: FileCommanderProps) {
     link.href = url;
     link.download = basename(path);
     link.click();
-    URL.revokeObjectURL(url);
+    // Revoked a tick later: the browser starts the download after the click returns.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   const onCommand = (id: number) => (command: PanelCommand, handle: PanelHandle) => {
@@ -258,8 +266,12 @@ export function FileCommander(props: FileCommanderProps) {
     if (command === "open-in-new-panel" && first) addPanel(first);
     else if (command === "download" && first) attempt(() => download(first));
     else if (command === "copy-path") {
-      void navigator.clipboard?.writeText(handle.selected.join("\n"));
-      setNotice("Path copied.");
+      Promise.resolve()
+        .then(() => navigator.clipboard.writeText(handle.selected.join("\n")))
+        .then(
+          () => setNotice("Path copied."),
+          () => setNotice("Couldn't copy the path."),
+        );
     } else setDialog(dialogFor(command, handle, others(id), title));
   };
 
@@ -491,6 +503,7 @@ export function FileCommander(props: FileCommanderProps) {
           targets={dialog.targets}
           files={dialog.external ?? files}
           external={Boolean(dialog.external)}
+          busy={running}
           onConfirm={(request) => transfer(dialog.external ?? files, request)}
           onCancel={() => setDialog(undefined)}
         />
