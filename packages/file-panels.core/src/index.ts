@@ -1,3 +1,4 @@
+export * from "./file-operations.js";
 export * from "./import-dropped.js";
 export * from "./paths.js";
 export type * from "./search.js";
