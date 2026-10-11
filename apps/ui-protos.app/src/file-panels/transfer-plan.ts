@@ -75,8 +75,17 @@ export async function planTransfer(files: FilesApi, req: TransferRequest): Promi
       if (req.clash === "keep-both") name = freeName(name, new Set([...existing, ...planned]));
       else overwrite = true;
     }
+    const to = joinPath(req.targetDir, name);
+    if (overwrite && from.startsWith(`${to}/`)) {
+      return {
+        steps: [],
+        skipped: [],
+        clashes: [],
+        invalid: "A folder can't be replaced by something inside it.",
+      };
+    }
     planned.add(name);
-    plan.steps.push({ op, from, to: joinPath(req.targetDir, name), overwrite });
+    plan.steps.push({ op, from, to, overwrite });
   }
   return plan;
 }

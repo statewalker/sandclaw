@@ -1,4 +1,4 @@
-import { readText } from "@statewalker/webrun-files";
+import { basename, type FilesApi, readText, writeText } from "@statewalker/webrun-files";
 import { describe, expect, it, vi } from "vitest";
 import { newDemoStorages } from "../src/file-panels/demo-storages.js";
 import { breadcrumb, clickSelect, siblings, sortEntries } from "../src/file-panels/paths.js";
@@ -276,5 +276,176 @@ describe("runTransfer", () => {
     };
     const result = await runTransfer(files, plan);
     expect(result.failed).toEqual([{ path: "/documents/readme.md", problem: locked }]);
+  });
+});
+
+describe("runTransfer fix round 1", () => {
+  const wrap = (files: FilesApi, over: Partial<FilesApi>): FilesApi => ({
+    read: (p, o) => files.read(p, o),
+    write: (p, c) => files.write(p, c),
+    mkdir: (p) => files.mkdir(p),
+    list: (p, o) => files.list(p, o),
+    stats: (p) => files.stats(p),
+    exists: (p) => files.exists(p),
+    remove: (p) => files.remove(p),
+    move: (a, b) => files.move(a, b),
+    copy: (a, b) => files.copy(a, b),
+    ...over,
+  });
+  const isPart = (p: string) => basename(p).includes(".part-");
+  const listed = async (files: FilesApi, dir: string) => {
+    const out: string[] = [];
+    for await (const e of files.list(dir)) out.push(e.name);
+    return out.sort();
+  };
+
+  it("refuses to replace a folder with something inside it", async () => {
+    const { files } = newDemoStorages();
+    await writeText(files, "/documents/a/a/x.txt", "x");
+    const plan = await planTransfer(files, {
+      op: "move",
+      sources: ["/documents/a/a"],
+      targetDir: "/documents",
+      clash: "overwrite",
+    });
+    expect(plan.invalid).toBe("A folder can't be replaced by something inside it.");
+    expect(plan.steps).toEqual([]);
+    expect(await readText(files, "/documents/a/a/x.txt")).toBe("x");
+  });
+
+  it("a same-mount overwrite whose copy fails keeps the old target", async () => {
+    const { files: base } = newDemoStorages();
+    const files = wrap(base, {
+      copy: async (a, b) => {
+        if (isPart(b)) throw new Error("copy broke");
+        return base.copy(a, b);
+      },
+    });
+    const plan = {
+      steps: [
+        {
+          op: "copy" as const,
+          from: "/documents/readme.md",
+          to: "/documents/notes/todo.md",
+          overwrite: true,
+        },
+      ],
+      skipped: [],
+      clashes: [],
+    };
+    const result = await runTransfer(files, plan);
+    expect(result.failed[0]?.problem.message).toBe("copy broke");
+    expect(await readText(base, "/documents/notes/todo.md")).toContain("# Todo");
+    expect(await listed(base, "/documents/notes")).toEqual(["meeting-2026-10-02.md", "todo.md"]);
+  });
+
+  it("a same-mount overwrite replaces the target and a move removes the source", async () => {
+    const { files } = newDemoStorages();
+    const plan = {
+      steps: [
+        {
+          op: "move" as const,
+          from: "/documents/readme.md",
+          to: "/documents/notes/todo.md",
+          overwrite: true,
+        },
+      ],
+      skipped: [],
+      clashes: [],
+    };
+    const result = await runTransfer(files, plan);
+    expect(result.done).toEqual(["/documents/readme.md"]);
+    expect(await readText(files, "/documents/notes/todo.md")).toBe("# Documents\n");
+    expect(await files.exists("/documents/readme.md")).toBe(false);
+    expect(await listed(files, "/documents/notes")).toEqual(["meeting-2026-10-02.md", "todo.md"]);
+  });
+
+  it("a failed final swap restores the old target and loses nothing", async () => {
+    const { files: base } = newDemoStorages();
+    const files = wrap(base, {
+      move: async (a, b) => {
+        if (isPart(a)) throw new Error("swap broke");
+        return base.move(a, b);
+      },
+    });
+    const plan = {
+      steps: [
+        {
+          op: "copy" as const,
+          from: "/documents/readme.md",
+          to: "/archive/2026/readme.md",
+          overwrite: true,
+        },
+      ],
+      skipped: [],
+      clashes: [],
+    };
+    const result = await runTransfer(files, plan);
+    expect(result.failed[0]?.problem.message).toBe("swap broke");
+    expect(await readText(base, "/archive/2026/readme.md")).toBe("# Archive 2026\n");
+    expect(await listed(base, "/archive/2026")).toEqual(["readme.md"]);
+    expect(await base.exists("/documents/readme.md")).toBe(true);
+  });
+
+  it("an abort raised as an exception is a cancel, not a failure", async () => {
+    const { files: base } = newDemoStorages();
+    const files = wrap(base, {
+      async *read(p, o) {
+        for await (const chunk of base.read(p, o)) {
+          for (let i = 0; i < chunk.length; i += 1000) {
+            if (o?.signal?.aborted) throw new DOMException("aborted", "AbortError");
+            yield chunk.subarray(i, i + 1000);
+          }
+        }
+      },
+    });
+    const controller = new AbortController();
+    const plan = await planTransfer(base, {
+      op: "move",
+      sources: ["/documents/clients/dupont/offer.pdf"],
+      targetDir: "/archive",
+      clash: "skip",
+    });
+    const result = await runTransfer(files, plan, {
+      signal: controller.signal,
+      onProgress: () => controller.abort(),
+    });
+    expect(result).toMatchObject({ cancelled: true, failed: [], done: [] });
+    expect(await base.exists("/archive/offer.pdf")).toBe(false);
+    expect(await base.exists("/documents/clients/dupont/offer.pdf")).toBe(true);
+  });
+
+  it("a copy or move that reports a missing source is a failure", async () => {
+    const { files: base } = newDemoStorages();
+    const files = wrap(base, { copy: async () => false });
+    const plan = {
+      steps: [
+        {
+          op: "copy" as const,
+          from: "/documents/readme.md",
+          to: "/documents/copy.md",
+          overwrite: false,
+        },
+      ],
+      skipped: [],
+      clashes: [],
+    };
+    const result = await runTransfer(files, plan);
+    expect(result.done).toEqual([]);
+    expect(result.failed[0]?.problem.message).toBe("readme.md no longer exists.");
+  });
+
+  it("a cross-mount folder move keeps empty subfolders", async () => {
+    const { files } = newDemoStorages();
+    await files.mkdir("/documents/clients/dupont/empty");
+    const plan = await planTransfer(files, {
+      op: "move",
+      sources: ["/documents/clients/dupont"],
+      targetDir: "/archive",
+      clash: "skip",
+    });
+    await runTransfer(files, plan);
+    expect(await files.exists("/archive/dupont/empty")).toBe(true);
+    expect(await files.exists("/archive/dupont/offer.pdf")).toBe(true);
   });
 });

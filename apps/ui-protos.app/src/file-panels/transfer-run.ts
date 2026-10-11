@@ -31,23 +31,51 @@ interface FileJob {
   to: string;
   size: number;
 }
+interface StepContent {
+  files: FileJob[];
+  dirs: string[];
+}
 
-/** Each file of a step as [source, target]; a file step is itself, an empty folder has none. */
-async function filesOf(files: FilesApi, step: TransferStep): Promise<FileJob[]> {
+/** What a step moves: its files as [source, target] and every folder to recreate (empty ones too). */
+async function contentOf(files: FilesApi, step: TransferStep): Promise<StepContent> {
   const stats = await files.stats(step.from);
   if (!stats) throw new Error(`${basename(step.from)} no longer exists.`);
-  if (stats.kind === "file") return [{ from: step.from, to: step.to, size: stats.size }];
-  const out: FileJob[] = [];
+  if (stats.kind === "file")
+    return { files: [{ from: step.from, to: step.to, size: stats.size }], dirs: [] };
+  const out: StepContent = { files: [], dirs: [step.to] };
   for await (const e of files.list(step.from, { recursive: true })) {
-    if (e.kind === "file") {
-      out.push({
-        from: e.path,
-        to: joinPath(step.to, e.path.slice(step.from.length)),
-        size: e.size,
-      });
-    }
+    const to = joinPath(step.to, e.path.slice(step.from.length));
+    if (e.kind === "file") out.files.push({ from: e.path, to, size: e.size });
+    else out.dirs.push(to);
   }
   return out;
+}
+
+const randomSuffix = () => Math.random().toString(36).slice(2, 10);
+const sibling = (path: string, tag: string) =>
+  joinPath(dirname(path), `.${basename(path)}.${tag}-${randomSuffix()}`);
+
+/** A false result from copy, move or remove means the source was not there. */
+function must(done: boolean, from: string) {
+  if (!done) throw new Error(`${basename(from)} no longer exists.`);
+}
+
+/** Puts a complete `tmp` in place of `to`; the old `to` is set aside and restored if the swap fails. */
+async function swapIn(files: FilesApi, tmp: string, to: string) {
+  if (!(await files.exists(to))) {
+    must(await files.move(tmp, to), tmp);
+    return;
+  }
+  const aside = sibling(to, "old");
+  must(await files.move(to, aside), to);
+  try {
+    must(await files.move(tmp, to), tmp);
+  } catch (e) {
+    await quietly(() => files.remove(to));
+    await quietly(() => files.move(aside, to));
+    throw e;
+  }
+  await quietly(() => files.remove(aside));
 }
 
 const quietly = async (action: () => Promise<unknown>) => {
@@ -77,13 +105,13 @@ export async function runTransfer(
   };
 
   // 1. Sizes up front, so progress has a total; a step that cannot be read fails now.
-  const jobs = new Map<TransferStep, FileJob[]>();
+  const contents = new Map<TransferStep, StepContent>();
   let bytesTotal = 0;
   for (const step of plan.steps) {
     try {
-      const list = await filesOf(files, step);
-      jobs.set(step, list);
-      for (const j of list) bytesTotal += j.size;
+      const content = await contentOf(files, step);
+      contents.set(step, content);
+      for (const j of content.files) bytesTotal += j.size;
     } catch (e) {
       result.failed.push({ path: step.from, problem: problemOf(e) });
     }
@@ -91,18 +119,13 @@ export async function runTransfer(
 
   let bytesDone = 0;
   let itemsDone = 0;
-  const itemsTotal = jobs.size;
+  const itemsTotal = contents.size;
   const report = (file: string) =>
     opts.onProgress?.({ file, bytesDone, bytesTotal, itemsDone, itemsTotal });
 
   // Streams one file; returns false when cancelled (the incomplete file is removed).
   const copyFile = async (job: FileJob, overwrite: boolean): Promise<boolean> => {
-    const tmp = overwrite
-      ? joinPath(
-          dirname(job.to),
-          `.${basename(job.to)}.part-${Math.random().toString(36).slice(2, 10)}`,
-        )
-      : job.to;
+    const tmp = overwrite ? sibling(job.to, "part") : job.to;
     let stopped = false;
     async function* chunks() {
       for await (const chunk of files.read(job.from, { signal })) {
@@ -113,10 +136,6 @@ export async function runTransfer(
         bytesDone += chunk.length;
         report(job.from);
         yield chunk;
-        if (signal?.aborted) {
-          stopped = true;
-          return;
-        }
       }
     }
     try {
@@ -125,10 +144,7 @@ export async function runTransfer(
         await quietly(() => files.remove(tmp));
         return false;
       }
-      if (overwrite) {
-        if (await files.exists(job.to)) await files.remove(job.to);
-        await files.move(tmp, job.to);
-      }
+      if (overwrite) await swapIn(files, tmp, job.to);
       return true;
     } catch (e) {
       await quietly(() => files.remove(tmp));
@@ -136,37 +152,63 @@ export async function runTransfer(
     }
   };
 
+  // Same mount: the backend copies or moves; an overwrite goes through a temporary sibling.
+  const inMount = async (step: TransferStep, size: number) => {
+    if (!step.overwrite) {
+      must(
+        await (step.op === "move"
+          ? files.move(step.from, step.to)
+          : files.copy(step.from, step.to)),
+        step.from,
+      );
+    } else {
+      const tmp = sibling(step.to, "part");
+      try {
+        must(await files.copy(step.from, tmp), step.from);
+        await swapIn(files, tmp, step.to);
+      } catch (e) {
+        await quietly(() => files.remove(tmp));
+        throw e;
+      }
+      if (step.op === "move") must(await files.remove(step.from), step.from);
+    }
+    bytesDone += size;
+  };
+
   // 2. Step by step.
   for (const step of plan.steps) {
-    const list = jobs.get(step);
-    if (!list) continue;
+    const content = contents.get(step);
+    if (!content) continue;
     if (signal?.aborted) {
       result.cancelled = true;
       return result;
     }
     try {
       if (mountOf(step.from) === mountOf(step.to)) {
-        if (step.overwrite && (await files.exists(step.to))) await files.remove(step.to);
-        await (step.op === "move"
-          ? files.move(step.from, step.to)
-          : files.copy(step.from, step.to));
-        bytesDone += list.reduce((n, j) => n + j.size, 0);
+        await inMount(
+          step,
+          content.files.reduce((n, j) => n + j.size, 0),
+        );
       } else {
-        if (list.length === 0) await files.mkdir(step.to);
-        for (const job of list) {
+        for (const dir of content.dirs) await files.mkdir(dir);
+        for (const job of content.files) {
           if (!(await copyFile(job, step.overwrite))) {
             // 3. Cancelled: nothing of this step stays as if complete.
             result.cancelled = true;
             return result;
           }
         }
-        if (step.op === "move") await files.remove(step.from);
+        if (step.op === "move") must(await files.remove(step.from), step.from);
       }
       itemsDone++;
       result.done.push(step.from);
       report(step.from);
     } catch (e) {
-      // 4. This step failed; the next one runs.
+      // An abort raised as an exception is a cancel; any other error fails this step only.
+      if (signal?.aborted) {
+        result.cancelled = true;
+        return result;
+      }
       result.failed.push({ path: step.from, problem: problemOf(e) });
     }
   }
