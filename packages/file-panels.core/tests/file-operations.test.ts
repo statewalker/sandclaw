@@ -34,6 +34,20 @@ describe("FileOperations", () => {
     ]);
   });
 
+  it("a move from the operations' own files, passed explicitly, still reports the source as deleted", async () => {
+    const { files, ops, seen } = await setup();
+    await ops.transfer(
+      { op: "move", sources: ["/docs/a.md"], targetDir: "/out", clash: "skip" },
+      { files },
+    );
+    expect(seen).toEqual([
+      [
+        { type: "added", path: "/out/a.md" },
+        { type: "deleted", path: "/docs/a.md" },
+      ],
+    ]);
+  });
+
   it("an overwrite is reported as updated; nothing is reported for skipped or failed items", async () => {
     const { ops, seen, files } = await setup();
     await writeText(files, "/out/a.md", "old");

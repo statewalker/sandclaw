@@ -23,6 +23,7 @@ export class FileOperations {
     opts: { files?: FilesApi; signal?: AbortSignal; onProgress?(p: TransferProgress): void } = {},
   ): Promise<{ plan: TransferPlan; result: TransferResult }> {
     const files = opts.files ?? this.files;
+    const foreign = files !== this.files;
     const plan = await planTransfer(files, request);
     if (plan.invalid) throw new Error(plan.invalid);
     const result = await runTransfer(files, plan, opts);
@@ -34,7 +35,7 @@ export class FileOperations {
       if (!done && !(failed.has(step.from) && (await this.files.exists(step.to)))) continue;
       changes.push({ type: step.overwrite ? "updated" : "added", path: step.to });
       // Source-side paths of a foreign source (a drop mount) mean nothing to listeners.
-      if (step.op !== "move" || opts.files) continue;
+      if (step.op !== "move" || foreign) continue;
       const stays = !done && (await this.files.exists(step.from));
       changes.push({ type: stays ? "updated" : "deleted", path: step.from });
     }
