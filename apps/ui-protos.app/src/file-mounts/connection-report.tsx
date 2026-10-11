@@ -1,3 +1,5 @@
+import type { CheckId, Problem } from "@statewalker/file-mounts.core";
+import { CHECK_LABELS, CHECK_ORDER, type ConnectionReport } from "@statewalker/file-mounts.core";
 import {
   Button,
   Collapsible,
@@ -6,9 +8,6 @@ import {
 } from "@statewalker/ui.view.shadcn";
 import { Check, ChevronDown, Circle, Loader2, Minus, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Problem } from "../file-panels/problem.js";
-import { CHECK_LABELS, CHECK_ORDER, type ConnectionReport } from "./connection-test.js";
-import type { CheckId } from "./s3-problems.js";
 
 type CheckState = ConnectionReport["checks"][number]["state"] | "running";
 

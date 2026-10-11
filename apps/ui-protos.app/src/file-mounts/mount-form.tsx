@@ -1,22 +1,23 @@
-import { Button, Card, Input } from "@statewalker/ui.view.shadcn";
-import { Cloud, FolderOpen, HardDrive, type LucideIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import type { Problem } from "../file-panels/problem.js";
-import { ConnectionReportView } from "./connection-report.js";
-import { type ConnectionReport, runConnectionTest, type S3Probe } from "./connection-test.js";
-import type { MockVault } from "./mock-vault.js";
+import type { CheckId, Problem } from "@statewalker/file-mounts.core";
 import {
+  type ConnectionReport,
   keyFromName,
   type MountConfig,
   type MountTypeId,
   normalizeEndpoint,
   normalizePrefix,
+  runConnectionTest,
   type S3Form,
   type S3PresetId,
+  type S3Probe,
   validateS3Form,
-} from "./mount-config.js";
+} from "@statewalker/file-mounts.core";
+import { Button, Card, Input } from "@statewalker/ui.view.shadcn";
+import { Cloud, FolderOpen, HardDrive, type LucideIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ConnectionReportView } from "./connection-report.js";
+import type { MockVault } from "./mock-vault.js";
 import { Field, S3Fields } from "./s3-fields.js";
-import type { CheckId } from "./s3-problems.js";
 import { VaultDialog, type VaultMode } from "./vault-dialogs.js";
 
 export interface MountFormProps {

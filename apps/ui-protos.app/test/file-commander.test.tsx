@@ -2,7 +2,6 @@ import { readText } from "@statewalker/webrun-files";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { newDemoStorages } from "../src/file-panels/demo-storages.js";
-import { readDropped } from "../src/file-panels/dropped-files.js";
 import { FileCommander } from "../src/file-panels/file-commander.js";
 
 afterEach(cleanup);
@@ -223,53 +222,5 @@ describe("FileCommander, fix round 1", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Copy" }));
     await screen.findByText("Done");
     expect(await readText(storages.files, "/browser/drafts/note.txt")).toBe("dropped");
-  });
-});
-
-describe("readDropped", () => {
-  it("reads plain dropped files under /drop", async () => {
-    const data = { files: [new File(["hello"], "a.txt")] } as unknown as DataTransfer;
-    const { files, paths } = await readDropped(data);
-    expect(paths).toEqual(["/drop/a.txt"]);
-    expect(await readText(files, "/drop/a.txt")).toBe("hello");
-  });
-
-  it("reads a dropped folder recursively through its entries", async () => {
-    const file = (name: string, fullPath: string, text: string) => ({
-      isFile: true,
-      isDirectory: false,
-      name,
-      fullPath,
-      file: (ok: (f: File) => void) => ok(new File([text], name)),
-    });
-    const dir = (name: string, fullPath: string, children: unknown[]) => ({
-      isFile: false,
-      isDirectory: true,
-      name,
-      fullPath,
-      createReader: () => {
-        let read = false;
-        return {
-          readEntries: (ok: (e: unknown[]) => void) => {
-            ok(read ? [] : children);
-            read = true;
-          },
-        };
-      },
-    });
-    const tree = dir("site", "/site", [
-      file("index.md", "/site/index.md", "# Site"),
-      dir("img", "/site/img", [file("a.png", "/site/img/a.png", "png")]),
-      dir("empty", "/site/empty", []),
-    ]);
-    const data = {
-      items: [{ kind: "file", webkitGetAsEntry: () => tree }],
-      files: [],
-    } as unknown as DataTransfer;
-    const { files, paths } = await readDropped(data);
-    expect(paths).toEqual(["/drop/site"]);
-    expect(await readText(files, "/drop/site/img/a.png")).toBe("png");
-    expect(await readText(files, "/drop/site/index.md")).toBe("# Site");
-    expect((await files.stats("/drop/site/empty"))?.kind).toBe("directory");
   });
 });

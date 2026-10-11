@@ -1,3 +1,11 @@
+import type {
+  MountConfig,
+  MountStatus,
+  MountTypeId,
+  Problem,
+  S3Form,
+} from "@statewalker/file-mounts.core";
+import { runConnectionTest, type S3Probe } from "@statewalker/file-mounts.core";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,11 +21,8 @@ import {
 } from "@statewalker/ui.view.shadcn";
 import { Loader2, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { Problem } from "../file-panels/problem.js";
 import { ProblemView } from "./connection-report.js";
-import { runConnectionTest, type S3Probe } from "./connection-test.js";
 import type { MockVault, VaultState } from "./mock-vault.js";
-import type { MountConfig, MountStatus, MountTypeId, S3Form } from "./mount-config.js";
 import { MountForm, s3FormOf, TYPE_ICONS } from "./mount-form.js";
 import { VaultDialog, type VaultMode } from "./vault-dialogs.js";
 

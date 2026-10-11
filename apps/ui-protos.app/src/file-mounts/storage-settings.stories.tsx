@@ -1,9 +1,8 @@
+import type { S3Form } from "@statewalker/file-mounts.core";
+import { corsRule, fakeProbe, type ProbeScenario } from "@statewalker/file-mounts.core";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
-import { fakeProbe, type ProbeScenario } from "./connection-test.js";
 import { MockVault, type VaultState } from "./mock-vault.js";
-import type { S3Form } from "./mount-config.js";
-import { corsRule } from "./s3-problems.js";
 import {
   type StorageItem,
   StorageSettings,

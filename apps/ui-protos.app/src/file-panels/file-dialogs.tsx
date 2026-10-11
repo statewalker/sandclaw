@@ -1,3 +1,4 @@
+import { validateName } from "@statewalker/file-panels.core";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +21,6 @@ import {
 import type { FilesApi } from "@statewalker/webrun-files";
 import { basename, dirname } from "@statewalker/webrun-files";
 import { type FormEvent, useEffect, useId, useState } from "react";
-import { validateName } from "./transfer-plan.js";
 
 interface NameDialogProps {
   files: FilesApi;

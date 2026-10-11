@@ -1,4 +1,10 @@
 import {
+  applyPreset,
+  S3_PRESETS,
+  type S3Form,
+  type S3PresetId,
+} from "@statewalker/file-mounts.core";
+import {
   Button,
   Input,
   Label,
@@ -10,7 +16,6 @@ import {
 } from "@statewalker/ui.view.shadcn";
 import { Eye, EyeOff } from "lucide-react";
 import { type ReactNode, useId } from "react";
-import { applyPreset, S3_PRESETS, type S3Form, type S3PresetId } from "./mount-config.js";
 
 export function Field({
   label,

@@ -1,3 +1,12 @@
+import { newFileChanges, problemOf } from "@statewalker/file-mounts.core";
+import {
+  FileOperations,
+  importDropped,
+  type TransferOp,
+  type TransferProgress,
+  type TransferRequest,
+  type TransferResult,
+} from "@statewalker/file-panels.core";
 import {
   Button,
   cn,
@@ -10,28 +19,19 @@ import {
   basename,
   dirname,
   extname,
-  joinPath,
   normalizePath,
   readFile,
   readText,
 } from "@statewalker/webrun-files";
 import { CompositeFilesApi } from "@statewalker/webrun-files-composite";
 import { Plus, X } from "lucide-react";
-import { Fragment, type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { Fragment, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { formatBytes } from "../browser-data/storage.js";
 import { newDemoStorages } from "./demo-storages.js";
-import { readDropped } from "./dropped-files.js";
 import { DeleteDialog, NewFolderDialog, RenameDialog } from "./file-dialogs.js";
 import { FilePanel, type PanelCommand, type PanelHandle } from "./file-panel.js";
 import { ProgressStrip } from "./progress-strip.js";
 import { TransferDialog, type TransferTarget } from "./transfer-dialog.js";
-import { planTransfer, type TransferOp, type TransferRequest } from "./transfer-plan.js";
-import {
-  problemOf,
-  runTransfer,
-  type TransferProgress,
-  type TransferResult,
-} from "./transfer-run.js";
 
 type Storages = ReturnType<typeof newDemoStorages>;
 
@@ -192,6 +192,8 @@ export function FileCommander(props: FileCommanderProps) {
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
+  const ops = useMemo(() => new FileOperations(files, newFileChanges()), [files]);
+
   const running = Boolean(job && !job.result);
 
   const transfer = async (source: FilesApi, request: TransferRequest) => {
@@ -202,12 +204,13 @@ export function FileCommander(props: FileCommanderProps) {
     let written: string[] = [];
     let result: TransferResult;
     try {
-      const plan = await planTransfer(source, request);
-      if (plan.invalid) throw new Error(plan.invalid);
-      result = await runTransfer(source, plan, {
+      const done = await ops.transfer(request, {
+        files: source,
         signal: abort.signal,
         onProgress: (progress) => setJob((j) => j && { ...j, progress }),
       });
+      const { plan } = done;
+      result = done.result;
       written = plan.steps.filter((s) => result.done.includes(s.from)).map((s) => s.to);
     } catch (e) {
       // Planning failed (an unavailable target, say): nothing was written.
@@ -247,7 +250,7 @@ export function FileCommander(props: FileCommanderProps) {
   const remove = (paths: string[]) =>
     attempt(async () => {
       setPanels((ps) => ps.map((p) => ({ ...p, selected: [] })));
-      for (const path of paths) await files.remove(path);
+      await ops.remove(paths);
     });
 
   const download = async (path: string) => {
@@ -351,7 +354,7 @@ export function FileCommander(props: FileCommanderProps) {
               })
             }
             onDropExternal={async (data, targetDir) => {
-              const dropped = await readDropped(data);
+              const dropped = await importDropped(data);
               setDialog({
                 kind: "transfer",
                 op: "copy",
@@ -512,21 +515,14 @@ export function FileCommander(props: FileCommanderProps) {
         <NewFolderDialog
           files={files}
           dir={dialog.dir}
-          onConfirm={(name) => attempt(() => files.mkdir(joinPath(dialog.dir, name)))}
+          onConfirm={(name) => attempt(() => ops.mkdir(dialog.dir, name))}
           onCancel={() => setDialog(undefined)}
         />
       ) : dialog?.kind === "rename" ? (
         <RenameDialog
           files={files}
           path={dialog.path}
-          onConfirm={(name) =>
-            attempt(async () => {
-              // The dialog checked the name when it opened; it may be taken since.
-              const to = joinPath(dirname(dialog.path), name);
-              if (await files.exists(to)) throw new Error(`${name} already exists here.`);
-              if (!(await files.move(dialog.path, to))) throw new Error("It no longer exists.");
-            })
-          }
+          onConfirm={(name) => attempt(() => ops.rename(dialog.path, name))}
           onCancel={() => setDialog(undefined)}
         />
       ) : dialog?.kind === "delete" ? (

@@ -1,8 +1,8 @@
+import { breadcrumb, siblings } from "@statewalker/file-panels.core";
 import { Button, cn } from "@statewalker/ui.view.shadcn";
 import type { FilesApi } from "@statewalker/webrun-files";
 import { ChevronDown, HardDrive } from "lucide-react";
 import { type DragEvent, useState } from "react";
-import { breadcrumb, siblings } from "./paths.js";
 import { type MenuItem, PopupMenu } from "./popup-menu.js";
 
 export interface BreadcrumbBarProps {

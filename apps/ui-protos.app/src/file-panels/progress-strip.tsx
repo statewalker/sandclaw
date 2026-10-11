@@ -1,8 +1,7 @@
+import type { TransferOp, TransferProgress, TransferResult } from "@statewalker/file-panels.core";
 import { Button } from "@statewalker/ui.view.shadcn";
 import { basename } from "@statewalker/webrun-files";
 import { formatBytes } from "../browser-data/storage.js";
-import type { TransferOp } from "./transfer-plan.js";
-import type { TransferProgress, TransferResult } from "./transfer-run.js";
 
 /** The bottom strip: a running transfer with Cancel, then its summary with Close. */
 export function ProgressStrip({

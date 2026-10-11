@@ -1,3 +1,12 @@
+import { MountUnavailable, type Problem } from "@statewalker/file-mounts.core";
+import {
+  type ClashPolicy,
+  findClashes,
+  planTransfer,
+  type TransferOp,
+  type TransferRequest,
+  validateName,
+} from "@statewalker/file-panels.core";
 import {
   Button,
   Dialog,
@@ -12,15 +21,6 @@ import {
 import type { FilesApi } from "@statewalker/webrun-files";
 import { basename, dirname } from "@statewalker/webrun-files";
 import { type FormEvent, useEffect, useId, useState } from "react";
-import { MountUnavailable, type Problem } from "./problem.js";
-import {
-  type ClashPolicy,
-  findClashes,
-  planTransfer,
-  type TransferOp,
-  type TransferRequest,
-  validateName,
-} from "./transfer-plan.js";
 
 export interface TransferTarget {
   label: string;

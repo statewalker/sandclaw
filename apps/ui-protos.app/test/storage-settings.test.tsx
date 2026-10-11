@@ -1,6 +1,6 @@
+import { fakeProbe } from "@statewalker/file-mounts.core";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { fakeProbe } from "../src/file-mounts/connection-test.js";
 import { MockVault } from "../src/file-mounts/mock-vault.js";
 import { StorageSettings } from "../src/file-mounts/storage-settings.js";
 import { DEMO_MOUNTS } from "../src/file-mounts/storage-settings.stories.js";

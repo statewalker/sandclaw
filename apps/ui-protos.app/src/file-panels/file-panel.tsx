@@ -1,3 +1,4 @@
+import { MountUnavailable, type Problem } from "@statewalker/file-mounts.core";
 import { Button, cn, Input } from "@statewalker/ui.view.shadcn";
 import type { FileInfo, FilesApi } from "@statewalker/webrun-files";
 import { dirname } from "@statewalker/webrun-files";
@@ -29,7 +30,6 @@ import { BreadcrumbBar } from "./breadcrumb-bar.js";
 import type { DemoMount } from "./demo-storages.js";
 import { clickSelect, type Sort, type SortField, sortEntries } from "./paths.js";
 import { type MenuItem, MenuList } from "./popup-menu.js";
-import { MountUnavailable, type Problem } from "./problem.js";
 
 /** Set on a drag between panels: a JSON array of paths. */
 export const PATHS_TYPE = "application/x-sandclaw-paths";
