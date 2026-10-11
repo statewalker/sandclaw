@@ -1,5 +1,5 @@
 import { readText } from "@statewalker/webrun-files";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { newDemoStorages } from "../src/file-panels/demo-storages.js";
 import { breadcrumb, clickSelect, siblings, sortEntries } from "../src/file-panels/paths.js";
 import { MountUnavailable } from "../src/file-panels/problem.js";
@@ -9,6 +9,7 @@ import {
   planTransfer,
   validateName,
 } from "../src/file-panels/transfer-plan.js";
+import { runTransfer } from "../src/file-panels/transfer-run.js";
 
 const names = async (files: import("@statewalker/webrun-files").FilesApi, path: string) => {
   const out: string[] = [];
@@ -185,5 +186,95 @@ describe("names", () => {
     expect(validateName("a/b")).toBe("A name can't contain / or \\.");
     expect(validateName("..")).toBe("This name is reserved.");
     expect(validateName("ok.md")).toBeUndefined();
+  });
+});
+
+describe("runTransfer", () => {
+  it("copies across mounts with byte progress", async () => {
+    const { files } = newDemoStorages();
+    const plan = await planTransfer(files, {
+      op: "copy",
+      sources: ["/documents/clients/dupont"],
+      targetDir: "/archive/2026",
+      clash: "skip",
+    });
+    const seen: number[] = [];
+    const result = await runTransfer(files, plan, { onProgress: (p) => seen.push(p.bytesDone) });
+    expect(result).toMatchObject({
+      done: ["/documents/clients/dupont"],
+      failed: [],
+      cancelled: false,
+    });
+    expect(await files.exists("/archive/2026/dupont/offer.pdf")).toBe(true);
+    expect(seen.at(-1)).toBe(240_000 + 80_000);
+  });
+
+  it("a cross-mount move removes the source only after the copy", async () => {
+    const { files } = newDemoStorages();
+    const plan = await planTransfer(files, {
+      op: "move",
+      sources: ["/documents/readme.md"],
+      targetDir: "/archive",
+      clash: "skip",
+    });
+    await runTransfer(files, plan);
+    expect(await files.exists("/documents/readme.md")).toBe(false);
+    expect(await readText(files, "/archive/readme.md")).toBe("# Documents\n");
+  });
+
+  it("an overwrite whose copy fails keeps the old target", async () => {
+    const { files } = newDemoStorages({ failPaths: ["/archive/2026/readme.md"] });
+    const plan = await planTransfer(files, {
+      op: "copy",
+      sources: ["/documents/readme.md"],
+      targetDir: "/archive/2026",
+      clash: "overwrite",
+    });
+    const result = await runTransfer(files, plan);
+    expect(result.failed[0]?.problem.message).toContain("connection was reset");
+    expect(await readText(files, "/archive/2026/readme.md")).toBe("# Archive 2026\n");
+  });
+
+  it("cancelling mid-file removes the partial copy and keeps the source", async () => {
+    vi.useFakeTimers();
+    const { files } = newDemoStorages({ slowMs: 100 });
+    const plan = await planTransfer(files, {
+      op: "move",
+      sources: ["/archive/2025/backup.zip"],
+      targetDir: "/documents",
+      clash: "skip",
+    });
+    const controller = new AbortController();
+    const running = runTransfer(files, plan, { signal: controller.signal });
+    await vi.advanceTimersByTimeAsync(250);
+    controller.abort();
+    await vi.runAllTimersAsync();
+    const result = await running;
+    vi.useRealTimers();
+    expect(result.cancelled).toBe(true);
+    expect(await files.exists("/documents/backup.zip")).toBe(false);
+    expect(await files.exists("/archive/2025/backup.zip")).toBe(true);
+  });
+
+  it("an unavailable target fails each step with the mount's problem", async () => {
+    const locked = {
+      cause: "locked" as const,
+      message: "Locked: unlock to use the S3 storages.",
+    };
+    const { files } = newDemoStorages({ unavailable: { archive: locked } });
+    const plan = {
+      steps: [
+        {
+          op: "copy" as const,
+          from: "/documents/readme.md",
+          to: "/archive/readme.md",
+          overwrite: false,
+        },
+      ],
+      skipped: [],
+      clashes: [],
+    };
+    const result = await runTransfer(files, plan);
+    expect(result.failed).toEqual([{ path: "/documents/readme.md", problem: locked }]);
   });
 });
