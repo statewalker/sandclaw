@@ -15,16 +15,16 @@ import {
   type SerializedDockview,
 } from "dockview-react";
 import { Lock, LockOpen } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { AssistantPanel } from "../assistant-panel/assistant-panel.js";
 import {
+  CommanderPanel,
   FilesInDock,
   fileContributions,
   fileDockComponents,
   useFilesInDock,
 } from "../file-panels/dock-files.js";
 import { useCommander } from "../file-panels/use-commander.js";
-import { FolderZone } from "../folder-zone/folder-zone.js";
 import { GroupPill } from "../group-status/group-status.js";
 import { TodosView } from "../notes-todos/todos-view.js";
 import {
@@ -52,9 +52,16 @@ import {
 
 const MISSING = "missing";
 
+/** The left bar's folder: the commander's panel that stays out of the dock, as a tree. */
+function FolderBar() {
+  const files = useContext(FilesInDock);
+  const id = files?.commander.panels.find((p) => p.dock === false)?.id;
+  return id ? <CommanderPanel id={id} /> : null;
+}
+
 /** What each panel component renders, whichever presenter shows it. */
 const PANEL_VIEWS: Record<string, () => ReactNode> = {
-  folder: () => <FolderZone />,
+  folder: () => <FolderBar />,
   todos: () => <TodosView />,
   outline: () => <OutlinePanel />,
   document: () => <DocumentPanel />,
@@ -138,7 +145,7 @@ export interface WorkspaceProps {
    * follows its own width (see responsive.ts); set this for tests.
    */
   initialMode?: Mode;
-  /** Adds two file panels (demo storages) as center tabs, next to the documents. */
+  /** Adds two file panels (demo storages) to the center, beside the documents. */
   files?: boolean;
 }
 
@@ -163,7 +170,13 @@ export function Workspace({
   const [notice, setNotice] = useState("");
   const installed = allPanels.filter((p) => plugins.includes(p.id));
   // File panels are not plugins: the commander holds them, and they survive a re-layout.
-  const commander = useCommander({ panels: files ? ["/documents/clients", "/archive/2025"] : [] });
+  // The left bar's folder is a file panel too, in tree view.
+  const commander = useCommander({
+    panels: [
+      { path: "/documents", view: "tree", dock: false },
+      ...(files ? ["/documents/clients", "/archive/2025"] : []),
+    ],
+  });
   const [dockApi, setDockApi] = useState<DockviewApi | null>(null);
   const filesDock = useFilesInDock(commander, dockApi, { phone: coarsePointer });
   const known = [...installed, ...fileContributions];
@@ -324,86 +337,86 @@ export function Workspace({
       : [];
 
   return (
-    <div ref={root} className="flex h-screen flex-col" data-mode={mode}>
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-        <GroupPill state="connected" />
-        <div className="flex-1" />
-        {usesDock(mode) && (
-          <>
-            <Select
-              value=""
-              onValueChange={(id) => {
-                const panel = installed.find((p) => p.id === id);
-                if (api.current && panel) openPanel(api.current, panel);
-              }}
-              disabled={closed.length === 0}
-            >
-              <SelectTrigger className="h-8 w-36" aria-label="Open panel">
-                <SelectValue placeholder="Open panel" />
-              </SelectTrigger>
-              <SelectContent>
-                {closed.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value="" onValueChange={restoreLayout}>
-              <SelectTrigger className="h-8 w-44" aria-label="Restore layout">
-                <SelectValue placeholder="Restore layout" />
-              </SelectTrigger>
-              <SelectContent>
-                {layouts.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </>
-        )}
-        {mode === "desktop" &&
-          lockMode === "per-zone" &&
-          SIDE_ZONES.map(({ zone, label }) => (
-            <Button
-              key={zone}
-              variant="ghost"
-              size="sm"
-              aria-pressed={fixedZones[zone]}
-              title={
-                fixedZones[zone] ? `${label} is fixed — click to unlock` : `${label} can be moved`
-              }
-              onClick={() => setFixedZones({ ...fixedZones, [zone]: !fixedZones[zone] })}
-            >
-              {fixedZones[zone] ? <Lock /> : <LockOpen />} {label}
+    <FilesInDock.Provider value={filesDock}>
+      <div ref={root} className="flex h-screen flex-col" data-mode={mode}>
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
+          <GroupPill state="connected" />
+          <div className="flex-1" />
+          {usesDock(mode) && (
+            <>
+              <Select
+                value=""
+                onValueChange={(id) => {
+                  const panel = installed.find((p) => p.id === id);
+                  if (api.current && panel) openPanel(api.current, panel);
+                }}
+                disabled={closed.length === 0}
+              >
+                <SelectTrigger className="h-8 w-36" aria-label="Open panel">
+                  <SelectValue placeholder="Open panel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {closed.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value="" onValueChange={restoreLayout}>
+                <SelectTrigger className="h-8 w-44" aria-label="Restore layout">
+                  <SelectValue placeholder="Restore layout" />
+                </SelectTrigger>
+                <SelectContent>
+                  {layouts.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+          {mode === "desktop" &&
+            lockMode === "per-zone" &&
+            SIDE_ZONES.map(({ zone, label }) => (
+              <Button
+                key={zone}
+                variant="ghost"
+                size="sm"
+                aria-pressed={fixedZones[zone]}
+                title={
+                  fixedZones[zone] ? `${label} is fixed — click to unlock` : `${label} can be moved`
+                }
+                onClick={() => setFixedZones({ ...fixedZones, [zone]: !fixedZones[zone] })}
+              >
+                {fixedZones[zone] ? <Lock /> : <LockOpen />} {label}
+              </Button>
+            ))}
+          {mode === "desktop" && lockMode === "lock-toggle" && (
+            <Button variant="ghost" size="sm" onClick={() => setLocked(!locked)}>
+              {locked ? <Lock /> : <LockOpen />} {locked ? "Layout locked" : "Layout unlocked"}
             </Button>
-          ))}
-        {mode === "desktop" && lockMode === "lock-toggle" && (
-          <Button variant="ghost" size="sm" onClick={() => setLocked(!locked)}>
-            {locked ? <Lock /> : <LockOpen />} {locked ? "Layout locked" : "Layout unlocked"}
-          </Button>
+          )}
+        </header>
+        {mode !== "mobile" && (
+          <div className="text-muted-foreground flex flex-wrap items-center gap-2 border-b border-dashed px-4 py-1.5 text-xs">
+            <span>Prototype only — installed plugins:</span>
+            {allPanels.map((p) => (
+              <Button
+                key={p.id}
+                size="xs"
+                variant={plugins.includes(p.id) ? "secondary" : "ghost"}
+                aria-pressed={plugins.includes(p.id)}
+                onClick={() => togglePlugin(p)}
+              >
+                {p.title}
+              </Button>
+            ))}
+            {notice && <span className="text-foreground ml-2">{notice}</span>}
+          </div>
         )}
-      </header>
-      {mode !== "mobile" && (
-        <div className="text-muted-foreground flex flex-wrap items-center gap-2 border-b border-dashed px-4 py-1.5 text-xs">
-          <span>Prototype only — installed plugins:</span>
-          {allPanels.map((p) => (
-            <Button
-              key={p.id}
-              size="xs"
-              variant={plugins.includes(p.id) ? "secondary" : "ghost"}
-              aria-pressed={plugins.includes(p.id)}
-              onClick={() => togglePlugin(p)}
-            >
-              {p.title}
-            </Button>
-          ))}
-          {notice && <span className="text-foreground ml-2">{notice}</span>}
-        </div>
-      )}
-      {usesDock(mode) ? (
-        <FilesInDock.Provider value={filesDock}>
+        {usesDock(mode) ? (
           <SidePanelOverlays panels={overlays} renderPanel={renderPanel}>
             <DockviewReact
               className="dockview-theme-light dockview-theme-sandclaw absolute inset-0"
@@ -413,13 +426,13 @@ export function Workspace({
               disableFloatingGroups
             />
           </SidePanelOverlays>
-        </FilesInDock.Provider>
-      ) : (
-        <MobileStack panels={installed} renderPanel={renderPanel} />
-      )}
-      {commander.noticeBar}
-      {commander.progressStrip}
-      {commander.dialogs}
-    </div>
+        ) : (
+          <MobileStack panels={installed} renderPanel={renderPanel} />
+        )}
+        {commander.noticeBar}
+        {commander.progressStrip}
+        {commander.dialogs}
+      </div>
+    </FilesInDock.Provider>
   );
 }

@@ -16,6 +16,7 @@ import {
   basename,
   dirname,
   extname,
+  joinPath,
   normalizePath,
   readFile,
   readText,
@@ -26,16 +27,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { formatBytes } from "../browser-data/storage.js";
 import { newDemoStorages } from "./demo-storages.js";
 import { DeleteDialog, NewFolderDialog, RenameDialog } from "./file-dialogs.js";
-import type { FilePanelProps, PanelCommand, PanelHandle } from "./file-panel.js";
+import type { FilePanelProps, PanelCommand, PanelHandle, PanelView } from "./file-panel.js";
 import { ProgressStrip } from "./progress-strip.js";
 import { TransferDialog, type TransferTarget } from "./transfer-dialog.js";
 
 export type Storages = ReturnType<typeof newDemoStorages>;
 
+/** A panel to open with: its folder, or its folder and view. */
+export type PanelSpec = string | { path: string; view?: PanelView; dock?: false };
+
 export interface CommanderOptions {
   storages?: Storages;
-  /** The folders of the panels, in order. */
-  panels?: string[];
+  /** The panels, in order: each a folder, or a folder and its view. */
+  panels?: PanelSpec[];
   /** Opens with these items selected in the first panel, and this dialog shown. */
   initial?: { dialog?: "copy" | "move" | "delete" | "rename" | "mkdir"; selected?: string[] };
 }
@@ -44,6 +48,10 @@ export interface PanelState {
   id: string;
   path: string;
   selected: string[];
+  /** The view it opens in. */
+  view?: PanelView;
+  /** False: shown by its owner (a side bar), not placed in the dock with the others. */
+  dock?: false;
 }
 
 type Dialog =
@@ -128,14 +136,14 @@ export function useCommander(props: CommanderOptions) {
   const [storages] = useState(() => props.storages ?? newDemoStorages());
   const { files, mounts } = storages;
   const nextId = useRef(0);
-  const newPanel = (path: string, selected: string[] = []): PanelState => ({
+  const newPanel = (spec: PanelSpec, selected: string[] = []): PanelState => ({
     id: `files-${nextId.current++}`,
-    path,
+    ...(typeof spec === "string" ? { path: spec } : spec),
     selected,
   });
   const [panels, setPanels] = useState(() =>
-    (props.panels ?? ["/documents/clients", "/archive/2025"]).map((path, i) =>
-      newPanel(path, i === 0 ? (props.initial?.selected ?? []) : []),
+    (props.panels ?? ["/documents/clients", "/archive/2025"]).map((spec, i) =>
+      newPanel(spec, i === 0 ? (props.initial?.selected ?? []) : []),
     ),
   );
   // Panel ids, the most recently active first: [0] is the active panel.
@@ -262,9 +270,44 @@ export function useCommander(props: CommanderOptions) {
     setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
+  // "New note": an empty Untitled.md (or "Untitled (2).md"…) in the folder, then Rename on it.
+  const newNote = (dir: string) =>
+    attempt(async () => {
+      let name = "Untitled.md";
+      for (let n = 2; await files.exists(joinPath(dir, name)); n++) name = `Untitled (${n}).md`;
+      const note = joinPath(dir, name);
+      await files.write(note, [new Uint8Array()]);
+      setPanels((ps) => ps.map((p) => (p.path === dir ? { ...p, selected: [note] } : p)));
+      setDialog({ kind: "rename", path: note });
+    });
+
+  // "Add files…": the computer's file picker, then the same Copy dialog as a desktop drop.
+  const picker = useRef<HTMLInputElement>(null);
+  const pickInto = useRef("/");
+  const addFiles = (dir: string) => {
+    pickInto.current = dir;
+    picker.current?.click();
+  };
+
+  const offerDrop = async (data: Pick<DataTransfer, "items" | "files">, targetDir: string) => {
+    const dropped = await importDropped(data as DataTransfer);
+    setDialog({
+      kind: "transfer",
+      op: "copy",
+      sources: dropped.paths.map((p) => `${DROP}${p}`),
+      targets: dropTargets(targetDir),
+      drop: {
+        files: dropped.files,
+        view: new CompositeFilesApi(files).mount(DROP, dropped.files),
+      },
+    });
+  };
+
   const onCommand = (id: string) => (command: PanelCommand, handle: PanelHandle) => {
     const [first] = handle.selected;
-    if (command === "open-in-new-panel" && first) addPanel(first);
+    if (command === "new-note") newNote(handle.path);
+    else if (command === "add-files") addFiles(handle.path);
+    else if (command === "open-in-new-panel" && first) addPanel(first);
     else if (command === "download" && first) attempt(() => download(first));
     else if (command === "copy-path") {
       Promise.resolve()
@@ -309,19 +352,8 @@ export function useCommander(props: CommanderOptions) {
         sources,
         targets: dropTargets(targetDir),
       }),
-    onDropExternal: async (data, targetDir) => {
-      const dropped = await importDropped(data);
-      setDialog({
-        kind: "transfer",
-        op: "copy",
-        sources: dropped.paths.map((p) => `${DROP}${p}`),
-        targets: dropTargets(targetDir),
-        drop: {
-          files: dropped.files,
-          view: new CompositeFilesApi(files).mount(DROP, dropped.files),
-        },
-      });
-    },
+    onDropExternal: offerDrop,
+    initialView: panel.view,
     onProblemAction: () => setNotice("Opens Settings → Storage"),
   });
 
@@ -349,6 +381,26 @@ export function useCommander(props: CommanderOptions) {
       onClose={() => setJob(undefined)}
     />
   ) : null;
+
+  const filePicker = (
+    <input
+      ref={picker}
+      type="file"
+      multiple
+      hidden
+      aria-label="Files to add"
+      onChange={(e) => {
+        const input = e.currentTarget;
+        const chosen = Array.from(input.files ?? []);
+        input.value = "";
+        if (chosen.length)
+          offerDrop(
+            { items: [] as unknown as DataTransferItemList, files: chosen as unknown as FileList },
+            pickInto.current,
+          );
+      }}
+    />
+  );
 
   const dialogs =
     dialog?.kind === "transfer" ? (
@@ -403,7 +455,12 @@ export function useCommander(props: CommanderOptions) {
     setViewer,
     noticeBar,
     progressStrip,
-    dialogs,
+    dialogs: (
+      <>
+        {filePicker}
+        {dialogs}
+      </>
+    ),
   };
 }
 

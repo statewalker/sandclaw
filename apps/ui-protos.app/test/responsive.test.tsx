@@ -5,6 +5,11 @@ import { Workspace } from "../src/workspace-layout/workspace.js";
 
 afterEach(cleanup);
 
+// The left bar: a file panel showing /documents as a tree.
+const folderName = { name: "Contents of /documents" };
+const folderBar = () => screen.getByRole("treegrid", folderName);
+const queryFolderBar = () => screen.queryByRole("treegrid", folderName);
+
 describe("modeFor", () => {
   it("switches at 640 and 1024 px", () => {
     expect(modeFor(639)).toBe("mobile");
@@ -18,13 +23,13 @@ describe("compact", () => {
   it("keeps documents in the dock and opens side panels as overlays", () => {
     render(<Workspace lockMode="per-zone" initialMode="compact" />);
     expect(screen.getByText("Offer — Dupont & Fils")).toBeTruthy();
-    expect(screen.queryByText("Clients")).toBeNull();
+    expect(queryFolderBar()).toBeNull();
     const bar = screen.getByRole("navigation", { name: "Side panels" });
     fireEvent.click(within(bar).getByRole("button", { name: "Folder" }));
     expect(screen.getByRole("complementary", { name: "Folder" })).toBeTruthy();
-    expect(screen.getByText("Clients")).toBeTruthy();
+    expect(folderBar()).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Close panel" }));
-    expect(screen.queryByText("Clients")).toBeNull();
+    expect(queryFolderBar()).toBeNull();
   });
 });
 

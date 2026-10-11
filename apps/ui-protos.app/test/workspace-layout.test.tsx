@@ -7,13 +7,18 @@ const { LockToggle, PerZone, Reading, WithFiles } = composeStories(stories);
 
 afterEach(cleanup);
 
+// The left bar: a file panel showing /documents as a tree.
+const folderName = { name: "Contents of /documents" };
+const folderBar = () => screen.getByRole("treegrid", folderName);
+const folderDock = () => folderBar().closest(".dv-groupview") as HTMLElement;
+
 const assistant = () => screen.queryByPlaceholderText("Ask about your folder…");
 const todo = () => screen.queryByText("Call Hugo about the Dupont offer");
 const plugin = (name: string) => screen.getByRole("button", { name });
 
 it("the Assistant layout places every panel in its target zone", () => {
   render(<LockToggle />);
-  expect(screen.getByText("Clients")).toBeTruthy();
+  expect(folderBar()).toBeTruthy();
   expect(todo()).toBeTruthy();
   expect(screen.getByText("Offer — Dupont & Fils")).toBeTruthy();
   expect(assistant()).toBeTruthy();
@@ -31,7 +36,7 @@ it("uninstalling a plugin repairs the layout and keeps the rest", () => {
   fireEvent.click(plugin("Todos"));
   expect(screen.getByText(/Removed from your layout: todos/)).toBeTruthy();
   expect(todo()).toBeNull();
-  expect(screen.getByText("Clients")).toBeTruthy();
+  expect(folderBar()).toBeTruthy();
   expect(assistant()).toBeTruthy();
 });
 
@@ -56,7 +61,7 @@ describe("per-zone locks", () => {
 
   it("starts with every side bar fixed and the center free", () => {
     render(<PerZone />);
-    expect(isFixed(dockOf("Clients"))).toBe(true);
+    expect(isFixed(folderDock())).toBe(true);
     expect(isFixed(dockOf("Offer — Dupont & Fils"))).toBe(false);
     for (const bar of ["Left bar", "Right bar", "Bottom bar"]) {
       expect(screen.getByRole("button", { name: bar }).getAttribute("aria-pressed")).toBe("true");
@@ -66,7 +71,7 @@ describe("per-zone locks", () => {
   it("unlocks one bar without touching the others", () => {
     render(<PerZone />);
     fireEvent.click(screen.getByRole("button", { name: "Left bar" }));
-    expect(isFixed(dockOf("Clients"))).toBe(false);
+    expect(isFixed(folderDock())).toBe(false);
     expect(isFixed(dockOf("Offer — Dupont & Fils"))).toBe(false);
     expect(
       isFixed(
@@ -76,7 +81,7 @@ describe("per-zone locks", () => {
       ),
     ).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Left bar" }));
-    expect(isFixed(dockOf("Clients"))).toBe(true);
+    expect(isFixed(folderDock())).toBe(true);
   });
 });
 

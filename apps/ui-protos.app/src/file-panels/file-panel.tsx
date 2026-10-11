@@ -4,12 +4,15 @@ import type { FileInfo, FilesApi } from "@statewalker/webrun-files";
 import { dirname } from "@statewalker/webrun-files";
 import {
   ArrowUp,
+  ChevronRight,
   Cloud,
   FileText,
   Folder,
   FolderPlus,
   Globe,
   HardDrive,
+  List,
+  ListTree,
   Lock,
   type LucideIcon,
   RefreshCw,
@@ -38,16 +41,25 @@ export type PanelCommand =
   | "copy"
   | "move"
   | "mkdir"
+  | "new-note"
+  | "add-files"
   | "rename"
   | "delete"
   | "download"
   | "copy-path"
   | "open-in-new-panel";
 
+/**
+ * What a command acts on: `selected`, or for a command that creates something
+ * (`CREATE_COMMANDS`), the folder `path` it creates in.
+ */
 export interface PanelHandle {
   path: string;
   selected: string[];
 }
+
+/** How a panel shows its folder: a sortable list, or a tree of its subfolders. */
+export type PanelView = "list" | "tree";
 
 export interface FilePanelProps {
   files: FilesApi;
@@ -71,6 +83,8 @@ export interface FilePanelProps {
   onProblemAction?(mount: string, problem: Problem): void;
   /** Touch screens: no drag and drop; a "⋯" button per row opens its menu. */
   phone?: boolean;
+  /** The view the panel opens in; the user switches it from the toolbar. Default: list. */
+  initialView?: PanelView;
 }
 
 type Listing =
@@ -88,8 +102,19 @@ const KEY_COMMANDS: Record<string, PanelCommand> = {
   Delete: "delete",
 };
 
-/** The root only lists the storages: nothing there can be renamed, moved, deleted or created. */
+/** A storage (an entry of the root) can't be renamed, moved or deleted; these still apply to it. */
 const ROOT_COMMANDS: PanelCommand[] = ["copy", "download", "copy-path", "open-in-new-panel"];
+
+/** Commands that create something in a folder; the root, which only lists the storages, takes none. */
+const CREATE_COMMANDS: PanelCommand[] = ["mkdir", "new-note", "add-files"];
+
+const isStorage = (p: string) => p !== "/" && dirname(p) === "/";
+
+/** Whether `command` applies to `target`: the same rule for the menu, the keys and the toolbar. */
+function allowed(command: PanelCommand, target: PanelHandle): boolean {
+  if (CREATE_COMMANDS.includes(command)) return target.path !== "/";
+  return ROOT_COMMANDS.includes(command) || !target.selected.some(isStorage);
+}
 
 const MOUNT_ICONS: Record<DemoMount["type"], LucideIcon> = {
   "local-folder": HardDrive,
@@ -115,9 +140,22 @@ const COLUMNS: { field: SortField; label: string }[] = [
   { field: "lastModified", label: "Modified" },
 ];
 
-const ROW_GRID = "grid grid-cols-[minmax(0,1fr)_4.5rem_6.5rem] items-center gap-2 px-2";
+// A narrow panel (a side bar) shows names only: the size and date columns need about 24rem.
+const ROW_GRID =
+  "grid grid-cols-[minmax(0,1fr)] @sm:grid-cols-[minmax(0,1fr)_4.5rem_6.5rem] items-center gap-2 px-2";
+const DETAIL = "hidden @sm:block";
 
-/** One panel of the file manager: breadcrumb, toolbar, sortable list, keyboard, context menu and drag and drop. */
+/** A row of either view; the list's rows are all at depth 0. */
+interface Row {
+  entry: FileInfo;
+  depth: number;
+}
+
+/**
+ * One panel of the file manager: breadcrumb, toolbar, the folder as a sortable
+ * list or as a tree, keyboard, context menu and drag and drop. Both views share
+ * the selection, the commands and their menu.
+ */
 export function FilePanel(props: FilePanelProps) {
   const { files, mounts, path, onNavigate, selected, onSelect, onCommand } = props;
   const [listing, setListing] = useState<Listing>({ status: "loading" });
@@ -126,7 +164,13 @@ export function FilePanel(props: FilePanelProps) {
   const [filter, setFilter] = useState("");
   const [cursor, setCursor] = useState<string>();
   const [dropTarget, setDropTarget] = useState<string>();
-  const [menu, setMenu] = useState<{ x: number; y: number; entry: FileInfo }>();
+  // A menu for an entry, or (no entry) for the folder the panel shows.
+  const [menu, setMenu] = useState<{ x: number; y: number; entry?: FileInfo }>();
+  const [view, setView] = useState<PanelView>(props.initialView ?? "list");
+  const tree = view === "tree";
+  // Tree view: the open folders, and what each one holds once listed.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const [children, setChildren] = useState<Record<string, FileInfo[]>>({});
   const anchor = useRef<string | undefined>(undefined);
   const filterBox = useRef<HTMLInputElement>(null);
   const grid = useRef<HTMLDivElement>(null);
@@ -148,7 +192,30 @@ export function FilePanel(props: FilePanelProps) {
   useEffect(() => {
     setListing({ status: "loading" });
     setFilter("");
+    setExpanded(new Set());
   }, [path]);
+
+  // Open folders are listed again, like the panel's own folder, on a reload or a change.
+  useEffect(() => setChildren({}), [path, reload, props.refreshKey]);
+
+  useEffect(() => {
+    let current = true;
+    for (const dir of expanded) {
+      if (children[dir]) continue;
+      (async () => {
+        const entries: FileInfo[] = [];
+        try {
+          for await (const e of files.list(dir)) entries.push(e);
+        } catch {
+          // An unreadable folder opens empty; the panel's own folder reports problems.
+        }
+        if (current) setChildren((c) => ({ ...c, [dir]: entries }));
+      })();
+    }
+    return () => {
+      current = false;
+    };
+  }, [files, expanded, children]);
 
   useEffect(() => {
     let current = true;
@@ -179,26 +246,42 @@ export function FilePanel(props: FilePanelProps) {
     // `reload` and `props.refreshKey` re-list the same folder.
   }, [files, mounts, path, atRoot, reload, props.refreshKey]);
 
-  const visible = useMemo(() => {
+  // The rows in screen order. In the tree an open folder is followed by its
+  // contents; the filter keeps a folder whose shown contents match.
+  const rows = useMemo(() => {
     if (listing.status !== "ok") return [];
     const needle = filter.trim().toLowerCase();
-    const shown = needle
-      ? listing.entries.filter((e) => e.name.toLowerCase().includes(needle))
-      : listing.entries;
-    return sortEntries(shown, sort);
-  }, [listing, filter, sort]);
+    const walk = (entries: FileInfo[], depth: number): Row[] =>
+      sortEntries(entries, sort).flatMap((entry) => {
+        const open = tree && entry.kind === "directory" && expanded.has(entry.path);
+        const below = open ? walk(children[entry.path] ?? [], depth + 1) : [];
+        const match = !needle || entry.name.toLowerCase().includes(needle);
+        return match || below.length ? [{ entry, depth }, ...below] : [];
+      });
+    return walk(listing.entries, 0);
+  }, [listing, filter, sort, tree, expanded, children]);
+  const visible = useMemo(() => rows.map((r) => r.entry), [rows]);
   const order = useMemo(() => visible.map((e) => e.path), [visible]);
   // Commands act only on what is on screen: a row hidden by the filter is never deleted unseen.
   const shownSelection = selected.filter((p) => order.includes(p));
 
   const handle = (paths = shownSelection): PanelHandle => ({ path, selected: paths });
-  const allowed = (c: PanelCommand) => !atRoot || ROOT_COMMANDS.includes(c);
   const mountOf = (p: string) => p.split("/")[1] ?? "";
   const mountByKey = (key: string) => mounts.find((m) => m.key === key);
 
+  const toggle = (dir: string, open?: boolean) =>
+    setExpanded((x) => {
+      const next = new Set(x);
+      if (open ?? !x.has(dir)) next.add(dir);
+      else next.delete(dir);
+      return next;
+    });
+
+  // A folder opens in place in the tree, and becomes the panel's folder in the list.
   const open = (entry: FileInfo) => {
-    if (entry.kind === "directory") props.onNavigate(entry.path);
-    else props.onOpenFile?.(entry.path);
+    if (entry.kind === "file") props.onOpenFile?.(entry.path);
+    else if (tree) toggle(entry.path);
+    else props.onNavigate(entry.path);
   };
 
   const pick = (entry: FileInfo, mods: { shift: boolean; ctrl: boolean }) => {
@@ -210,19 +293,44 @@ export function FilePanel(props: FilePanelProps) {
     onSelect(next.selected);
   };
 
+  const cursorTo = (to: number, extend = false) => {
+    const target = visible[to];
+    if (!target) return;
+    pick(target, { shift: extend, ctrl: false });
+    document.getElementById(`${id}-${to}`)?.scrollIntoView?.({ block: "nearest" });
+  };
+
   const moveCursor = (delta: number, extend: boolean) => {
     if (!visible.length) return;
     const at = cursor ? order.indexOf(cursor) : -1;
-    const to = at < 0 ? 0 : Math.min(Math.max(at + delta, 0), visible.length - 1);
-    const target = visible[to] as FileInfo;
-    pick(target, { shift: extend, ctrl: false });
-    document.getElementById(`${id}-${to}`)?.scrollIntoView?.({ block: "nearest" });
+    cursorTo(at < 0 ? 0 : Math.min(Math.max(at + delta, 0), visible.length - 1), extend);
+  };
+
+  // The tree's → and ←: open a folder, then go into it; close it, then go to its parent.
+  const treeKey = (key: "ArrowRight" | "ArrowLeft") => {
+    const at = cursor ? order.indexOf(cursor) : -1;
+    const row = rows[at];
+    if (!row) return;
+    const { entry, depth } = row;
+    const isOpen = entry.kind === "directory" && expanded.has(entry.path);
+    if (key === "ArrowRight") {
+      if (entry.kind !== "directory") return;
+      if (!isOpen) toggle(entry.path, true);
+      else if (rows[at + 1]?.depth === depth + 1) cursorTo(at + 1);
+    } else if (isOpen) {
+      toggle(entry.path, false);
+    } else {
+      const parent = rows.slice(0, at).findLastIndex((r) => r.depth === depth - 1);
+      if (parent >= 0) cursorTo(parent);
+    }
   };
 
   const onKeyDown = (e: KeyboardEvent) => {
     const command = KEY_COMMANDS[e.key];
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       moveCursor(e.key === "ArrowDown" ? 1 : -1, e.shiftKey);
+    } else if (tree && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
+      treeKey(e.key);
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
       onSelect(order);
     } else if (e.key === "Enter") {
@@ -235,8 +343,9 @@ export function FilePanel(props: FilePanelProps) {
       // a new folder needs no row.
       const atCursor = cursor && order.includes(cursor) ? [cursor] : [];
       const paths = shownSelection.length ? shownSelection : atCursor;
-      if (allowed(command) && (paths.length || command === "mkdir")) {
-        onCommand?.(command, handle(paths));
+      const target = handle(paths);
+      if (allowed(command, target) && (paths.length || CREATE_COMMANDS.includes(command))) {
+        onCommand?.(command, target);
       }
     } else if (e.key.length === 1 && e.key !== " " && !e.ctrlKey && !e.metaKey && !e.altKey) {
       setFilter(e.key);
@@ -282,27 +391,42 @@ export function FilePanel(props: FilePanelProps) {
     },
   });
 
-  const showMenu = (e: MouseEvent, entry: FileInfo) => {
+  const showMenu = (e: MouseEvent, entry?: FileInfo) => {
     e.preventDefault();
-    if (!selected.includes(entry.path)) pick(entry, { shift: false, ctrl: false });
+    e.stopPropagation();
+    if (entry && !selected.includes(entry.path)) pick(entry, { shift: false, ctrl: false });
     setMenu({ x: e.clientX, y: e.clientY, entry });
   };
 
-  const menuItems = (entry: FileInfo): MenuItem[] => {
+  /**
+   * The one menu of both views. A folder's menu creates in that folder; the
+   * menu of the empty area creates in the folder the panel shows.
+   */
+  const menuItems = (entry?: FileInfo): MenuItem[] => {
+    const item = (c: PanelCommand, label: string, target: PanelHandle, hint?: string) =>
+      allowed(c, target) ? [{ label, hint, onSelect: () => onCommand?.(c, target) }] : [];
+    const creating = (dir: string) => {
+      const into = { path: dir, selected: [] };
+      return [
+        ...item("new-note", "New note", into),
+        ...item("mkdir", "New folder", into, "F7"),
+        ...item("add-files", "Add files…", into),
+      ];
+    };
+    if (!entry) return creating(path);
     const paths = selected.includes(entry.path) ? shownSelection : [entry.path];
-    const run = (c: PanelCommand) => () => onCommand?.(c, handle(paths));
-    const item = (c: PanelCommand, label: string, hint?: string): MenuItem[] =>
-      allowed(c) ? [{ label, hint, onSelect: run(c) }] : [];
+    const target = handle(paths);
     const isFile = entry.kind === "file";
     return [
       { label: "Open", onSelect: () => open(entry) },
-      ...(isFile ? [] : item("open-in-new-panel", "Open in new panel")),
-      ...item("copy", "Copy to…", "F5"),
-      ...item("move", "Move to…", "F6"),
-      ...item("rename", "Rename", "F2"),
-      ...item("delete", "Delete", "F8"),
-      ...(isFile ? item("download", "Download") : []),
-      ...item("copy-path", "Copy path"),
+      ...(isFile ? [] : item("open-in-new-panel", "Open in new panel", target)),
+      ...(isFile ? [] : creating(entry.path)),
+      ...item("copy", "Copy to…", target, "F5"),
+      ...item("move", "Move to…", target, "F6"),
+      ...item("rename", "Rename", target, "F2"),
+      ...item("delete", "Delete", target, "F8"),
+      ...(isFile ? item("download", "Download", target) : []),
+      ...item("copy-path", "Copy path", target),
     ];
   };
 
@@ -327,7 +451,7 @@ export function FilePanel(props: FilePanelProps) {
       onMouseDown={props.onActivate}
       onFocus={props.onActivate}
       className={cn(
-        "relative flex h-full min-h-0 min-w-0 flex-col rounded-md border bg-background",
+        "@container relative flex h-full min-h-0 min-w-0 flex-col rounded-md border bg-background",
         props.active && "ring-2 ring-primary/60",
       )}
     >
@@ -361,6 +485,28 @@ export function FilePanel(props: FilePanelProps) {
         >
           <FolderPlus className="size-4" />
         </Button>
+        <fieldset className="m-0 flex shrink-0 border-0 p-0" aria-label="View">
+          <Button
+            variant={tree ? "ghost" : "secondary"}
+            size="icon-sm"
+            aria-label="List view"
+            title="List view"
+            aria-pressed={!tree}
+            onClick={() => setView("list")}
+          >
+            <List className="size-4" />
+          </Button>
+          <Button
+            variant={tree ? "secondary" : "ghost"}
+            size="icon-sm"
+            aria-label="Tree view"
+            title="Tree view"
+            aria-pressed={tree}
+            onClick={() => setView("tree")}
+          >
+            <ListTree className="size-4" />
+          </Button>
+        </fieldset>
         <Input
           ref={filterBox}
           value={filter}
@@ -408,15 +554,17 @@ export function FilePanel(props: FilePanelProps) {
           </Button>
         </div>
       ) : (
-        // biome-ignore lint/a11y/useSemanticElements: a grid of rows with arrow-key navigation
+        // biome-ignore lint/a11y/noStaticElementInteractions: a grid or a treegrid (the view sets the role) with arrow-key navigation
+        // biome-ignore lint/a11y/useAriaPropsSupportedByRole: grid and treegrid both support aria-multiselectable; the role is set by the view
         <div
           ref={grid}
-          role="grid"
+          role={tree ? "treegrid" : "grid"}
           aria-label={`Contents of ${path}`}
           aria-multiselectable="true"
           aria-activedescendant={cursor ? `${id}-${order.indexOf(cursor)}` : undefined}
           tabIndex={0}
           onKeyDown={onKeyDown}
+          onContextMenu={(e) => (atRoot ? undefined : showMenu(e))}
           {...(atRoot ? {} : dropProps(path))}
           className={cn(
             "flex min-h-0 flex-1 flex-col overflow-y-auto outline-none focus-visible:ring-1 focus-visible:ring-ring",
@@ -433,7 +581,7 @@ export function FilePanel(props: FilePanelProps) {
                 aria-sort={
                   sort.field === field ? (sort.descending ? "descending" : "ascending") : "none"
                 }
-                className={field === "name" ? "min-w-0" : "min-w-0 text-right"}
+                className={field === "name" ? "min-w-0" : cn(DETAIL, "min-w-0 text-right")}
               >
                 <button
                   type="button"
@@ -446,8 +594,9 @@ export function FilePanel(props: FilePanelProps) {
               </div>
             ))}
           </div>
-          {visible.map((entry, i) => {
-            const mount = atRoot ? mountByKey(mountOf(entry.path)) : undefined;
+          {rows.map(({ entry, depth }, i) => {
+            const mount = isStorage(entry.path) ? mountByKey(mountOf(entry.path)) : undefined;
+            const isOpen = tree && entry.kind === "directory" && expanded.has(entry.path);
             const Icon = mount
               ? mount.problem
                 ? mount.problem.cause === "locked"
@@ -467,8 +616,10 @@ export function FilePanel(props: FilePanelProps) {
                 role="row"
                 aria-label={entry.name}
                 aria-selected={selected.includes(entry.path)}
+                aria-level={tree ? depth + 1 : undefined}
+                aria-expanded={tree && entry.kind === "directory" ? isOpen : undefined}
                 data-name={entry.name}
-                draggable={!atRoot && !props.phone}
+                draggable={!isStorage(entry.path) && !props.phone}
                 onClick={(e) => pick(entry, { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey })}
                 onDoubleClick={() => open(entry)}
                 onContextMenu={(e) => showMenu(e, entry)}
@@ -482,7 +633,30 @@ export function FilePanel(props: FilePanelProps) {
                   dropTarget === entry.path && "bg-primary/20 ring-1 ring-primary ring-inset",
                 )}
               >
-                <span className="flex min-w-0 items-center gap-2">
+                <span
+                  className="flex min-w-0 items-center gap-2"
+                  style={tree ? { paddingInlineStart: `${depth * 1}rem` } : undefined}
+                >
+                  {tree ? (
+                    entry.kind === "directory" ? (
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        aria-label={isOpen ? `Close ${entry.name}` : `Open ${entry.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggle(entry.path);
+                        }}
+                        className="-mx-1 shrink-0 rounded-sm px-0.5 text-muted-foreground hover:bg-accent"
+                      >
+                        <ChevronRight
+                          className={cn("size-3.5 transition-transform", isOpen && "rotate-90")}
+                        />
+                      </button>
+                    ) : (
+                      <span className="w-2.5 shrink-0" />
+                    )
+                  ) : null}
                   <Icon
                     className={cn("size-4 shrink-0", mount?.problem && "text-destructive")}
                     aria-hidden="true"
@@ -502,10 +676,10 @@ export function FilePanel(props: FilePanelProps) {
                     </button>
                   ) : null}
                 </span>
-                <span className="text-right text-xs text-muted-foreground">
+                <span className={cn(DETAIL, "text-right text-xs text-muted-foreground")}>
                   {entry.kind === "file" ? formatBytes(entry.size) : ""}
                 </span>
-                <span className="truncate text-right text-xs text-muted-foreground">
+                <span className={cn(DETAIL, "truncate text-right text-xs text-muted-foreground")}>
                   {entry.kind === "file" ? dateFormat.format(entry.lastModified) : ""}
                 </span>
               </div>

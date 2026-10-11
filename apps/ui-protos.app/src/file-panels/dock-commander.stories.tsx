@@ -40,6 +40,11 @@ export const ThreePanels: Story = {
   args: { panels: ["/documents/clients", "/archive/2025", "/photos/site-visit"] },
 };
 
+export const TreeAndList: Story = {
+  name: "Tree view beside a list (switch each panel from its toolbar)",
+  args: { panels: [{ path: "/documents", view: "tree" }, "/archive/2025"] },
+};
+
 export const CopyToPanel: Story = {
   name: "Copy (F5) to the other panel",
   args: { initial: { dialog: "copy", selected: ["/documents/clients/dupont/offer.pdf"] } },

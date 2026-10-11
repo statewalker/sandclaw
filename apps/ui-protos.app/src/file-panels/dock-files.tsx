@@ -73,6 +73,7 @@ export function useFilesInDock(
     if (!api) return;
     let previous: IDockviewPanel | undefined;
     for (const panel of commander.panels) {
+      if (panel.dock === false) continue;
       const title = commander.title(panel.path);
       let dockPanel = api.getPanel(panel.id);
       if (dockPanel) {
@@ -149,9 +150,10 @@ function useFilesDock(): FilesDock {
   return dock;
 }
 
-function FilePanelTab({ api }: IDockviewPanelProps) {
+/** A commander panel, by id: what a file tab shows, and what a side bar shows of its own panel. */
+export function CommanderPanel({ id }: { id: string }) {
   const { commander, phone } = useFilesDock();
-  const panel = commander.panels.find((p) => p.id === api.id);
+  const panel = commander.panels.find((p) => p.id === id);
   if (!panel) return null;
   return (
     <section
@@ -177,6 +179,10 @@ function FileViewerTab({ api }: IDockviewPanelProps) {
       <ViewerBody viewer={viewer} />
     </section>
   );
+}
+
+function FilePanelTab({ api }: IDockviewPanelProps) {
+  return <CommanderPanel id={api.id} />;
 }
 
 export const fileDockComponents = { [FILE_PANEL]: FilePanelTab, [FILE_VIEWER]: FileViewerTab };
