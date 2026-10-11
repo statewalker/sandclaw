@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@statewalker/webrun-files": "catalog:",
+    "@statewalker/webrun-files-browser": "catalog:",
     "@statewalker/webrun-files-composite": "catalog:",
     "@statewalker/webrun-files-mem": "catalog:",
     "@statewalker/shared-baseclass": "catalog:"

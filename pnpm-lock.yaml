@@ -1221,6 +1221,9 @@ importers:
       '@statewalker/webrun-files':
         specifier: 'catalog:'
         version: 0.10.1
+      '@statewalker/webrun-files-browser':
+        specifier: 'catalog:'
+        version: 0.10.1
       '@statewalker/webrun-files-composite':
         specifier: 'catalog:'
         version: 0.10.2
