@@ -190,6 +190,26 @@ describe("PanelModel", () => {
     expect(listed).toBe(before);
   });
 
+  it("after a fallback, up goes to the parent of the folder shown", async () => {
+    const panel = new PanelModel({ id: "p1", files: await storages() });
+    await panel.navigate("/docs/clients/gone/deeper");
+    await panel.up();
+    expect(panel.state.path).toBe("/docs");
+  });
+
+  it("after a fallback, a change in the folder shown refreshes it", async () => {
+    const files = await storages();
+    const changes = newFileChanges();
+    const panel = new PanelModel({ id: "p1", files, changes });
+    await panel.navigate("/docs/notes/gone");
+    expect(panel.state.path).toBe("/docs/notes");
+    await writeText(files, "/docs/notes/new.md", "n");
+    changes.emit([{ type: "added", path: "/docs/notes/new.md" }]);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(names(panel)).toEqual(["new.md", "todo.md"]);
+    panel.dispose();
+  });
+
   it("state carries the sort for the dock layout", async () => {
     const panel = new PanelModel({ id: "p1", files: await storages() });
     panel.setSort("size");

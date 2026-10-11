@@ -150,9 +150,12 @@ conditional writes (`If-None-Match`) from the storage itself, which `FilesApi` d
 reporting what is really on disk: a failed transfer step still reports a target that was written
 and a source that was partly cleaned. With `opts.files` (a drop) no source-side events are emitted,
 since those paths mean nothing to listeners. `PanelModel` subscribes to the optional `changes` and
-refreshes when a change is inside the folder it was last asked to show (even while that listing is still loading, so a change in the previous folder never cancels the navigation), is that folder itself, or is one of its ancestors; any
-other change is ignored. Call `dispose()` to unsubscribe; it also makes any listing still in flight be ignored, so a disposed panel never writes to its list or notifies. A later indexer is meant to follow the
-same stream.
+refreshes when a change is inside the folder it was last asked to show, is that folder itself, or
+is one of its ancestors; any other change is ignored. The asked-for folder counts even while its
+listing is still loading, so a change in the previous folder never cancels the navigation; after a
+fallback to an ancestor, the folder shown becomes the one that is tracked. Call `dispose()` to
+unsubscribe; it also makes any listing still in flight be ignored, so a disposed panel never writes
+to its list or notifies. A later indexer is meant to follow the same stream.
 
 ### Newest navigation wins
 

@@ -74,6 +74,7 @@ export class PanelModel extends BaseClass {
       problem = problemOf(error);
     }
     if (load !== this.loads) return;
+    this.target = at; // after a fallback, the folder shown is the one to refresh and go up from
     const done = this.list.startLoading({ path: at });
     done(problem ? { error: problem.message } : { entries });
     this.problem = problem;
