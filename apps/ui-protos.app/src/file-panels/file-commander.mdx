@@ -1,0 +1,129 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./file-commander.stories.tsx";
+
+<Meta of={Stories} />
+
+# Files app — the commander
+
+Several file panels side by side over every storage at once: a local folder (**Documents**),
+browser storage, and two S3 buckets (**Archive**, **Photos**). The prototype runs on real
+in-memory file systems, so copies, moves, renames and deletes actually happen, with byte
+progress and a slow S3 to watch. What to look at: **how a copy or move is asked for**, **how
+clashes are settled**, **what a transfer shows while it runs and after**, and **what an
+unavailable storage looks like**.
+
+## Panels
+
+Each panel has a breadcrumb (every segment's ▾ lists the folders beside it; the first lists the
+storages), Up, Refresh, New folder, a filter box, and a list sorted by name, size or date with
+folders first. Clicking a panel makes it the active one (a ring); Tab moves to the next panel.
+**New panel** opens a copy of the active panel's folder; *Open in new panel* on a folder opens
+that folder. Every panel but the last can be closed.
+
+Opening a file shows it in a viewer to the right of the panels: Markdown and text as text, the
+rest as a placeholder naming the file and its size (the real app uses the workbench viewers).
+
+<Story of={Stories.TwoPanels} inline={false} height="560px" />
+
+<Story of={Stories.ThreePanels} inline={false} height="560px" />
+
+## Copy and move
+
+**F5** copies, **F6** moves, or *Copy to…* / *Move to…* on a row's menu. The target is the other
+panel; with several other panels the dialog lists them, the most recently used first, and the
+folder stays editable. Dragging between panels opens the same dialog with **Move** chosen
+(Copy when Ctrl / ⌥ is held); dropping on a folder row or a breadcrumb segment targets that
+folder, and a storage's row in *All storages* targets that storage's top. Files dragged in
+from the desktop open it too, without Move.
+
+- **One item**: its name can be changed; when the target already has that name the dialog says
+  "*name* already exists — it will be replaced."
+- **Several items with clashes**: one choice for all of them: **Overwrite**, **Keep both**
+  (the default: `offer copy.pdf`), **Skip**.
+- **Into its own folder**: "Same folder: a copy is made beside it." A move there would do
+  nothing, so it becomes a copy with a free name.
+- **A folder into itself**: refused in the dialog, the button disabled.
+
+<Story of={Stories.CopyDialogOne} inline={false} height="560px" />
+
+<Story of={Stories.CopyDialogClashes} inline={false} height="560px" />
+
+## While it runs, and after
+
+The strip at the bottom shows the current file, a bar, bytes and items done ("34 MB of 120 MB ·
+3 of 7 items") and Cancel. Cancel stops in the middle of a file and removes the incomplete copy;
+the source is untouched. At the end: **Done**, **Cancelled**, or "2 of 7 failed" with each
+failed item and its reason. A failed item does not stop the others. Afterwards both panels are
+listed again and the target panel selects what was written.
+
+An overwrite never removes the old file before the new one is complete: if the copy fails, the
+old file keeps its content.
+
+<Story of={Stories.SlowUpload} inline={false} height="560px" />
+
+<Story of={Stories.FailedItem} inline={false} height="560px" />
+
+## A storage that can't be used
+
+A locked vault or a bucket that does not answer is never an empty folder: the panel shows the
+reason and its action (Unlock, Retry; here the action only says "Opens Settings → Storage").
+Copying into it fails before anything is written, with the reason in the summary.
+
+<Story of={Stories.LockedArchive} inline={false} height="560px" />
+
+<Story of={Stories.S3Unreachable} inline={false} height="560px" />
+
+## New folder, rename, delete
+
+F7 and F2 ask for a name, refuse names with `/` or `\` and names already in the folder
+("*name* already exists here."). F8 or Delete asks first and says what matters: "Local folders
+and S3 have no trash: this can't be undone."
+
+<Story of={Stories.DeleteConfirm} inline={false} height="560px" />
+
+## Phone
+
+Below 640 px one panel shows at a time, with a tab per panel. Drag and drop is off (unreliable
+on touch screens); each row has a **⋯** that opens its menu, and Copy to… / Move to… go through
+the same dialog. An opened file takes the panel's place until its tab is chosen again.
+
+<Story of={Stories.Phone} inline={false} height="700px" />
+
+## A — Dock panels side by side (built)
+
+Any number of panels, resizable, each with its own toolbar; commands live on the rows (menu,
+F-keys, drag). It matches the workbench dock the app is built on, where panels and viewer tabs
+sit together, and it scales from one panel on a phone to four on a wide screen.
+
+## B — A fixed two-pane commander (not built)
+
+Midnight Commander's shape: exactly two panes, a shared command bar along the bottom with the
+F-keys spelled out (*F3 View · F5 Copy · F6 Move · F7 Folder · F8 Delete*), and the target is
+always "the other pane". Very learnable for those who know it, and the bar teaches the keys to
+those who don't. But it caps the work at two folders, does not fit the dock or a phone, and the
+key bar takes a row on every screen.
+
+**Leaning: A**, with B's one good idea kept as a hint: the F-key next to each menu item, as now.
+
+## Decisions assumed (from the design)
+
+- A plain drop between panels pre-selects **Move**; Ctrl / ⌥ pre-selects Copy.
+- **Keep both** is the default for clashes; one choice covers every clash in a batch.
+- An overwrite replaces the old file only with a complete copy.
+- A failed item does not stop the batch; the summary lists each failure with its reason.
+- Delete is permanent on every storage, and the confirmation says so.
+- Phone width: one panel, no drag and drop, commands through the menu.
+
+## Open questions
+
+1. A plain drop pre-selects Move (as in Theia). Should a drop **across storages** (local folder
+   → S3) pre-select Copy instead, since a move there deletes the local file?
+2. Is a trash wanted later (a `.trash/` folder per mount), or does the "no trash" warning
+   stay the whole answer?
+3. When the target of a copy is locked or not answering, the dialog still lets the copy start
+   and the failure shows in the summary. Should the dialog say so before the click (and offer
+   Unlock / Retry there)?
+4. A cancelled folder copy leaves the files already copied in place (only the file in progress
+   is removed). Keep them, or remove the whole partial folder?
+5. Several other panels open: should F5 still go straight to the most recently used one (one
+   key, then Enter), with the list only as an option, as now?

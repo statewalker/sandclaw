@@ -12,6 +12,7 @@ import * as connectors from "../src/connectors/connectors.stories.js";
 import * as conversations from "../src/conversations/conversations.stories.js";
 import * as explore from "../src/explore/explore.stories.js";
 import * as howAnswered from "../src/explore/how-answered.stories.js";
+import * as fileCommander from "../src/file-panels/file-commander.stories.js";
 import * as fileManager from "../src/files/file-manager.stories.js";
 import * as firstSteps from "../src/first-steps/first-steps.stories.js";
 import * as folderZone from "../src/folder-zone/folder-zone.stories.js";
@@ -70,6 +71,7 @@ const stories: [string, ComponentType][] = [
   ...Object.entries(composeStories(browserData)),
   ...Object.entries(composeStories(settings)),
   ...Object.entries(composeStories(installer)),
+  ...Object.entries(composeStories(fileCommander)),
 ];
 
 it.each(stories)("%s renders", (_, Story) => {

@@ -79,6 +79,7 @@ export function MenuList({
           role="menuitem"
           disabled={item.disabled}
           aria-current={item.current ? "true" : undefined}
+          aria-keyshortcuts={item.hint}
           onClick={() => {
             onClose(true);
             item.onSelect();
@@ -89,7 +90,12 @@ export function MenuList({
           )}
         >
           <span className="min-w-0 truncate">{item.label}</span>
-          {item.hint ? <span className="text-xs text-muted-foreground">{item.hint}</span> : null}
+          {item.hint ? (
+            // Announced as aria-keyshortcuts, not as part of the item's name.
+            <span aria-hidden="true" className="text-xs text-muted-foreground">
+              {item.hint}
+            </span>
+          ) : null}
         </button>
       ))}
     </div>

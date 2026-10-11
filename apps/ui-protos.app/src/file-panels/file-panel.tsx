@@ -69,6 +69,8 @@ export interface FilePanelProps {
   onDropExternal?(data: DataTransfer, targetDir: string): void;
   /** The action button of a mount's problem: Unlock / Reconnect / Retry. */
   onProblemAction?(mount: string, problem: Problem): void;
+  /** Touch screens: no drag and drop; a "⋯" button per row opens its menu. */
+  phone?: boolean;
 }
 
 type Listing =
@@ -223,9 +225,10 @@ export function FilePanel(props: FilePanelProps) {
     } else if (e.key === "Backspace") {
       if (!atRoot) onNavigate(dirname(path));
     } else if (command) {
-      // With nothing selected a command acts on the cursor row, or on nothing.
+      // With nothing selected a command acts on the cursor row, or on nothing;
+      // a new folder needs no row.
       const paths = selected.length ? selected : cursor ? [cursor] : [];
-      if (paths.length) onCommand?.(command, handle(paths));
+      if (paths.length || command === "mkdir") onCommand?.(command, handle(paths));
     } else if (e.key.length === 1 && e.key !== " " && !e.ctrlKey && !e.metaKey && !e.altKey) {
       setFilter(e.key);
       filterBox.current?.focus();
@@ -451,7 +454,7 @@ export function FilePanel(props: FilePanelProps) {
                 aria-label={entry.name}
                 aria-selected={selected.includes(entry.path)}
                 data-name={entry.name}
-                draggable={!atRoot}
+                draggable={!atRoot && !props.phone}
                 onClick={(e) => pick(entry, { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey })}
                 onDoubleClick={() => open(entry)}
                 onContextMenu={(e) => showMenu(e, entry)}
@@ -471,6 +474,19 @@ export function FilePanel(props: FilePanelProps) {
                     aria-hidden="true"
                   />
                   <span className="truncate">{entry.name}</span>
+                  {props.phone ? (
+                    <button
+                      type="button"
+                      aria-label={`Actions for ${entry.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        showMenu(e, entry);
+                      }}
+                      className="ml-auto shrink-0 rounded-sm px-1.5 text-muted-foreground hover:bg-accent"
+                    >
+                      ⋯
+                    </button>
+                  ) : null}
                 </span>
                 <span className="text-right text-xs text-muted-foreground">
                   {entry.kind === "file" ? formatBytes(entry.size) : ""}
@@ -496,7 +512,8 @@ export function FilePanel(props: FilePanelProps) {
             if (refocus) grid.current?.focus();
           }}
           className="fixed"
-          style={{ left: menu.x, top: menu.y }}
+          // Kept on screen: on a phone the "⋯" sits at the right edge.
+          style={{ left: Math.max(0, Math.min(menu.x, window.innerWidth - 176)), top: menu.y }}
         />
       ) : null}
     </section>
