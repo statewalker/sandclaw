@@ -108,22 +108,27 @@ export class SecretVault extends BaseClass implements SecretStore {
     return this.setState("locked");
   }
 
-  async create(password: string, remember: boolean) {
-    if (this.keyFile) throw new Error("A key vault already exists.");
-    const id = crypto.randomUUID();
-    const salt = random(16);
-    const key = await passwordKey(password, salt, this.iterations);
-    const dataKey = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, [
-      "encrypt",
-      "decrypt",
-    ]);
-    const keyFile = await this.wrapFile(id, dataKey, key, salt);
-    await this.writeJson(KEY_FILE, keyFile);
-    this.keyFile = keyFile;
-    this.dataKey = await this.unwrap(key, keyFile, false);
-    await this.writeSecrets(new Map());
-    if (remember) await this.keys.set(id, key);
-    this.setState("unlocked");
+  create(password: string, remember: boolean): Promise<void> {
+    // The existence check and the writes share one lock, so a vault another tab created is never replaced.
+    return this.exclusive(async () => {
+      if (this.keyFile || (await this.files.exists(joinPath(this.dir, KEY_FILE)))) {
+        throw new Error("A key vault already exists.");
+      }
+      const id = crypto.randomUUID();
+      const salt = random(16);
+      const key = await passwordKey(password, salt, this.iterations);
+      const dataKey = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, [
+        "encrypt",
+        "decrypt",
+      ]);
+      const keyFile = await this.wrapFile(id, dataKey, key, salt);
+      await this.writeJson(KEY_FILE, keyFile);
+      this.keyFile = keyFile;
+      this.dataKey = await this.unwrap(key, keyFile, false);
+      await this.writeSecrets(new Map());
+      if (remember) await this.keys.set(id, key);
+      this.setState("unlocked");
+    });
   }
 
   async unlock(password: string, remember: boolean): Promise<boolean> {
@@ -159,27 +164,31 @@ export class SecretVault extends BaseClass implements SecretStore {
     });
   }
 
-  async changePassword(oldPassword: string, newPassword: string): Promise<boolean> {
-    const keyFile = this.keyFile;
-    if (!keyFile) return false;
-    const oldKey = await passwordKey(
-      oldPassword,
-      fromBase64(keyFile.kdf.salt),
-      keyFile.kdf.iterations,
-    );
-    let dataKey: CryptoKey;
-    try {
-      dataKey = await this.unwrap(oldKey, keyFile, true);
-    } catch {
-      return false;
-    }
-    const salt = random(16);
-    const newKey = await passwordKey(newPassword, salt, this.iterations);
-    const next = await this.wrapFile(keyFile.id, dataKey, newKey, salt);
-    await this.writeJson(KEY_FILE, next);
-    this.keyFile = next;
-    if (await this.keys.get(keyFile.id)) await this.keys.set(keyFile.id, newKey);
-    return true;
+  changePassword(oldPassword: string, newPassword: string): Promise<boolean> {
+    // Re-read the key file under the lock: another tab may have changed the password since load.
+    return this.exclusive(async () => {
+      const keyFile = await this.readJson<KeyFile>(KEY_FILE);
+      if (!keyFile) return false;
+      this.keyFile = keyFile;
+      const oldKey = await passwordKey(
+        oldPassword,
+        fromBase64(keyFile.kdf.salt),
+        keyFile.kdf.iterations,
+      );
+      let dataKey: CryptoKey;
+      try {
+        dataKey = await this.unwrap(oldKey, keyFile, true);
+      } catch {
+        return false;
+      }
+      const salt = random(16);
+      const newKey = await passwordKey(newPassword, salt, this.iterations);
+      const next = await this.wrapFile(keyFile.id, dataKey, newKey, salt);
+      await this.writeJson(KEY_FILE, next);
+      this.keyFile = next;
+      if (await this.keys.get(keyFile.id)) await this.keys.set(keyFile.id, newKey);
+      return true;
+    });
   }
 
   async forget() {

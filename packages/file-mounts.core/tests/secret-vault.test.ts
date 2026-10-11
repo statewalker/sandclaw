@@ -70,8 +70,7 @@ describe("SecretVault", () => {
     const b = newVault(files);
     await b.load();
     await b.unlock("pw", false);
-    await a.set("one/k", "1");
-    await b.set("two/k", "2");
+    await Promise.all([a.set("one/k", "1"), b.set("two/k", "2")]);
     expect(await a.get("two/k")).toBe("2");
     expect(await b.get("one/k")).toBe("1");
   });
@@ -98,5 +97,35 @@ describe("SecretVault", () => {
     await vault.load();
     await vault.create("pw", false);
     await expect(vault.create("other", false)).rejects.toThrow("A key vault already exists.");
+  });
+
+  it("create in a second tab that also saw an absent vault does not replace the first", async () => {
+    const files = new MemFilesApi();
+    const a = newVault(files);
+    const b = newVault(files);
+    await a.load();
+    await b.load();
+    await a.create("p1", false);
+    await a.set("a/k", "v");
+    await expect(b.create("p2", false)).rejects.toThrow("A key vault already exists.");
+    const fresh = newVault(files);
+    await fresh.load();
+    expect(await fresh.unlock("p1", false)).toBe(true);
+    expect(await fresh.get("a/k")).toBe("v");
+  });
+
+  it("changePassword in a stale tab checks the password on disk, not the one it loaded", async () => {
+    const files = new MemFilesApi();
+    const a = newVault(files);
+    await a.load();
+    await a.create("p1", false);
+    const b = newVault(files);
+    await b.load();
+    expect(await a.changePassword("p1", "p2")).toBe(true);
+    expect(await b.changePassword("p1", "p3")).toBe(false);
+    expect(await b.changePassword("p2", "p3")).toBe(true);
+    const fresh = newVault(files);
+    await fresh.load();
+    expect(await fresh.unlock("p3", false)).toBe(true);
   });
 });
