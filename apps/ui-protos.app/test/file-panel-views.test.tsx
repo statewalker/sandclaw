@@ -77,6 +77,34 @@ describe("a file panel's list and tree views", () => {
   });
 });
 
+describe("the row's ⋯ button", () => {
+  it("opens the same menu as a right-click, in the list and in the tree", async () => {
+    render(<FileCommander panels={["/documents/notes", "/archive"]} />);
+    const notes = panel("notes");
+    const row = await within(notes).findByRole("row", { name: "todo.md" });
+    fireEvent.contextMenu(row);
+    const byRightClick = menuLabels();
+    closeMenu();
+
+    fireEvent.click(within(row).getByRole("button", { name: "Actions for todo.md" }));
+    expect(menuLabels()).toEqual(byRightClick);
+    closeMenu();
+
+    fireEvent.click(within(notes).getByRole("button", { name: "Tree view" }));
+    const treeRow = await within(notes).findByRole("row", { name: "todo.md" });
+    fireEvent.click(within(treeRow).getByRole("button", { name: "Actions for todo.md" }));
+    expect(menuLabels()).toEqual(byRightClick);
+  });
+
+  it("Shift+F10 opens the menu of the row under the cursor", async () => {
+    render(<FileCommander panels={["/documents/notes", "/archive"]} />);
+    const grid = within(panel("notes")).getByRole("grid");
+    fireEvent.click(await within(grid).findByRole("row", { name: "todo.md" }));
+    fireEvent.keyDown(grid, { key: "F10", shiftKey: true });
+    expect(menuLabels()).toContain("Download");
+  });
+});
+
 describe("commands the list gained from the tree", () => {
   it("New note makes Untitled.md, then Untitled (2).md, and asks for a name", async () => {
     const storages = newDemoStorages();

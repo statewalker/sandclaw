@@ -333,6 +333,11 @@ export function FilePanel(props: FilePanelProps) {
       treeKey(e.key);
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
       onSelect(order);
+    } else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+      const at = cursor ? order.indexOf(cursor) : -1;
+      const entry = visible[at];
+      const row = document.getElementById(`${id}-${at}`)?.getBoundingClientRect();
+      if (entry) setMenu({ x: row?.left ?? 0, y: row?.bottom ?? 0, entry });
     } else if (e.key === "Enter") {
       const entry = visible.find((v) => v.path === cursor);
       if (entry) open(entry);
@@ -391,11 +396,13 @@ export function FilePanel(props: FilePanelProps) {
     },
   });
 
-  const showMenu = (e: MouseEvent, entry?: FileInfo) => {
+  /** Opens a menu at the pointer, or under `anchor` (the ⋯ button, which a tap or a key may press). */
+  const showMenu = (e: MouseEvent, entry?: FileInfo, anchor?: DOMRect) => {
     e.preventDefault();
     e.stopPropagation();
     if (entry && !selected.includes(entry.path)) pick(entry, { shift: false, ctrl: false });
-    setMenu({ x: e.clientX, y: e.clientY, entry });
+    const at = anchor ? { x: anchor.left, y: anchor.bottom } : { x: e.clientX, y: e.clientY };
+    setMenu({ ...at, entry });
   };
 
   /**
@@ -627,7 +634,7 @@ export function FilePanel(props: FilePanelProps) {
                 {...(entry.kind === "directory" ? dropProps(entry.path) : {})}
                 className={cn(
                   ROW_GRID,
-                  "cursor-default py-1 text-sm hover:bg-accent/40",
+                  "group/row cursor-default py-1 text-sm hover:bg-accent/40",
                   selected.includes(entry.path) && "bg-accent",
                   cursor === entry.path && "outline outline-1 -outline-offset-1 outline-ring",
                   dropTarget === entry.path && "bg-primary/20 ring-1 ring-primary ring-inset",
@@ -662,19 +669,24 @@ export function FilePanel(props: FilePanelProps) {
                     aria-hidden="true"
                   />
                   <span className="truncate">{entry.name}</span>
-                  {props.phone ? (
-                    <button
-                      type="button"
-                      aria-label={`Actions for ${entry.name}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        showMenu(e, entry);
-                      }}
-                      className="ml-auto shrink-0 rounded-sm px-1.5 text-muted-foreground hover:bg-accent"
-                    >
-                      ⋯
-                    </button>
-                  ) : null}
+                  {/* The row's menu on a click: shown on hover and on the selected row, and
+                      always on touch screens, where there is no right-click. */}
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-label={`Actions for ${entry.name}`}
+                    title="Actions"
+                    onClick={(e) => showMenu(e, entry, e.currentTarget.getBoundingClientRect())}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                    className={cn(
+                      "ml-auto shrink-0 rounded-sm px-1.5 leading-none text-muted-foreground hover:bg-accent hover:text-foreground",
+                      props.phone || selected.includes(entry.path) || menu?.entry === entry
+                        ? "visible"
+                        : "invisible group-hover/row:visible pointer-coarse:visible",
+                    )}
+                  >
+                    ⋯
+                  </button>
                 </span>
                 <span className={cn(DETAIL, "text-right text-xs text-muted-foreground")}>
                   {entry.kind === "file" ? formatBytes(entry.size) : ""}
