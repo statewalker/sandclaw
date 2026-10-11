@@ -36,10 +36,12 @@
     "build": "tsdown"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "catalog:",
     "@statewalker/webrun-files": "catalog:",
     "@statewalker/webrun-files-browser": "catalog:",
     "@statewalker/webrun-files-composite": "catalog:",
     "@statewalker/webrun-files-mem": "catalog:",
+    "@statewalker/webrun-files-s3": "catalog:",
     "@statewalker/shared-baseclass": "catalog:"
   },
   "devDependencies": {

@@ -9,6 +9,7 @@ export * from "./mount-table.js";
 export * from "./mount-type.js";
 export * from "./opfs-mount-type.js";
 export * from "./problem.js";
+export * from "./s3.js";
 export * from "./s3-problems.js";
 export * from "./secret-vault.js";
 export * from "./unavailable-files.js";
