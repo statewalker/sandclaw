@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ConversationsSidebar, ConversationsSwitcher } from "./conversations.js";
 
 const meta = {
-  title: "Prototypes/Chat — conversations",
+  title: "Chats/Conversations",
   component: ConversationsSidebar,
   parameters: { layout: "fullscreen" },
   decorators: [

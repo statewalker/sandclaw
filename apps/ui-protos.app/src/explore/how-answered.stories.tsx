@@ -4,7 +4,7 @@ import { dupontBudget, dupontStart, leroyTimber } from "../ask/answers.js";
 import { AnswerWithHow, HowAnswered } from "./how-answered.js";
 
 const meta = {
-  title: "Prototypes/Ask — how it was answered",
+  title: "Indexing and search/How it was answered",
   component: HowAnswered,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

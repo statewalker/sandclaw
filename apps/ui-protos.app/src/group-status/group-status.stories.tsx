@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { GroupStatus } from "./group-status.js";
 
 const meta = {
-  title: "Prototypes/Group status",
+  title: "Mesh/Manage/Group status",
   component: GroupStatus,
   argTypes: {
     state: { control: "inline-radio", options: ["connected", "connecting", "offline"] },

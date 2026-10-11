@@ -5,7 +5,7 @@ import { AgentTools, type AgentToolsProps } from "./agent-tools.js";
 import { spreadsheet, toolSources, untouchedSettings } from "./mock-tools.js";
 
 const meta = {
-  title: "Prototypes/Agent tools",
+  title: "Agents/Agent tools",
   component: AgentTools,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

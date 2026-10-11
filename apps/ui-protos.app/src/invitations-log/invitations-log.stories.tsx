@@ -3,7 +3,7 @@ import { issuedInvites } from "../mock.js";
 import { InvitationsLog } from "./invitations-log.js";
 
 const meta = {
-  title: "Prototypes/Invitations log",
+  title: "Mesh/Manage/Invitations log",
   component: InvitationsLog,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

@@ -17,7 +17,7 @@ src/
   mock.ts            invented group, its folder, team and invites
   <topic>/
     <topic>.tsx          one exported component per variant
-    <topic>.stories.tsx  one story per variant or state, titled "Prototypes/<Topic>"
+    <topic>.stories.tsx  one story per variant or state, titled "<Area>/<Topic>"
     <topic>.mdx          the question, each variant in a <Canvas>, trade-offs, open questions
 test/
   stories.test.tsx   renders every story in jsdom

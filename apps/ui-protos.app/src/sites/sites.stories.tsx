@@ -3,7 +3,7 @@ import { dupont, finance, howWeWork, leroy } from "./mock-sites.js";
 import { Sites } from "./sites.js";
 
 const meta = {
-  title: "Prototypes/Sites",
+  title: "Sites/Sites",
   component: Sites,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

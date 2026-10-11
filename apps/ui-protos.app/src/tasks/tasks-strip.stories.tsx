@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { TasksStrip } from "./tasks-strip.js";
 
 const meta = {
-  title: "Prototypes/Chat — tasks and outputs",
+  title: "Agents/Tasks and outputs",
   component: TasksStrip,
   parameters: { layout: "fullscreen" },
   // The strip as it sits in the workspace's bottom zone, under the documents.

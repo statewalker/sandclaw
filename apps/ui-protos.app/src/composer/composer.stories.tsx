@@ -5,7 +5,7 @@ import { findReference, type Reference } from "./references.js";
 const ref = (path: string) => findReference(path) as Reference;
 
 const meta = {
-  title: "Prototypes/Chat — composer",
+  title: "Chats/Composer",
   component: ComposerChat,
   parameters: { layout: "fullscreen" },
   decorators: [

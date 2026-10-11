@@ -3,7 +3,7 @@ import { catalog, connectors, newConnector } from "./connector-model.js";
 import { Connectors } from "./connectors.js";
 
 const meta = {
-  title: "Prototypes/Connectors",
+  title: "Agents/Connectors",
   component: Connectors,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

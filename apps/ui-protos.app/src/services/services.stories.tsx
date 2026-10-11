@@ -3,7 +3,7 @@ import { services } from "./endpoints.js";
 import { Services } from "./services.js";
 
 const meta = {
-  title: "Prototypes/Services",
+  title: "Mesh/Set up/Services",
   component: Services,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

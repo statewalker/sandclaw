@@ -23,7 +23,7 @@ function DemoCommander({
 }
 
 const meta = {
-  title: "Prototypes/Files app/Commander",
+  title: "Files/Commander",
   component: DemoCommander,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

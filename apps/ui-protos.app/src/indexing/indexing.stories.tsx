@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { IndexingPage, IndexingTree } from "./indexing.js";
 
 const meta = {
-  title: "Prototypes/Ask — indexing",
+  title: "Indexing and search/Indexing",
   component: IndexingPage,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { TodosView } from "./todos-view.js";
 
 const meta = {
-  title: "Prototypes/Notes and todos",
+  title: "Notes and todos/Todos",
   component: TodosView,
   decorators: [
     (Story) => (

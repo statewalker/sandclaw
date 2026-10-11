@@ -4,7 +4,7 @@ import { NotificationSettings } from "./notification-settings.js";
 import { Notifications } from "./notifications.js";
 
 const meta = {
-  title: "Prototypes/Notifications",
+  title: "Workspace/Notifications",
   component: Notifications,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

@@ -3,7 +3,7 @@ import { folder } from "../mock.js";
 import { FileManager } from "./file-manager.js";
 
 const meta = {
-  title: "Prototypes/File management",
+  title: "Files/File management",
   component: FileManager,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

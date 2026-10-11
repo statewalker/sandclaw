@@ -3,7 +3,7 @@ import { noteCitation, noteTheirs } from "./files.js";
 import { NoteEditor } from "./note-editor.js";
 
 const meta = {
-  title: "Prototypes/Note editor",
+  title: "Notes and todos/Note editor",
   component: NoteEditor,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

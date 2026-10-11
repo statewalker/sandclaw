@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FirstSteps } from "./first-steps.js";
 
 const meta = {
-  title: "Prototypes/First steps after joining",
+  title: "Mesh/Join/First steps after joining",
   component: FirstSteps,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

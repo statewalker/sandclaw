@@ -3,7 +3,7 @@ import { contractCitation, offerCitation } from "./files.js";
 import { FileViewer } from "./viewers.js";
 
 const meta = {
-  title: "Prototypes/Viewers",
+  title: "Files/Viewers",
   component: FileViewer,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the
