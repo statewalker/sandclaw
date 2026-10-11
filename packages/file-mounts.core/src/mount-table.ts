@@ -6,7 +6,7 @@ import type { FilesApi } from "@statewalker/webrun-files";
 import { CompositeFilesApi, readOnly } from "@statewalker/webrun-files-composite";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import type { FileChange } from "./changes.js";
-import type { MountConfig, MountStatus } from "./mount-config.js";
+import { type MountConfig, type MountStatus, validateKey } from "./mount-config.js";
 import { type MountType, NeedsUserGesture } from "./mount-type.js";
 import { MountUnavailable, type Problem, problemOf } from "./problem.js";
 import { type SecretStore, SecretsLocked } from "./secret-vault.js";
@@ -83,6 +83,7 @@ export class FilesMountTable extends BaseClass implements MountTable {
   readonly files: FilesApi;
   private readonly root = switchable(emptyRoot());
   private entries: Entry[] = [];
+  private queue: Promise<void> = Promise.resolve();
   private readonly types: Map<string, MountType>;
   private readonly secrets: Pick<SecretStore, "state" | "get">;
   private readonly createTimeoutMs: number;
@@ -108,15 +109,52 @@ export class FilesMountTable extends BaseClass implements MountTable {
   }
 
   /** Keeps unchanged mounted storages, (re)creates the others; call again after an unlock. */
-  async apply(configs: MountConfig[], opts: { interactive?: boolean } = {}): Promise<FileChange[]> {
-    const before = new Map(this.entries.map((e) => [e.config.key, e]));
-    const next: Entry[] = [];
+  apply(configs: MountConfig[], opts: { interactive?: boolean } = {}): Promise<FileChange[]> {
+    const taken: string[] = [];
     for (const config of configs) {
-      const old = before.get(config.key);
-      const keep =
-        old && old.status.state === "mounted" && canonical(old.config) === canonical(config);
-      next.push(keep ? { ...old, config } : await this.create(config, opts.interactive ?? false));
+      const invalid = validateKey(config.key, taken);
+      if (invalid) return Promise.reject(new Error(`${invalid} (${config.key})`));
+      taken.push(config.key);
     }
+    return this.enqueue(() => this.applyNow(configs, opts.interactive ?? false));
+  }
+
+  /** Inside a click: asks for access again (local folder) or retries a failed mount. */
+  reconnect(key: string): Promise<MountStatus> {
+    return this.enqueue(async () => {
+      const entry = this.entries.find((e) => e.config.key === key);
+      if (!entry) return { state: "unmounted" };
+      const created = await this.create(entry.config, true);
+      const at = this.entries.findIndex((e) => e.config.key === key);
+      if (at < 0 || this.entries[at]?.config !== entry.config) {
+        return this.entries[at]?.status ?? { state: "unmounted" };
+      }
+      this.entries = this.entries.map((e, i) => (i === at ? created : e));
+      this.recompose();
+      return created.status;
+    });
+  }
+
+  /** apply and reconnect run one after another, in the order called; a failure doesn't stall the rest. */
+  private enqueue<T>(task: () => Promise<T>): Promise<T> {
+    const result = this.queue.then(task);
+    this.queue = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
+
+  private async applyNow(configs: MountConfig[], interactive: boolean): Promise<FileChange[]> {
+    const before = new Map(this.entries.map((e) => [e.config.key, e]));
+    const next = await Promise.all(
+      configs.map((config) => {
+        const old = before.get(config.key);
+        const keep =
+          old && old.status.state === "mounted" && canonical(old.config) === canonical(config);
+        return keep ? Promise.resolve({ ...old, config }) : this.create(config, interactive);
+      }),
+    );
     const changes: FileChange[] = [];
     const after = new Set(next.map((e) => e.config.key));
     for (const key of before.keys()) {
@@ -131,17 +169,6 @@ export class FilesMountTable extends BaseClass implements MountTable {
     this.entries = next;
     this.recompose();
     return changes;
-  }
-
-  /** Inside a click: asks for access again (local folder) or retries a failed mount. */
-  async reconnect(key: string): Promise<MountStatus> {
-    const at = this.entries.findIndex((e) => e.config.key === key);
-    const entry = this.entries[at];
-    if (!entry) return { state: "unmounted" };
-    const created = await this.create(entry.config, true);
-    this.entries = this.entries.map((e, i) => (i === at ? created : e));
-    this.recompose();
-    return created.status;
   }
 
   private async create(config: MountConfig, interactive: boolean): Promise<Entry> {
@@ -164,7 +191,9 @@ export class FilesMountTable extends BaseClass implements MountTable {
       },
     };
     try {
-      const api = await withTimeout(type.create(config, ctx), this.createTimeoutMs);
+      // A person answering a permission prompt sets the pace; only unattended creates time out.
+      const creating = type.create(config, ctx);
+      const api = await (interactive ? creating : withTimeout(creating, this.createTimeoutMs));
       return { config, status: { state: "mounted" }, api: config.readOnly ? readOnly(api) : api };
     } catch (error) {
       if (error instanceof SecretsLocked) return this.unusable(config, { state: "locked" });

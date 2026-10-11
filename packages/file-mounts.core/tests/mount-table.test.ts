@@ -146,4 +146,67 @@ describe("FilesMountTable", () => {
     expect(await names(table, "/home")).toEqual([]);
     expect(updates.at(-1)).toBe("mounted");
   });
+
+  it("concurrent applies run in the order called; the last called wins", async () => {
+    const slow = scripted(async (m) => {
+      if (m.key === "a") await new Promise((r) => setTimeout(r, 40));
+      return new MemFilesApi();
+    });
+    const table = new FilesMountTable({ types: [slow], secrets: unlocked });
+    const s3 = (key: string): MountConfig => ({ key, name: key, type: "s3", config: {} });
+    const first = table.apply([s3("a")]);
+    const second = table.apply([s3("b")]);
+    await Promise.all([first, second]);
+    expect(table.configs().map((c) => c.key)).toEqual(["b"]);
+    expect(await names(table, "/")).toEqual(["b"]);
+  });
+
+  it("a reconnect racing an apply that reorders leaves the other mounts intact", async () => {
+    const type = scripted(async (_m, ctx) => {
+      if (!ctx.interactive) throw new NeedsUserGesture();
+      await new Promise((r) => setTimeout(r, 30));
+      return new MemFilesApi();
+    });
+    const table = new FilesMountTable({ types: [type, memoryMountType()], secrets: unlocked });
+    const home: MountConfig = { key: "home", name: "Home", type: "s3", config: {} };
+    await table.apply([home, mem("docs")]);
+    const reconnecting = table.reconnect("home");
+    const applying = table.apply([mem("docs"), home]);
+    await Promise.all([reconnecting, applying]);
+    expect(table.configs().map((c) => c.key)).toEqual(["docs", "home"]);
+    expect(await names(table, "/")).toEqual(["docs", "home"]);
+    const removing = table.reconnect("home");
+    const dropping = table.apply([mem("docs")]);
+    await Promise.all([removing, dropping]);
+    expect(await names(table, "/")).toEqual(["docs"]);
+  });
+
+  it("creates in parallel: three silent storages cost one timeout", async () => {
+    const hanging = scripted(() => new Promise(() => {}));
+    const table = new FilesMountTable({ types: [hanging], secrets: unlocked, createTimeoutMs: 80 });
+    const s3 = (key: string): MountConfig => ({ key, name: key, type: "s3", config: {} });
+    const started = Date.now();
+    await table.apply([s3("a"), s3("b"), s3("c")]);
+    expect(Date.now() - started).toBeLessThan(200);
+    expect(table.list().every((m) => m.status.state === "failed")).toBe(true);
+  });
+
+  it("apply rejects bad or duplicate keys and leaves the table unchanged", async () => {
+    const table = new FilesMountTable({ types: [memoryMountType()], secrets: unlocked });
+    await table.apply([mem("docs")]);
+    await expect(table.apply([mem("x"), mem("x")])).rejects.toThrow("Another storage");
+    await expect(table.apply([mem(".hidden")])).rejects.toThrow("dot");
+    expect(table.configs().map((c) => c.key)).toEqual(["docs"]);
+  });
+
+  it("an interactive create is not timed out while the person answers", async () => {
+    const type = scripted(async (_m, ctx) => {
+      if (!ctx.interactive) throw new NeedsUserGesture();
+      await new Promise((r) => setTimeout(r, 120));
+      return new MemFilesApi();
+    });
+    const table = new FilesMountTable({ types: [type], secrets: unlocked, createTimeoutMs: 30 });
+    await table.apply([{ key: "home", name: "Home", type: "s3", config: {} }]);
+    expect(await table.reconnect("home")).toEqual({ state: "mounted" });
+  });
 });
