@@ -223,8 +223,10 @@ export function FilePanel(props: FilePanelProps) {
     } else if (e.key === "Backspace") {
       if (!atRoot) onNavigate(dirname(path));
     } else if (command) {
-      onCommand?.(command, handle());
-    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // With nothing selected a command acts on the cursor row, or on nothing.
+      const paths = selected.length ? selected : cursor ? [cursor] : [];
+      if (paths.length) onCommand?.(command, handle(paths));
+    } else if (e.key.length === 1 && e.key !== " " && !e.ctrlKey && !e.metaKey && !e.altKey) {
       setFilter(e.key);
       filterBox.current?.focus();
     } else {
@@ -489,7 +491,10 @@ export function FilePanel(props: FilePanelProps) {
       {menu ? (
         <MenuList
           items={menuItems(menu.entry)}
-          onClose={() => setMenu(undefined)}
+          onClose={(refocus) => {
+            setMenu(undefined);
+            if (refocus) grid.current?.focus();
+          }}
           className="fixed"
           style={{ left: menu.x, top: menu.y }}
         />

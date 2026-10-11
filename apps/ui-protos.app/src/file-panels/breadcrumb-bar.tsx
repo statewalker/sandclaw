@@ -44,7 +44,7 @@ export function BreadcrumbBar({
 
   return (
     <nav aria-label="Path" className="flex flex-wrap items-center gap-x-0.5 text-sm">
-      <span className={cn("rounded-sm", highlight("/"))} {...dropProps("/")}>
+      <span className="rounded-sm">
         <Button
           variant="ghost"
           size="sm"

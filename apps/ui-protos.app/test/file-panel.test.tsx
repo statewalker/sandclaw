@@ -98,4 +98,72 @@ describe("FilePanel", () => {
     fireEvent.drop(target, { dataTransfer: data, ctrlKey: true });
     expect(onDropPaths).toHaveBeenCalledWith(["/archive/2026/readme.md"], "/documents/notes", true);
   });
+
+  it("an open menu keeps its focused item when the parent re-renders", async () => {
+    const { rerender } = render(<Harness start="/documents/clients/dupont" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Folders beside clients" }));
+    const menu = await screen.findByRole("menu");
+    const items = within(menu).getAllByRole("menuitem");
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(items[1]);
+    rerender(<Harness start="/documents/clients/dupont" refreshKey={1} />);
+    expect(document.activeElement).toBe(items[1]);
+  });
+
+  it("nothing can be dropped at the root: not on All storages, not on the list at /", async () => {
+    const onDropPaths = vi.fn();
+    const onDropExternal = vi.fn();
+    render(<Harness onDropPaths={onDropPaths} onDropExternal={onDropExternal} />);
+    const data = {
+      types: ["application/x-sandclaw-paths"],
+      getData: () => JSON.stringify(["/a/b"]),
+    };
+    fireEvent.drop(await screen.findByRole("button", { name: "All storages" }), {
+      dataTransfer: data,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "All storages" }));
+    await rows();
+    fireEvent.drop(screen.getByRole("grid"), { dataTransfer: data });
+    fireEvent.drop(screen.getByRole("grid"), {
+      dataTransfer: { types: ["Files"], getData: () => "" },
+    });
+    expect(onDropPaths).not.toHaveBeenCalled();
+    expect(onDropExternal).not.toHaveBeenCalled();
+  });
+
+  it("commands act on the cursor row when nothing is selected, and on nothing without one", async () => {
+    const onCommand = vi.fn();
+    render(<Harness onCommand={onCommand} />);
+    await rows();
+    const grid = screen.getByRole("grid");
+    fireEvent.keyDown(grid, { key: "F8" });
+    expect(onCommand).not.toHaveBeenCalled();
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    fireEvent.click(screen.getByRole("row", { name: /clients/ }), { ctrlKey: true });
+    fireEvent.keyDown(grid, { key: "F8" });
+    expect(onCommand).toHaveBeenCalledWith("delete", {
+      path: "/documents",
+      selected: ["/documents/clients"],
+    });
+  });
+
+  it("a space does not start the filter", async () => {
+    render(<Harness />);
+    await rows();
+    fireEvent.keyDown(screen.getByRole("grid"), { key: " " });
+    expect((screen.getByLabelText("Filter by name") as HTMLInputElement).value).toBe("");
+  });
+
+  it("after changing folder, shift+arrow does not extend from the old anchor", async () => {
+    render(<Harness />);
+    await rows();
+    const grid = screen.getByRole("grid");
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    fireEvent.doubleClick(screen.getByRole("row", { name: /clients/ }));
+    await screen.findByRole("row", { name: /dupont/ });
+    fireEvent.keyDown(grid, { key: "ArrowDown", shiftKey: true });
+    expect(
+      screen.getAllByRole("row", { selected: true }).map((r) => r.getAttribute("data-name")),
+    ).toEqual(["dupont"]);
+  });
 });

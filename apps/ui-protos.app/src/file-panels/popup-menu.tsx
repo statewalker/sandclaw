@@ -36,15 +36,18 @@ export function MenuList({
   style?: CSSProperties;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Callers pass a new function each render; the effect must run once per open.
+  const close = useRef(onClose);
+  close.current = onClose;
 
   useEffect(() => {
     ref.current?.querySelector<HTMLElement>(ITEM)?.focus();
     const away = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose(false);
+      if (!ref.current?.contains(e.target as Node)) close.current(false);
     };
     document.addEventListener("mousedown", away);
     return () => document.removeEventListener("mousedown", away);
-  }, [onClose]);
+  }, []);
 
   const onKeyDown = (e: KeyboardEvent) => {
     const nodes = [...(ref.current?.querySelectorAll<HTMLElement>(ITEM) ?? [])];
