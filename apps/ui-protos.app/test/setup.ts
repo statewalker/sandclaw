@@ -7,3 +7,8 @@ globalThis.ResizeObserver ??= class {
 
 // jsdom has no scrollTo; assistant-ui's thread viewport auto-scroll calls it.
 Element.prototype.scrollTo ??= () => {};
+
+// jsdom has no DragEvent; without it drag events lose ctrlKey and dataTransfer.
+globalThis.DragEvent ??= class DragEvent extends MouseEvent {
+  readonly dataTransfer: DataTransfer | null = null;
+} as typeof globalThis.DragEvent;

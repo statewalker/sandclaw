@@ -1,0 +1,101 @@
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { useState } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { newDemoStorages } from "../src/file-panels/demo-storages.js";
+import { FilePanel, type FilePanelProps } from "../src/file-panels/file-panel.js";
+
+afterEach(cleanup);
+
+function Harness(
+  props: Partial<FilePanelProps> & {
+    start?: string;
+    storages?: ReturnType<typeof newDemoStorages>;
+  },
+) {
+  const storages = props.storages ?? newDemoStorages();
+  const [path, setPath] = useState(props.start ?? "/documents");
+  const [selected, setSelected] = useState<string[]>([]);
+  return (
+    <FilePanel
+      files={storages.files}
+      mounts={storages.mounts}
+      path={path}
+      onNavigate={setPath}
+      selected={selected}
+      onSelect={setSelected}
+      {...props}
+    />
+  );
+}
+
+const rows = async () =>
+  (await screen.findAllByRole("row")).map((r) => r.getAttribute("data-name"));
+
+describe("FilePanel", () => {
+  it("lists folders first and opens a folder", async () => {
+    render(<Harness />);
+    expect(await rows()).toEqual(["clients", "notes", "reports", "readme.md"]);
+    fireEvent.doubleClick(screen.getByRole("row", { name: /clients/ }));
+    expect(await rows()).toEqual(["dupont", "martin"]);
+  });
+
+  it("the breadcrumb menu lists the folders beside a crumb and navigates", async () => {
+    render(<Harness start="/documents/clients/dupont" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Folders beside dupont" }));
+    const menu = await screen.findByRole("menu");
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "martin" }));
+    expect(await rows()).toEqual(["contract.docx", "notes.md"]);
+  });
+
+  it("the first crumb's menu lists the mounts by name", async () => {
+    render(<Harness start="/documents/notes" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Folders beside Documents" }));
+    const items = within(await screen.findByRole("menu"))
+      .getAllByRole("menuitem")
+      .map((i) => i.textContent);
+    expect(items).toEqual(["Archive (S3)", "Browser storage", "Documents", "Photos (S3)"]);
+  });
+
+  it("shows a locked mount's problem with Unlock, not an empty folder", async () => {
+    const onProblemAction = vi.fn();
+    const storages = newDemoStorages({
+      unavailable: {
+        archive: { cause: "locked", message: "Locked: unlock to use the S3 storages." },
+      },
+    });
+    render(<Harness storages={storages} start="/archive" onProblemAction={onProblemAction} />);
+    expect(await screen.findByText("Locked: unlock to use the S3 storages.")).toBeTruthy();
+    expect(screen.queryAllByRole("row")).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: "Unlock" }));
+    expect(onProblemAction).toHaveBeenCalledWith(
+      "archive",
+      expect.objectContaining({ cause: "locked" }),
+    );
+  });
+
+  it("keys: shift+arrow extends the selection, F5 asks to copy it", async () => {
+    const onCommand = vi.fn();
+    render(<Harness onCommand={onCommand} />);
+    await rows();
+    const grid = screen.getByRole("grid");
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    fireEvent.keyDown(grid, { key: "ArrowDown", shiftKey: true });
+    fireEvent.keyDown(grid, { key: "F5" });
+    expect(onCommand).toHaveBeenCalledWith("copy", {
+      path: "/documents",
+      selected: ["/documents/clients", "/documents/notes"],
+    });
+  });
+
+  it("a drop from another panel reports the paths, the target and the copy modifier", async () => {
+    const onDropPaths = vi.fn();
+    render(<Harness onDropPaths={onDropPaths} />);
+    const target = await screen.findByRole("row", { name: /notes/ });
+    const data = {
+      types: ["application/x-sandclaw-paths"],
+      getData: () => JSON.stringify(["/archive/2026/readme.md"]),
+    };
+    fireEvent.drop(target, { dataTransfer: data, ctrlKey: true });
+    expect(onDropPaths).toHaveBeenCalledWith(["/archive/2026/readme.md"], "/documents/notes", true);
+  });
+});
