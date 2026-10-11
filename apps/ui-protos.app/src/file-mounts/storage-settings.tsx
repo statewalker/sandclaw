@@ -13,6 +13,7 @@ import {
 } from "@statewalker/ui.view.shadcn";
 import { Loader2, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { Problem } from "../file-panels/problem.js";
 import { ProblemView } from "./connection-report.js";
 import { runConnectionTest, type S3Probe } from "./connection-test.js";
 import type { MockVault, VaultState } from "./mock-vault.js";
@@ -29,8 +30,8 @@ export interface StorageItem {
 
 /** What is open when the screen appears (stories). */
 export type StorageSettingsOpened =
-  | { add: MountTypeId | "choose" }
-  | { edit: string; form?: S3Form; test?: boolean }
+  | { add: MountTypeId | "choose"; draft?: S3Form; test?: boolean }
+  | { edit: string }
   | { vault: VaultMode };
 
 export interface StorageSettingsProps {
@@ -43,7 +44,7 @@ export interface StorageSettingsProps {
   opened?: StorageSettingsOpened;
 }
 
-type Page = { add: MountTypeId | "choose" } | { edit: string; form?: S3Form; test?: boolean };
+type Page = Exclude<StorageSettingsOpened, { vault: VaultMode }>;
 
 const STATUS_LABELS: Record<MountStatus["state"], string> = {
   mounted: "Mounted",
@@ -55,7 +56,10 @@ const STATUS_LABELS: Record<MountStatus["state"], string> = {
 
 const NO_KEYS: MountStatus = {
   state: "failed",
-  problem: { cause: "locked", message: "No saved keys: edit the storage to enter them again." },
+  problem: {
+    cause: "invalid-settings",
+    message: "No saved keys: edit the storage to enter them again.",
+  },
 };
 
 /** An S3 storage's status after the vault changes; other storages don't depend on it. */
@@ -122,7 +126,11 @@ export function StorageSettings({
     setRetrying(undefined);
     setStatus(
       item.config.key,
-      report.problem ? { state: "failed", problem: report.problem } : { state: "mounted" },
+      report.problem
+        ? { state: "failed", problem: report.problem }
+        : vault.state === "unlocked"
+          ? { state: "mounted" }
+          : { state: "locked" },
     );
   };
 
@@ -134,12 +142,13 @@ export function StorageSettings({
         : { state: "mounted" },
     );
 
-  const save = (config: MountConfig) => {
+  const save = (config: MountConfig, _form?: S3Form, problem?: Problem) => {
     const editKey = page && "edit" in page ? page.edit : undefined;
     const item: StorageItem = {
       config,
-      status:
-        config.type === "s3" && vault.state !== "unlocked"
+      status: problem
+        ? { state: "failed", problem }
+        : config.type === "s3" && vault.state !== "unlocked"
           ? { state: "locked" }
           : { state: "mounted" },
       where: whereOf(config),
@@ -157,9 +166,10 @@ export function StorageSettings({
     return (
       <div className={cn("w-full min-w-0", width)}>
         <MountForm
-          initial={editing && { ...editing.config, form: "edit" in page ? page.form : undefined }}
+          initial={editing?.config}
           type={"add" in page && page.add !== "choose" ? page.add : undefined}
-          testOnOpen={"edit" in page && page.test}
+          draft={"add" in page ? page.draft : undefined}
+          testOnOpen={"add" in page && page.test}
           takenKeys={items.map((i) => i.config.key).filter((k) => k !== editing?.config.key)}
           probe={probe}
           origin={origin}
@@ -231,7 +241,7 @@ export function StorageSettings({
           action={confirm === "reset" ? "Delete keys" : "Remove"}
           onConfirm={() => {
             if (confirm === "reset") vault.reset();
-            else setItems((list) => list.filter((i) => i !== confirm.remove));
+            else setItems((list) => list.filter((i) => i.config.key !== confirm.remove.config.key));
             setConfirm(undefined);
           }}
           onCancel={() => setConfirm(undefined)}
@@ -265,8 +275,9 @@ function StorageRow({
 }) {
   const { config, status } = item;
   const Icon = TYPE_ICONS[config.type];
-  const action = ACTIONS[status.state];
-  const keysGone = status.state === "failed" && status.problem.cause === "locked";
+  // Settings that can't work (keys deleted by a reset): the way out is Edit, not Retry.
+  const needsEdit = status.state === "failed" && status.problem.cause === "invalid-settings";
+  const action = needsEdit ? "Edit" : ACTIONS[status.state];
   return (
     <tr aria-label={config.name} className="grid min-w-0 gap-2 py-3">
       <td className="flex min-w-0 items-start gap-3">
@@ -294,15 +305,22 @@ function StorageRow({
         </div>
       </td>
       <td className="flex flex-wrap gap-1 pl-8">
-        {action && !keysGone ? (
-          <Button size="sm" variant="outline" disabled={retrying} onClick={onAction}>
+        {action ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={retrying}
+            onClick={needsEdit ? onEdit : onAction}
+          >
             {retrying ? <Loader2 className="animate-spin" /> : null}
             {action}
           </Button>
         ) : null}
-        <Button size="sm" variant="ghost" onClick={onEdit}>
-          Edit
-        </Button>
+        {needsEdit ? null : (
+          <Button size="sm" variant="ghost" onClick={onEdit}>
+            Edit
+          </Button>
+        )}
         {status.state !== "unmounted" ? (
           <Button size="sm" variant="ghost" onClick={onUnmount}>
             Unmount

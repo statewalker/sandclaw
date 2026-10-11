@@ -1,6 +1,7 @@
 import { Button, Card, Input } from "@statewalker/ui.view.shadcn";
 import { Cloud, FolderOpen, HardDrive, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import type { Problem } from "../file-panels/problem.js";
 import { ConnectionReportView } from "./connection-report.js";
 import { type ConnectionReport, runConnectionTest, type S3Probe } from "./connection-test.js";
 import type { MockVault } from "./mock-vault.js";
@@ -25,12 +26,15 @@ export interface MountFormProps {
   probe(form: S3Form): S3Probe;
   origin: string;
   vault: MockVault;
-  onSave(config: MountConfig, form?: S3Form): void;
+  /** `problem`: the failed test's reason, when saved through Save anyway. */
+  onSave(config: MountConfig, form?: S3Form, problem?: Problem): void;
   onCancel(): void;
   /** Whether this browser can open local folders; detected by default. */
   localFoldersAvailable?: boolean;
   /** A new storage of this type: skips the type chooser. */
   type?: MountTypeId;
+  /** A new S3 storage's form, already filled in. */
+  draft?: S3Form;
   /** Runs Test connection as soon as the form opens. */
   testOnOpen?: boolean;
 }
@@ -119,12 +123,13 @@ export function MountForm({
   localFoldersAvailable = typeof window !== "undefined" &&
     typeof (window as { showDirectoryPicker?: unknown }).showDirectoryPicker === "function",
   type: newType,
+  draft,
   testOnOpen,
 }: MountFormProps) {
   const editing = Boolean(initial);
   const [type, setType] = useState<MountTypeId | undefined>(initial?.type ?? newType);
   const [form, setForm] = useState<S3Form>(
-    () => initial?.form ?? (initial?.type === "s3" ? s3FormOf(initial) : EMPTY_S3),
+    () => initial?.form ?? (initial?.type === "s3" ? s3FormOf(initial) : (draft ?? EMPTY_S3)),
   );
   const [name, setName] = useState(initial?.name ?? "");
   const [folder, setFolder] = useState(initial?.config.folder ?? "");
@@ -133,8 +138,9 @@ export function MountForm({
   const [attempted, setAttempted] = useState(false);
   const [running, setRunning] = useState<CheckId>();
   const [report, setReport] = useState<ConnectionReport>();
-  const [saveFailed, setSaveFailed] = useState(false);
-  const [vaultMode, setVaultMode] = useState<VaultMode>();
+  /** The reason the last Save's test failed; Save anyway keeps it with the storage. */
+  const [failure, setFailure] = useState<Problem>();
+  const [vaultFor, setVaultFor] = useState<{ mode: VaultMode; problem?: Problem }>();
   const abort = useRef<AbortController>(undefined);
 
   const errors: Partial<Record<string, string>> =
@@ -149,7 +155,7 @@ export function MountForm({
   const valid = Object.keys(errors).length === 0;
 
   const update = (patch: Partial<S3Form>) => {
-    setSaveFailed(false);
+    setFailure(undefined);
     setForm((f) => {
       const next = { ...f, ...patch };
       if (patch.name !== undefined && !keyEdited) next.key = keyFromName(patch.name, takenKeys);
@@ -189,7 +195,7 @@ export function MountForm({
     return () => abort.current?.abort();
   }, []);
 
-  const finish = () => {
+  const finish = (problem?: Problem) => {
     const key = type === "s3" ? form.key : (initial?.key ?? keyFromName(name, takenKeys));
     if (type === "s3") {
       const config = {
@@ -201,17 +207,21 @@ export function MountForm({
         pathStyle: String(form.pathStyle),
       };
       const saved = { ...form, name: form.name.trim() };
-      return onSave({ key, name: saved.name, type, config, readOnly: form.readOnly }, saved);
+      return onSave(
+        { key, name: saved.name, type, config, readOnly: form.readOnly },
+        saved,
+        problem,
+      );
     }
     if (type)
       onSave({ key, name: name.trim(), type, config: type === "local-folder" ? { folder } : {} });
   };
 
   /** S3 keys go into the vault, so it has to exist and be open first. */
-  const store = () => {
+  const store = (problem?: Problem) => {
     if (type === "s3" && vault.state !== "unlocked") {
-      setVaultMode(vault.state === "absent" ? "create" : "unlock");
-    } else finish();
+      setVaultFor({ mode: vault.state === "absent" ? "create" : "unlock", problem });
+    } else finish(problem);
   };
 
   const save = async () => {
@@ -222,8 +232,8 @@ export function MountForm({
     }
     const result = await test();
     if (!result) return;
+    setFailure(result.problem);
     if (result.ok) store();
-    else setSaveFailed(true);
   };
 
   const title = initial ? `Edit ${initial.name}` : "Add storage";
@@ -291,8 +301,8 @@ export function MountForm({
                 Test connection
               </Button>
             ) : null}
-            {saveFailed ? (
-              <Button type="button" variant="outline" onClick={store}>
+            {failure ? (
+              <Button type="button" variant="outline" onClick={() => store(failure)}>
                 Save anyway
               </Button>
             ) : null}
@@ -302,15 +312,15 @@ export function MountForm({
           </div>
         </form>
       )}
-      {vaultMode ? (
+      {vaultFor ? (
         <VaultDialog
           vault={vault}
-          mode={vaultMode}
+          mode={vaultFor.mode}
           onDone={() => {
-            setVaultMode(undefined);
-            finish();
+            setVaultFor(undefined);
+            finish(vaultFor.problem);
           }}
-          onCancel={() => setVaultMode(undefined)}
+          onCancel={() => setVaultFor(undefined)}
         />
       ) : null}
     </Card>

@@ -3,7 +3,6 @@ import { useState } from "react";
 import { fakeProbe, type ProbeScenario } from "./connection-test.js";
 import { MockVault, type VaultState } from "./mock-vault.js";
 import type { S3Form } from "./mount-config.js";
-import { s3FormOf } from "./mount-form.js";
 import { corsRule } from "./s3-problems.js";
 import {
   type StorageItem,
@@ -90,18 +89,32 @@ export const DEMO_MOUNTS: StorageItem[] = [
   },
 ];
 
-/** A demo storage's S3 form with keys typed in, for the connection-test stories. */
-function filled(key: string): S3Form {
-  const mount = DEMO_MOUNTS.find((m) => m.config.key === key);
-  if (!mount) throw new Error(`No demo storage ${key}`);
-  return {
-    ...s3FormOf(mount.config),
-    accessKeyId: "AKIAIOSFODNN7EXAMPLE",
-    secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-  };
-}
-const ARCHIVE = filled("archive");
-const PHOTOS = filled("photos");
+/** A new S3 storage, its form filled in, for the connection-test stories. */
+const KEYS = {
+  accessKeyId: "AKIAIOSFODNN7EXAMPLE",
+  secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+};
+const BACKUPS: S3Form = {
+  name: "Backups (S3)",
+  key: "backups",
+  preset: "aws",
+  endpoint: "https://s3.eu-central-1.amazonaws.com",
+  region: "eu-central-1",
+  bucket: "acme-backups",
+  prefix: "",
+  pathStyle: false,
+  readOnly: false,
+  ...KEYS,
+};
+const SITE_PHOTOS: S3Form = {
+  ...BACKUPS,
+  name: "Site photos (S3)",
+  key: "site-photos",
+  preset: "r2",
+  endpoint: "https://4f9a2c.r2.cloudflarestorage.com",
+  region: "auto",
+  bucket: "acme-site-photos",
+};
 
 /** A fresh vault and probe per render, so one story's unlock or reset doesn't leak into another. */
 function DemoSettings({
@@ -161,11 +174,11 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const testing = (scenario: ProbeScenario, form = ARCHIVE): Story["args"] => ({
+const testing = (scenario: ProbeScenario, draft = BACKUPS): Story["args"] => ({
   vault: "unlocked",
   scenario,
   delayMs: 400,
-  opened: { edit: form.key, form, test: true },
+  opened: { add: "s3", draft, test: true },
 });
 
 export const List: Story = { name: "A — Storages (keys unlocked)", args: { vault: "unlocked" } };
@@ -189,7 +202,10 @@ export const TestDeniedWrite: Story = {
   name: "Test: keys can't write",
   args: testing("denied-write"),
 };
-export const TestCors: Story = { name: "Test: CORS rule missing", args: testing("cors", PHOTOS) };
+export const TestCors: Story = {
+  name: "Test: CORS rule missing",
+  args: testing("cors", SITE_PHOTOS),
+};
 export const TestUnreachable: Story = {
   name: "Test: no answer",
   args: testing("unreachable"),

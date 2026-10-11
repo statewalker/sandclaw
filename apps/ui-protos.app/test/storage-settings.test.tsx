@@ -67,6 +67,33 @@ describe("StorageSettings", () => {
     expect(await screen.findByRole("button", { name: "Save anyway" })).toBeTruthy();
   });
 
+  it("a storage saved anyway after a failed test is listed as Failed with that test's reason", async () => {
+    render(
+      <StorageSettings
+        mounts={DEMO_MOUNTS}
+        vault={new MockVault({ state: "unlocked", password: "correct horse" })}
+        probe={() => fakeProbe("cors")}
+        origin={origin}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add storage" }));
+    fireEvent.click(screen.getByRole("button", { name: /S3/ }));
+    fill("Name", "Backups");
+    fill("Endpoint", "https://s3.example.com");
+    fill("Bucket", "backups");
+    fill("Access key ID", "AKIA123");
+    fill("Secret access key", "secret");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Save anyway" }));
+    const row = await screen.findByRole("row", { name: /Backups/ });
+    expect(within(row).getByText("Failed")).toBeTruthy();
+    expect(
+      within(row).getByText(
+        "The bucket doesn't allow this site. Add this CORS rule to the bucket:",
+      ),
+    ).toBeTruthy();
+  });
+
   it("shows field errors in plain words", async () => {
     render(
       <StorageSettings
@@ -78,6 +105,7 @@ describe("StorageSettings", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Add storage" }));
     fireEvent.click(screen.getByRole("button", { name: /S3/ }));
+    expect(screen.queryByText("Enter a name.")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText("Enter a name.")).toBeTruthy();
     expect(screen.getByText("Enter the access key ID.")).toBeTruthy();

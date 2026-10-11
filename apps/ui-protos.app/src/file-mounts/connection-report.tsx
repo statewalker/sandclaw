@@ -5,7 +5,7 @@ import {
   CollapsibleTrigger,
 } from "@statewalker/ui.view.shadcn";
 import { Check, ChevronDown, Circle, Loader2, Minus, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Problem } from "../file-panels/problem.js";
 import { CHECK_LABELS, CHECK_ORDER, type ConnectionReport } from "./connection-test.js";
 import type { CheckId } from "./s3-problems.js";
@@ -22,19 +22,34 @@ const ICONS: Record<CheckState, { icon: typeof Check; className: string; said: s
 
 /** A problem in plain words, its raw detail under "Details", and for CORS the rule to copy. */
 export function ProblemView({ problem }: { problem: Problem }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"copied" | "failed">();
   const fix = problem.fix;
-  const copy = (json: string) => navigator.clipboard?.writeText(json).then(() => setCopied(true));
+  const copy = (json: string) =>
+    // No clipboard (an insecure page) throws here; a refusal rejects: both say so.
+    Promise.resolve()
+      .then(() => navigator.clipboard.writeText(json))
+      .then(
+        () => setCopied("copied"),
+        () => setCopied("failed"),
+      );
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(undefined), 3000);
+    return () => clearTimeout(timer);
+  }, [copied]);
   return (
     <div className="grid min-w-0 gap-2 text-sm">
       <p className="text-destructive">{problem.message}</p>
       {fix ? (
         <div className="grid min-w-0 gap-2">
           <pre className="max-h-60 overflow-auto rounded-md bg-muted p-2 text-xs">{fix.json}</pre>
-          <div>
+          <div className="flex items-center gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => copy(fix.json)}>
-              {copied ? "Copied" : "Copy rule"}
+              {copied === "copied" ? "Copied" : "Copy rule"}
             </Button>
+            {copied === "failed" ? (
+              <span className="text-destructive text-xs">Couldn't copy.</span>
+            ) : null}
           </div>
         </div>
       ) : null}

@@ -71,7 +71,8 @@ a spinner while it runs. A failure is said in plain words, with the raw message 
 | No answer at all | "No answer in 15 seconds." |
 
 *Save* runs the same test first. When it fails, the form stays open and offers **Save anyway**,
-for a bucket that is offline now but right.
+for a bucket that is offline now but right. A storage saved that way is listed as **Failed**
+with the test's reason, and Retry.
 
 <Story of={Stories.TestPassing} inline={false} height="760px" />
 
@@ -106,7 +107,7 @@ says "Wrong password."). *Remember on this browser* unlocks silently next time.
 The **Secret keys** section shows the state and offers Unlock or Lock, Change password, Forget
 this browser (when remembered) and Reset, which asks first: "Delete all saved keys? Storages
 stay, waiting for their keys again." After a reset the S3 storages say "No saved keys: edit the
-storage to enter them again."
+storage to enter them again.", with **Edit** as their action instead of Retry.
 
 <Story of={Stories.CreateVault} inline={false} height="560px" />
 
@@ -138,7 +139,8 @@ and the S3 form needs the room.
 
 ## Decisions assumed (from the design)
 
-- Saving an S3 storage tests it first; a failed test saves only through *Save anyway*.
+- Saving an S3 storage tests it first; a failed test saves only through *Save anyway*, and the
+  storage is then listed as **Failed** with that test's reason (and Retry).
 - The password is asked for on the first S3 save, not before; other storage types never ask.
 - Unlocking mounts every locked S3 storage; locking unmounts them back to Locked.
 - Saved keys are never shown back in the form.
@@ -152,9 +154,7 @@ and the S3 form needs the room.
 2. **Per browser or per person.** Storage settings and keys live in this browser now. Should
    they follow the person to their other devices once that is possible — and the keys too, or
    only the storages, with the keys entered again on each device?
-3. A storage saved through *Save anyway* shows **Mounted** in the prototype. Should it show
-   **Failed** with the test's reason at once, or try to mount and fail on its own?
-4. Should *Forget this browser* also lock at once, or only stop the silent unlock next time
+3. Should *Forget this browser* also lock at once, or only stop the silent unlock next time
    (as now)?
-5. Editing an S3 storage keeps the saved keys when the key fields stay empty. Is that clear
+4. Editing an S3 storage keeps the saved keys when the key fields stay empty. Is that clear
    enough, or should there be an explicit *Change keys* step?
