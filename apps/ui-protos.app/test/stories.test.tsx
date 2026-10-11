@@ -12,6 +12,7 @@ import * as connectors from "../src/connectors/connectors.stories.js";
 import * as conversations from "../src/conversations/conversations.stories.js";
 import * as explore from "../src/explore/explore.stories.js";
 import * as howAnswered from "../src/explore/how-answered.stories.js";
+import * as storageSettings from "../src/file-mounts/storage-settings.stories.js";
 import * as fileCommander from "../src/file-panels/file-commander.stories.js";
 import * as fileManager from "../src/files/file-manager.stories.js";
 import * as firstSteps from "../src/first-steps/first-steps.stories.js";
@@ -72,6 +73,7 @@ const stories: [string, ComponentType][] = [
   ...Object.entries(composeStories(settings)),
   ...Object.entries(composeStories(installer)),
   ...Object.entries(composeStories(fileCommander)),
+  ...Object.entries(composeStories(storageSettings)),
 ];
 
 it.each(stories)("%s renders", (_, Story) => {

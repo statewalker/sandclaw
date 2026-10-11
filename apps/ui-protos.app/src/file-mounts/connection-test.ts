@@ -15,14 +15,14 @@ export interface ConnectionReport {
   problem?: Problem;
 }
 
-const LABELS: Record<CheckId, string> = {
+export const CHECK_LABELS: Record<CheckId, string> = {
   endpoint: "The address answers",
   keys: "The keys are accepted",
   bucket: "The bucket exists",
   list: "Listing is allowed",
   write: "Writing is allowed",
 };
-const ORDER: CheckId[] = ["endpoint", "keys", "bucket", "list", "write"];
+export const CHECK_ORDER: CheckId[] = ["endpoint", "keys", "bucket", "list", "write"];
 
 const CANCELLED = Symbol("cancelled");
 
@@ -76,9 +76,9 @@ export async function runConnectionTest(
   form: Pick<S3Form, "endpoint" | "bucket" | "readOnly">,
   opts: { origin: string; signal?: AbortSignal; timeoutMs?: number },
 ): Promise<ConnectionReport> {
-  const checks: ConnectionReport["checks"] = ORDER.map((id) => ({
+  const checks: ConnectionReport["checks"] = CHECK_ORDER.map((id) => ({
     id,
-    label: LABELS[id],
+    label: CHECK_LABELS[id],
     state: "not-run",
   }));
   for (const entry of checks) {
