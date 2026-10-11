@@ -4,7 +4,12 @@ import { Button } from "@statewalker/ui.view.shadcn";
 import { type DockviewApi, DockviewReact } from "dockview-react";
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { FilesInDock, fileDockComponents, useFilesInDock } from "./dock-files.js";
+import {
+  FilesInDock,
+  fileDockComponents,
+  fileTabComponents,
+  useFilesInDock,
+} from "./dock-files.js";
 import { type CommanderOptions, useCommander, useNarrow } from "./use-commander.js";
 
 export interface DockCommanderProps extends CommanderOptions {
@@ -43,6 +48,7 @@ export function DockCommander(props: DockCommanderProps) {
           <DockviewReact
             className="dockview-theme-light dockview-theme-sandclaw absolute inset-0"
             components={fileDockComponents}
+            tabComponents={fileTabComponents}
             onReady={(event) => setApi(event.api)}
             disableDnd={phone}
             disableFloatingGroups

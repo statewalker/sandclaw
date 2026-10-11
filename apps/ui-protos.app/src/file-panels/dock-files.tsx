@@ -3,7 +3,14 @@
 // `<FilesInDock.Provider value={useFilesInDock(...)}>`, and the commander's
 // panels appear side by side in the center zone; the user drags them like any
 // dock panel.
-import type { DockviewApi, IDockviewPanel, IDockviewPanelProps } from "dockview-react";
+import {
+  type DockviewApi,
+  DockviewDefaultTab,
+  type IDockviewPanel,
+  type IDockviewPanelHeaderProps,
+  type IDockviewPanelProps,
+} from "dockview-react";
+import { Files, FileText, type LucideIcon } from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { PanelContribution } from "../workspace-layout/zones.js";
 import { FilePanel } from "./file-panel.js";
@@ -11,6 +18,8 @@ import { type Commander, type Viewer, ViewerBody } from "./use-commander.js";
 
 export const FILE_PANEL = "file-panel";
 export const FILE_VIEWER = "file-viewer";
+/** The tab of a file panel or a viewer: the default tab with an icon before the title. */
+const FILE_TAB = "file-tab";
 
 /** For a dock that drops panels it doesn't know (`loadSavedLayout`): these two it knows. */
 export const fileContributions: PanelContribution[] = [
@@ -40,11 +49,12 @@ function addPanel(
 ): void {
   const reference = near ?? api.panels.find((p) => zoneOf(p) === "center");
   if (!reference) {
-    api.addPanel({ ...panel, params: { zone: "center" } });
+    api.addPanel({ ...panel, tabComponent: FILE_TAB, params: { zone: "center" } });
     return;
   }
   api.addPanel({
     ...panel,
+    tabComponent: FILE_TAB,
     params: { zone: zoneOf(reference) },
     position: { referencePanel: reference.id, direction },
     inactive: true,
@@ -186,3 +196,19 @@ function FilePanelTab({ api }: IDockviewPanelProps) {
 }
 
 export const fileDockComponents = { [FILE_PANEL]: FilePanelTab, [FILE_VIEWER]: FileViewerTab };
+
+const TAB_ICONS: Record<string, LucideIcon> = { [FILE_PANEL]: Files, [FILE_VIEWER]: FileText };
+
+function FileTab(props: IDockviewPanelHeaderProps) {
+  const panel = props.containerApi.getPanel(props.api.id);
+  const Icon = (panel && TAB_ICONS[componentOf(panel)]) ?? Files;
+  return (
+    <div className="flex h-full items-center gap-1.5 pl-2">
+      <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <DockviewDefaultTab {...props} />
+    </div>
+  );
+}
+
+/** Register with `tabComponents` on a dock that shows file tabs. */
+export const fileTabComponents = { [FILE_TAB]: FileTab };

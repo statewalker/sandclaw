@@ -22,6 +22,7 @@ import {
   FilesInDock,
   fileContributions,
   fileDockComponents,
+  fileTabComponents,
   useFilesInDock,
 } from "../file-panels/dock-files.js";
 import { useCommander } from "../file-panels/use-commander.js";
@@ -421,6 +422,7 @@ export function Workspace({
             <DockviewReact
               className="dockview-theme-light dockview-theme-sandclaw absolute inset-0"
               components={components}
+              tabComponents={fileTabComponents}
               onReady={onReady}
               disableDnd={coarsePointer || (lockMode === "lock-toggle" && locked)}
               disableFloatingGroups
