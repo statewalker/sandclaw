@@ -25,6 +25,8 @@ export class PanelModel extends BaseClass {
   problem?: Problem;
   notice?: string;
   private loads = 0;
+  /** The folder most recently asked for; `list.path` only changes when a load completes. */
+  private target = "/";
   private readonly files: FilesApi;
   private readonly mountNames: () => Record<string, string>;
   private readonly unsubscribe?: () => void;
@@ -40,7 +42,7 @@ export class PanelModel extends BaseClass {
     this.files = opts.files;
     this.mountNames = opts.mountNames ?? (() => ({}));
     this.unsubscribe = opts.changes?.subscribe((changes) => {
-      if (changes.some((c) => touches(c.path, this.list.path))) void this.refresh();
+      if (changes.some((c) => touches(c.path, this.target))) void this.refresh();
     });
   }
 
@@ -56,6 +58,7 @@ export class PanelModel extends BaseClass {
   async navigate(path: string): Promise<void> {
     const load = ++this.loads;
     const wanted = normalizePath(path);
+    this.target = wanted;
     let notice: string | undefined;
     let problem: Problem | undefined;
     let at = wanted;
@@ -79,11 +82,11 @@ export class PanelModel extends BaseClass {
   }
 
   up(): Promise<void> {
-    return this.navigate(dirname(this.list.path));
+    return this.navigate(dirname(this.target));
   }
 
   refresh(): Promise<void> {
-    return this.navigate(this.list.path);
+    return this.navigate(this.target);
   }
 
   setSort(field: FilesListModel["sortField"]) {
@@ -100,6 +103,7 @@ export class PanelModel extends BaseClass {
   }
 
   dispose() {
+    this.loads++; // an in-flight navigation is ignored from now on
     this.unsubscribe?.();
   }
 }

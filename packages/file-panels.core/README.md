@@ -58,6 +58,8 @@ panel.notice;     // "deeper no longer exists."
 ### Copy and move with progress and cancel
 
 ```ts
+import { planTransfer } from "@statewalker/file-panels.core"; // only for the clash dialog
+
 const controller = new AbortController();
 const { plan, result } = await ops.transfer(
   { op: "move", sources: ["/docs/a.pdf"], targetDir: "/archive/2026", clash: "keep-both" },
@@ -148,8 +150,8 @@ conditional writes (`If-None-Match`) from the storage itself, which `FilesApi` d
 reporting what is really on disk: a failed transfer step still reports a target that was written
 and a source that was partly cleaned. With `opts.files` (a drop) no source-side events are emitted,
 since those paths mean nothing to listeners. `PanelModel` subscribes to the optional `changes` and
-refreshes when a change is inside its folder, is the folder itself, or is one of its ancestors; any
-other change is ignored. Call `dispose()` to unsubscribe. A later indexer is meant to follow the
+refreshes when a change is inside the folder it was last asked to show (even while that listing is still loading, so a change in the previous folder never cancels the navigation), is that folder itself, or is one of its ancestors; any
+other change is ignored. Call `dispose()` to unsubscribe; it also makes any listing still in flight be ignored, so a disposed panel never writes to its list or notifies. A later indexer is meant to follow the
 same stream.
 
 ### Newest navigation wins
