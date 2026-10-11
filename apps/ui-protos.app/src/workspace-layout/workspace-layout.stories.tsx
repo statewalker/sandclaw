@@ -24,6 +24,11 @@ export const AlwaysOn: Story = {
   args: { lockMode: "always-on" },
 };
 
+export const WithFiles: Story = {
+  name: "File panels as center tabs",
+  args: { lockMode: "per-zone", files: true },
+};
+
 export const Reading: Story = {
   name: "Reading layout",
   args: { initialLayout: "reading" },

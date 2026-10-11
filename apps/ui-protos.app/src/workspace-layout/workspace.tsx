@@ -17,6 +17,13 @@ import {
 import { Lock, LockOpen } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { AssistantPanel } from "../assistant-panel/assistant-panel.js";
+import {
+  FilesInDock,
+  fileContributions,
+  fileDockComponents,
+  useFilesInDock,
+} from "../file-panels/dock-files.js";
+import { useCommander } from "../file-panels/use-commander.js";
 import { FolderZone } from "../folder-zone/folder-zone.js";
 import { GroupPill } from "../group-status/group-status.js";
 import { TodosView } from "../notes-todos/todos-view.js";
@@ -69,6 +76,7 @@ const components = {
   ...Object.fromEntries(
     Object.entries(PANEL_VIEWS).map(([key, view]) => [key, () => <PanelFrame view={view} />]),
   ),
+  ...fileDockComponents,
   [MISSING]: MissingPanel,
 };
 
@@ -130,6 +138,8 @@ export interface WorkspaceProps {
    * follows its own width (see responsive.ts); set this for tests.
    */
   initialMode?: Mode;
+  /** Adds two file panels (demo storages) as center tabs, next to the documents. */
+  files?: boolean;
 }
 
 export function Workspace({
@@ -137,6 +147,7 @@ export function Workspace({
   initialLayout = "assistant",
   initialPlugins = allPanels.filter((p) => p.id !== "outline").map((p) => p.id),
   initialMode = "desktop",
+  files = false,
 }: WorkspaceProps) {
   const api = useRef<DockviewApi | null>(null);
   const root = useRef<HTMLDivElement | null>(null);
@@ -151,6 +162,11 @@ export function Workspace({
   const [openIds, setOpenIds] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   const installed = allPanels.filter((p) => plugins.includes(p.id));
+  // File panels are not plugins: the commander holds them, and they survive a re-layout.
+  const commander = useCommander({ panels: files ? ["/documents/clients", "/archive/2025"] : [] });
+  const [dockApi, setDockApi] = useState<DockviewApi | null>(null);
+  const filesDock = useFilesInDock(commander, dockApi, { phone: coarsePointer });
+  const known = [...installed, ...fileContributions];
   const [fixedZones, setFixedZones] = useState<Record<SideZone, boolean>>({
     left: true,
     right: true,
@@ -179,13 +195,15 @@ export function Workspace({
     const dock = api.current;
     if (!dock) return;
     const saved = savedLayouts.current.get(target);
-    if (saved) {
-      loadSavedLayout(dock, saved, installed, MISSING);
-    } else {
-      const id = target === "compact" ? "compact" : layoutId.current;
-      const layout = layouts.find((t) => t.id === id) ?? layouts[0];
-      if (layout) applyLayout(dock, layout, installed);
-    }
+    filesDock.relayout(() => {
+      if (saved) {
+        loadSavedLayout(dock, saved, known, MISSING);
+      } else {
+        const id = target === "compact" ? "compact" : layoutId.current;
+        const layout = layouts.find((t) => t.id === id) ?? layouts[0];
+        if (layout) applyLayout(dock, layout, installed);
+      }
+    });
     arrangedFor.current = target;
     setNotice("");
     refresh();
@@ -204,6 +222,7 @@ export function Workspace({
     if (!usesDock(next)) {
       disposeDock();
       api.current = null;
+      setDockApi(null);
       arrangedFor.current = undefined;
     }
     modeRef.current = next;
@@ -233,7 +252,8 @@ export function Workspace({
     const layout = layouts.find((t) => t.id === id);
     if (!api.current || !layout) return;
     if (id !== "compact") layoutId.current = id;
-    applyLayout(api.current, layout, installed);
+    const dock = api.current;
+    filesDock.relayout(() => applyLayout(dock, layout, installed));
     setNotice("");
     refresh();
   };
@@ -241,6 +261,7 @@ export function Workspace({
   const onReady = (event: DockviewReadyEvent) => {
     disposeDock();
     api.current = event.api;
+    setDockApi(event.api);
     const subscriptions = [
       event.api.onDidLayoutChange(refresh),
       event.api.onDidMovePanel(refresh),
@@ -261,12 +282,15 @@ export function Workspace({
     if (plugins.includes(panel.id)) {
       const next = plugins.filter((id) => id !== panel.id);
       setPlugins(next);
-      const removed = loadSavedLayout(
-        dock,
-        dock.toJSON(),
-        allPanels.filter((p) => next.includes(p.id)),
-        MISSING,
-      );
+      let removed: string[] = [];
+      filesDock.relayout(() => {
+        removed = loadSavedLayout(
+          dock,
+          dock.toJSON(),
+          [...allPanels.filter((p) => next.includes(p.id)), ...fileContributions],
+          MISSING,
+        );
+      });
       // A restore loads the strip at dockview's default minimum; give it its layout height back.
       syncZones(dock, headersRef.current);
       const strip = layouts.find((t) => t.id === layoutId.current)?.zones.bottom?.size;
@@ -379,18 +403,23 @@ export function Workspace({
         </div>
       )}
       {usesDock(mode) ? (
-        <SidePanelOverlays panels={overlays} renderPanel={renderPanel}>
-          <DockviewReact
-            className="dockview-theme-light dockview-theme-sandclaw absolute inset-0"
-            components={components}
-            onReady={onReady}
-            disableDnd={coarsePointer || (lockMode === "lock-toggle" && locked)}
-            disableFloatingGroups
-          />
-        </SidePanelOverlays>
+        <FilesInDock.Provider value={filesDock}>
+          <SidePanelOverlays panels={overlays} renderPanel={renderPanel}>
+            <DockviewReact
+              className="dockview-theme-light dockview-theme-sandclaw absolute inset-0"
+              components={components}
+              onReady={onReady}
+              disableDnd={coarsePointer || (lockMode === "lock-toggle" && locked)}
+              disableFloatingGroups
+            />
+          </SidePanelOverlays>
+        </FilesInDock.Provider>
       ) : (
         <MobileStack panels={installed} renderPanel={renderPanel} />
       )}
+      {commander.noticeBar}
+      {commander.progressStrip}
+      {commander.dialogs}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import * as stories from "../src/workspace-layout/workspace-layout.stories.js";
 
-const { LockToggle, PerZone, Reading } = composeStories(stories);
+const { LockToggle, PerZone, Reading, WithFiles } = composeStories(stories);
 
 afterEach(cleanup);
 
@@ -77,5 +77,30 @@ describe("per-zone locks", () => {
     ).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Left bar" }));
     expect(isFixed(dockOf("Clients"))).toBe(true);
+  });
+});
+
+describe("file panels in the workspace", () => {
+  const tab = (title: string) =>
+    screen.queryAllByText(title).find((el) => el.closest(".dv-tab")) as HTMLElement | undefined;
+  const groupOf = (el?: HTMLElement) => el?.closest(".dv-groupview");
+
+  it("are tabs of the center, next to the documents", () => {
+    render(<WithFiles />);
+    expect(tab("clients")).toBeTruthy();
+    expect(groupOf(tab("clients"))).toBe(groupOf(tab("Dupont — offer.docx")));
+    expect(groupOf(tab("2025"))).toBe(groupOf(tab("Dupont — offer.docx")));
+  });
+
+  it("stay open when the layout is repaired", () => {
+    render(<WithFiles />);
+    fireEvent.click(plugin("Todos"));
+    expect(screen.getByText(/Removed from your layout: todos/)).toBeTruthy();
+    expect(tab("2025")).toBeTruthy();
+    // The panel itself, not only its tab: a re-layout must not close what it puts back.
+    const panel = screen
+      .getAllByRole("region", { name: "clients" })
+      .find((el) => el.tagName === "SECTION");
+    expect(panel).toBeTruthy();
   });
 });
