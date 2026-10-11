@@ -38,10 +38,12 @@
   "dependencies": {
     "@statewalker/webrun-files": "catalog:",
     "@statewalker/webrun-files-composite": "catalog:",
-    "@statewalker/webrun-files-mem": "catalog:"
+    "@statewalker/webrun-files-mem": "catalog:",
+    "@statewalker/shared-baseclass": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "fake-indexeddb": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

@@ -303,6 +303,9 @@ catalogs:
     dotenv:
       specifier: ^18.0.5
       version: 18.0.5
+    fake-indexeddb:
+      specifier: ^6.2.5
+      version: 6.2.5
     hono:
       specifier: ^4.13.12
       version: 4.13.13
@@ -1212,6 +1215,9 @@ importers:
 
   packages/file-mounts.core:
     dependencies:
+      '@statewalker/shared-baseclass':
+        specifier: 'catalog:'
+        version: 0.1.2
       '@statewalker/webrun-files':
         specifier: 'catalog:'
         version: 0.10.1
@@ -1225,6 +1231,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.4
+      fake-indexeddb:
+        specifier: 'catalog:'
+        version: 6.2.5
       tsdown:
         specifier: 'catalog:'
         version: 0.23.0(oxc-resolver@11.21.2)(tsx@4.23.15)(typescript@7.0.2)
@@ -6202,6 +6211,10 @@ packages:
 
   extend@3.0.2:
     resolution: {integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==}
+
+  fake-indexeddb@6.2.5:
+    resolution: {integrity: sha512-CGnyrvbhPlWYMngksqrSSUT1BAVP49dZocrHuK0SvtR0D5TMs5wP0o3j7jexDJW01KSadjBp1M/71o/KR3nD1w==}
+    engines: {node: '>=18'}
 
   fast-copy@4.1.1:
     resolution: {integrity: sha512-A4QTJmuiztpGtr6AMeJts9R4hbj2ZBUwtOaKrG6rw2y7t6+IaJKjz5M3XDs8BUznxDH43FVc6A0y/gWlMl4UtA==}
@@ -13839,6 +13852,8 @@ snapshots:
       - supports-color
 
   extend@3.0.2: {}
+
+  fake-indexeddb@6.2.5: {}
 
   fast-copy@4.1.1: {}
 
