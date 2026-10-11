@@ -16,23 +16,24 @@ const tab = (title: string) =>
 const groupOf = (el: HTMLElement) => el.closest(".dv-groupview");
 
 describe("DockCommander", () => {
-  it("opens the panels as tabs of one dock group", async () => {
+  it("opens the panels side by side, each in a dock group of its own", async () => {
     render(<DockCommander panels={["/documents/notes", "/archive/2026"]} />);
-    expect(groupOf(tab("notes"))).toBe(groupOf(tab("2026")));
-    expect(await within(panel("notes")).findByRole("row", { name: "todo.md" })).toBeTruthy();
-  });
-
-  it("split opens them side by side", () => {
-    render(<DockCommander split panels={["/documents/notes", "/archive/2026"]} />);
     expect(groupOf(tab("notes"))).not.toBe(groupOf(tab("2026")));
+    expect(await within(panel("notes")).findByRole("row", { name: "todo.md" })).toBeTruthy();
+    expect(await within(panel("2026")).findByRole("row", { name: "readme.md" })).toBeTruthy();
   });
 
-  it("New panel adds a tab next to the active one", () => {
+  it("on a phone, the panels are tabs of one group", () => {
+    render(<DockCommander phone panels={["/documents/notes", "/archive/2026"]} />);
+    expect(groupOf(tab("notes"))).toBe(groupOf(tab("2026")));
+  });
+
+  it("New panel opens beside the active one", () => {
     render(<DockCommander panels={["/documents/notes"]} />);
     fireEvent.click(screen.getByRole("button", { name: "New panel" }));
     const tabs = screen.getAllByText("notes").filter((el) => el.closest(".dv-tab"));
     expect(tabs).toHaveLength(2);
-    expect(groupOf(tabs[0] as HTMLElement)).toBe(groupOf(tabs[1] as HTMLElement));
+    expect(groupOf(tabs[0] as HTMLElement)).not.toBe(groupOf(tabs[1] as HTMLElement));
   });
 
   it("F5 targets the other tab and copies there", async () => {
@@ -47,13 +48,17 @@ describe("DockCommander", () => {
     expect(await readText(storages.files, "/archive/2026/todo.md")).toContain("# Todo");
   });
 
-  it("an opened file gets its own tab", async () => {
+  it("opened files are tabs of one viewer group, beside the panels", async () => {
     render(<DockCommander panels={["/documents/notes"]} />);
-    const row = await within(panel("notes")).findByRole("row", { name: "todo.md" });
-    fireEvent.doubleClick(row);
+    fireEvent.doubleClick(await within(panel("notes")).findByRole("row", { name: "todo.md" }));
     const viewer = await screen.findByRole("region", { name: "Viewer: todo.md" });
     expect(await within(viewer).findByText(/# Todo/)).toBeTruthy();
-    expect(groupOf(tab("todo.md"))).toBe(groupOf(tab("notes")));
+    expect(groupOf(tab("todo.md"))).not.toBe(groupOf(tab("notes")));
+    fireEvent.doubleClick(
+      within(panel("notes")).getByRole("row", { name: "meeting-2026-10-02.md" }),
+    );
+    await screen.findByRole("region", { name: "Viewer: meeting-2026-10-02.md" });
+    expect(groupOf(tab("meeting-2026-10-02.md"))).toBe(groupOf(tab("todo.md")));
   });
 
   it("closing a tab closes its panel for good", () => {

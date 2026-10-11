@@ -1,10 +1,11 @@
-// File panels and file viewers as dock tabs. A dock (the dock commander, the
+// File panels and file viewers as dock panels. A dock (the dock commander, the
 // workspace) registers `fileDockComponents`, wraps itself in
 // `<FilesInDock.Provider value={useFilesInDock(...)}>`, and the commander's
-// panels appear as tabs in the center zone; the user moves them like any tab.
+// panels appear side by side in the center zone; the user drags them like any
+// dock panel.
 import type { DockviewApi, IDockviewPanel, IDockviewPanelProps } from "dockview-react";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { type PanelContribution, placePanel } from "../workspace-layout/zones.js";
+import type { PanelContribution } from "../workspace-layout/zones.js";
 import { FilePanel } from "./file-panel.js";
 import { type Commander, type Viewer, ViewerBody } from "./use-commander.js";
 
@@ -23,64 +24,66 @@ export const FilesInDock = createContext<FilesDock | null>(null);
 const componentOf = (panel: IDockviewPanel) => panel.view.contentComponent;
 const viewerId = (path: string) => `view:${path}`;
 
+const zoneOf = (panel: IDockviewPanel) =>
+  (panel.params as { zone?: string } | undefined)?.zone ?? "center";
+
 /**
- * Adds a background tab next to `near` (a file tab), or in the center zone, or (an empty
- * dock) as the dock's first panel. With `beside`, it opens to the right of
- * `near` instead of as a tab.
+ * Adds a background panel beside `near` (to its right) or as a tab in its
+ * group (`within`). Without `near`: beside the center zone's documents, or
+ * (an empty dock) as the dock's first panel.
  */
-function addTab(
+function addPanel(
   api: DockviewApi,
-  tab: { id: string; title: string; component: string },
-  near: string | undefined,
-  beside?: boolean,
+  panel: { id: string; title: string; component: string },
+  near: IDockviewPanel | undefined,
+  direction: "right" | "within",
 ): void {
-  // Only a file tab is a reference: a new panel never lands beside the assistant, say.
-  const reference = near ? api.getPanel(near) : undefined;
-  if (reference && [FILE_PANEL, FILE_VIEWER].includes(componentOf(reference))) {
-    const zone = (reference.params as { zone?: string } | undefined)?.zone ?? "center";
-    api.addPanel({
-      ...tab,
-      params: { zone },
-      position: { referencePanel: reference.id, direction: beside ? "right" : "within" },
-      inactive: true,
-    });
-  } else if (!placePanel(api, { ...tab, targets: ["center"] })) {
-    api.addPanel({ ...tab, params: { zone: "center" } });
+  const reference = near ?? api.panels.find((p) => zoneOf(p) === "center");
+  if (!reference) {
+    api.addPanel({ ...panel, params: { zone: "center" } });
+    return;
   }
+  api.addPanel({
+    ...panel,
+    params: { zone: zoneOf(reference) },
+    position: { referencePanel: reference.id, direction },
+    inactive: true,
+  });
 }
 
 /**
- * Keeps the dock's file tabs in step with the commander: a new commander panel
- * gets a tab, a closed tab closes its panel, the active tab is the commander's
- * active panel, a tab's title follows its folder, and an opened file gets a
- * viewer tab. With `split`, the first panels open side by side, not as tabs.
+ * Keeps the dock in step with the commander: each commander panel is a dock
+ * panel of its own, split to the right of the panel before it (on a phone, a
+ * tab in its group); a closed panel leaves the commander; the active dock
+ * panel is the commander's active panel; a panel's title follows its folder.
+ * Opened files share one viewer group, to the right of the file panels.
+ * The user drags any of them elsewhere, like any dock panel.
  */
 export function useFilesInDock(
   commander: Commander,
   api: DockviewApi | null,
-  options: { phone?: boolean; split?: boolean } = {},
+  options: { phone?: boolean } = {},
 ) {
   const [viewers, setViewers] = useState<Record<string, Viewer>>({});
-  // A dock being laid out again (cleared, restored) removes tabs the user didn't close.
+  // A dock being laid out again (cleared, restored) removes panels the user didn't close.
   const quiet = useRef(false);
-  const split = useRef(options.split);
+  const direction = options.phone ? "within" : "right";
 
   const sync = () => {
     if (!api) return;
-    let previous: string | undefined;
+    let previous: IDockviewPanel | undefined;
     for (const panel of commander.panels) {
       const title = commander.title(panel.path);
-      const tab = api.getPanel(panel.id);
-      if (tab) {
-        if (tab.title !== title) tab.api.setTitle(title);
+      let dockPanel = api.getPanel(panel.id);
+      if (dockPanel) {
+        if (dockPanel.title !== title) dockPanel.api.setTitle(title);
       } else {
-        const near = split.current ? previous : api.activePanel?.id;
-        addTab(api, { id: panel.id, title, component: FILE_PANEL }, near, split.current);
-        if (panel.id === commander.activeId) api.getPanel(panel.id)?.api.setActive();
+        addPanel(api, { id: panel.id, title, component: FILE_PANEL }, previous, direction);
+        dockPanel = api.getPanel(panel.id);
+        if (panel.id === commander.activeId) dockPanel?.api.setActive();
       }
-      previous = panel.id;
+      previous = dockPanel;
     }
-    split.current = false;
   };
 
   useEffect(() => {
@@ -110,11 +113,14 @@ export function useFilesInDock(
     if (!api || !viewer) return;
     const id = viewerId(viewer.path);
     setViewers((v) => ({ ...v, [id]: viewer }));
-    const tab = api.getPanel(id);
-    if (tab) tab.api.setActive();
+    const open = api.getPanel(id);
+    if (open) open.api.setActive();
     else {
       const title = viewer.path.split("/").at(-1) ?? viewer.path;
-      addTab(api, { id, title, component: FILE_VIEWER }, api.activePanel?.id);
+      const viewerGroup = api.panels.find((p) => componentOf(p) === FILE_VIEWER);
+      const lastFilePanel = api.panels.filter((p) => componentOf(p) === FILE_PANEL).at(-1);
+      if (viewerGroup) addPanel(api, { id, title, component: FILE_VIEWER }, viewerGroup, "within");
+      else addPanel(api, { id, title, component: FILE_VIEWER }, lastFilePanel, direction);
       api.getPanel(id)?.api.setActive();
     }
     setViewer(undefined);

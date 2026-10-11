@@ -30,23 +30,18 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Tabs: Story = {
-  name: "Panels as tabs (drag a tab to split)",
+export const SideBySide: Story = {
+  name: "Panels side by side (drag a tab to rearrange)",
   args: {},
 };
 
-export const Split: Story = {
-  name: "Split by the user",
-  args: { split: true },
-};
-
-export const ThreeTabs: Story = {
-  name: "Three panels as tabs",
+export const ThreePanels: Story = {
+  name: "Three panels",
   args: { panels: ["/documents/clients", "/archive/2025", "/photos/site-visit"] },
 };
 
-export const CopyToTab: Story = {
-  name: "Copy (F5) to another tab",
+export const CopyToPanel: Story = {
+  name: "Copy (F5) to the other panel",
   args: { initial: { dialog: "copy", selected: ["/documents/clients/dupont/offer.pdf"] } },
 };
 
@@ -62,6 +57,6 @@ export const LockedArchive: Story = {
 };
 
 export const Phone: Story = {
-  name: "Phone: one tab at a time, no drag",
+  name: "Phone: panels as tabs, one at a time, no drag",
   args: { phone: true },
 };

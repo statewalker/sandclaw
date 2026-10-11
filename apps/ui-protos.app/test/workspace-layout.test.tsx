@@ -85,11 +85,13 @@ describe("file panels in the workspace", () => {
     screen.queryAllByText(title).find((el) => el.closest(".dv-tab")) as HTMLElement | undefined;
   const groupOf = (el?: HTMLElement) => el?.closest(".dv-groupview");
 
-  it("are tabs of the center, next to the documents", () => {
+  it("split the center beside the documents, one dock group each", () => {
     render(<WithFiles />);
+    const documents = groupOf(tab("Dupont — offer.docx"));
     expect(tab("clients")).toBeTruthy();
-    expect(groupOf(tab("clients"))).toBe(groupOf(tab("Dupont — offer.docx")));
-    expect(groupOf(tab("2025"))).toBe(groupOf(tab("Dupont — offer.docx")));
+    expect(groupOf(tab("clients"))).not.toBe(documents);
+    expect(groupOf(tab("2025"))).not.toBe(documents);
+    expect(groupOf(tab("2025"))).not.toBe(groupOf(tab("clients")));
   });
 
   it("stay open when the layout is repaired", () => {

@@ -10,21 +10,19 @@ import { type CommanderOptions, useCommander, useNarrow } from "./use-commander.
 export interface DockCommanderProps extends CommanderOptions {
   /** Phone width: one panel at a time, no drag and drop; also below 640 px. */
   phone?: boolean;
-  /** Opens the panels side by side, as if the user had split the dock. Default: tabs. */
-  split?: boolean;
 }
 
 /**
- * The commander on the workspace dock: every file panel, and every opened
- * file, is a tab in the center. The user splits, rearranges or moves them
- * like any other tab.
+ * The commander on the workspace dock: the file panels side by side, opened
+ * files as tabs in a viewer group beside them. Each is a dock panel the user
+ * drags elsewhere, splits off or stacks as a tab.
  */
 export function DockCommander(props: DockCommanderProps) {
   const commander = useCommander(props);
   const narrow = useNarrow();
   const phone = props.phone || narrow;
   const [api, setApi] = useState<DockviewApi | null>(null);
-  const dock = useFilesInDock(commander, api, { phone, split: props.split });
+  const dock = useFilesInDock(commander, api, { phone });
   const active = commander.panels.find((p) => p.id === commander.activeId);
 
   return (
