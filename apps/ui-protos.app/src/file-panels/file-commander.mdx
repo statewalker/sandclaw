@@ -67,7 +67,8 @@ old file keeps its content.
 
 A locked vault or a bucket that does not answer is never an empty folder: the panel shows the
 reason and its action (Unlock, Retry; here the action only says "Opens Settings → Storage").
-Copying into it fails before anything is written, with the reason in the summary.
+The Copy / Move dialog says so too, as soon as its folder points there: the reason, Unlock or
+Retry, and the button disabled. Nothing starts until the storage can be used.
 
 <Story of={Stories.LockedArchive} inline={false} height="560px" />
 
@@ -107,7 +108,11 @@ key bar takes a row on every screen.
 
 ## Decisions assumed (from the design)
 
-- A plain drop between panels pre-selects **Move**; Ctrl / ⌥ pre-selects Copy.
+- A plain drop within one storage pre-selects **Move**; across storages, or with Ctrl / ⌥, it
+  pre-selects **Copy**, since a move there deletes the original.
+- Nothing changed while a transfer runs is lost: a name taken meanwhile is never replaced (one
+  item is replaced only after the dialog warned about it), and a move leaves at the source
+  anything added or changed while it copied.
 - **Keep both** is the default for clashes; one choice covers every clash in a batch.
 - An overwrite replaces the old file only with a complete copy; an overwritten folder is
   replaced, not merged.
@@ -119,12 +124,7 @@ key bar takes a row on every screen.
 
 ## Open questions
 
-1. A plain drop pre-selects Move (as in Theia). Should a drop **across storages** (local folder
-   → S3) pre-select Copy instead, since a move there deletes the local file?
-2. Is a trash wanted later (a `.trash/` folder per mount), or does the "no trash" warning
+1. Is a trash wanted later (a `.trash/` folder per mount), or does the "no trash" warning
    stay the whole answer?
-3. When the target of a copy is locked or not answering, the dialog still lets the copy start
-   and the failure shows in the summary. Should the dialog say so before the click (and offer
-   Unlock / Retry there)?
-4. Several other panels open: should F5 still go straight to the most recently used one (one
+2. Several other panels open: should F5 still go straight to the most recently used one (one
    key, then Enter), with the list only as an option, as now?

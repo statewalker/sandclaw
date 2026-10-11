@@ -10,7 +10,8 @@ import {
   type StorageSettingsProps,
 } from "./storage-settings.js";
 
-const ORIGIN = "https://files.sandclaw.app";
+// The CORS rule names the address this page is served from.
+const ORIGIN = window.location.origin;
 
 export const DEMO_MOUNTS: StorageItem[] = [
   {
@@ -145,7 +146,6 @@ function DemoSettings({
       mounts={mounts}
       vault={vault}
       probe={() => fakeProbe(scenario, delayMs)}
-      origin={ORIGIN}
     />
   );
 }

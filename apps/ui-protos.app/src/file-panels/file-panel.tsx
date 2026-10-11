@@ -63,7 +63,7 @@ export interface FilePanelProps {
   refreshKey?: number;
   onOpenFile?(path: string): void;
   onCommand?(command: PanelCommand, panel: PanelHandle): void;
-  /** A drag from another panel. */
+  /** A drag from another panel; Copy is preferred with Ctrl/Alt held or across storages. */
   onDropPaths?(paths: string[], targetDir: string, copyPreferred: boolean): void;
   /** Files dragged in from the desktop. */
   onDropExternal?(data: DataTransfer, targetDir: string): void;
@@ -273,7 +273,9 @@ export function FilePanel(props: FilePanelProps) {
       const types = Array.from(e.dataTransfer.types ?? []);
       if (types.includes(PATHS_TYPE)) {
         const paths = JSON.parse(e.dataTransfer.getData(PATHS_TYPE)) as string[];
-        props.onDropPaths?.(paths, target, e.ctrlKey || e.altKey);
+        // Across storages a drop copies: a move there would delete the original.
+        const across = paths.some((p) => mountOf(p) !== mountOf(target));
+        props.onDropPaths?.(paths, target, e.ctrlKey || e.altKey || across);
       } else if (types.includes("Files")) {
         props.onDropExternal?.(e.dataTransfer, target);
       }

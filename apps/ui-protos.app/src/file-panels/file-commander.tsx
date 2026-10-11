@@ -506,6 +506,7 @@ export function FileCommander(props: FileCommanderProps) {
           busy={running}
           onConfirm={(request) => transfer(dialog.external ?? files, request)}
           onCancel={() => setDialog(undefined)}
+          onProblemAction={() => setNotice("Opens Settings → Storage")}
         />
       ) : dialog?.kind === "mkdir" ? (
         <NewFolderDialog
@@ -519,7 +520,12 @@ export function FileCommander(props: FileCommanderProps) {
           files={files}
           path={dialog.path}
           onConfirm={(name) =>
-            attempt(() => files.move(dialog.path, joinPath(dirname(dialog.path), name)))
+            attempt(async () => {
+              // The dialog checked the name when it opened; it may be taken since.
+              const to = joinPath(dirname(dialog.path), name);
+              if (await files.exists(to)) throw new Error(`${name} already exists here.`);
+              if (!(await files.move(dialog.path, to))) throw new Error("It no longer exists.");
+            })
           }
           onCancel={() => setDialog(undefined)}
         />

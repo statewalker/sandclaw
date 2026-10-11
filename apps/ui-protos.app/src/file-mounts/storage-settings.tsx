@@ -38,7 +38,11 @@ export interface StorageSettingsProps {
   mounts: StorageItem[];
   vault: MockVault;
   probe(form: S3Form): S3Probe;
-  origin: string;
+  /**
+   * The address the app is served from: each bucket's CORS rule must name it.
+   * Defaults to this page's own address.
+   */
+  origin?: string;
   phone?: boolean;
   localFoldersAvailable?: boolean;
   opened?: StorageSettingsOpened;
@@ -89,7 +93,7 @@ export function StorageSettings({
   mounts,
   vault,
   probe,
-  origin,
+  origin = globalThis.location?.origin ?? "",
   phone,
   localFoldersAvailable,
   opened,

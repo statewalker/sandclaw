@@ -24,20 +24,36 @@ describe("FileCommander", () => {
     expect(await within(panel("2026")).findByRole("row", { name: "todo.md" })).toBeTruthy();
   });
 
-  it("a drop between panels preselects Move and moves", async () => {
+  const dragged = (paths: string[]) => ({
+    types: ["application/x-sandclaw-paths"],
+    getData: () => JSON.stringify(paths),
+  });
+
+  it("a drop within one storage preselects Move and moves", async () => {
     const storages = newDemoStorages();
-    render(<FileCommander storages={storages} panels={["/documents/notes", "/browser/drafts"]} />);
-    const target = await within(panel("drafts")).findByRole("grid");
-    const data = {
-      types: ["application/x-sandclaw-paths"],
-      getData: () => JSON.stringify(["/documents/notes/todo.md"]),
-    };
-    fireEvent.drop(target, { dataTransfer: data });
+    render(
+      <FileCommander storages={storages} panels={["/documents/notes", "/documents/reports"]} />,
+    );
+    const target = await within(panel("reports")).findByRole("grid");
+    fireEvent.drop(target, { dataTransfer: dragged(["/documents/notes/todo.md"]) });
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("radio", { name: "Move" })).toHaveProperty("checked", true);
     fireEvent.click(within(dialog).getByRole("button", { name: "Move" }));
     await screen.findByText("Done");
     expect(await storages.files.exists("/documents/notes/todo.md")).toBe(false);
+    expect(await storages.files.exists("/documents/reports/todo.md")).toBe(true);
+  });
+
+  it("a drop across storages preselects Copy and keeps the original", async () => {
+    const storages = newDemoStorages();
+    render(<FileCommander storages={storages} panels={["/documents/notes", "/browser/drafts"]} />);
+    const target = await within(panel("drafts")).findByRole("grid");
+    fireEvent.drop(target, { dataTransfer: dragged(["/documents/notes/todo.md"]) });
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("radio", { name: "Copy" })).toHaveProperty("checked", true);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Copy" }));
+    await screen.findByText("Done");
+    expect(await storages.files.exists("/documents/notes/todo.md")).toBe(true);
     expect(await storages.files.exists("/browser/drafts/todo.md")).toBe(true);
   });
 
@@ -70,7 +86,7 @@ describe("FileCommander", () => {
     expect(await storages.files.exists("/documents/notes/todo.md")).toBe(false);
   });
 
-  it("copying into a locked mount fails with its reason in the summary", async () => {
+  it("the dialog says a target storage is locked before anything starts", async () => {
     const locked = { cause: "locked" as const, message: "Locked: unlock to use the S3 storages." };
     const storages = newDemoStorages({ unavailable: { archive: locked } });
     render(
@@ -82,8 +98,41 @@ describe("FileCommander", () => {
     fireEvent.click(await screen.findByRole("menuitem", { name: "Copy to…" }));
     const dialog = await screen.findByRole("dialog");
     fireEvent.change(within(dialog).getByLabelText("Folder"), { target: { value: "/archive" } });
+    expect(await within(dialog).findByText("Locked: unlock to use the S3 storages.")).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Copy" })).toHaveProperty("disabled", true);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Unlock" }));
+    expect(await screen.findByText("Opens Settings → Storage")).toBeTruthy();
+  });
+
+  it("one item never replaces a file that appeared after the dialog checked", async () => {
+    const storages = newDemoStorages();
+    render(<FileCommander storages={storages} panels={["/documents/notes", "/archive/2026"]} />);
+    const left = panel("notes");
+    fireEvent.click(await within(left).findByRole("row", { name: "todo.md" }));
+    fireEvent.keyDown(within(left).getByRole("grid"), { key: "F5" });
+    const dialog = await screen.findByRole("dialog");
+    await act(() => new Promise((r) => setTimeout(r, 20)));
+    expect(within(dialog).queryByText(/will be replaced/)).toBeNull();
+    await storages.files.write("/archive/2026/todo.md", [new TextEncoder().encode("mine")]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Copy" }));
-    expect(await screen.findByText(/Locked: unlock to use the S3 storages\./)).toBeTruthy();
+    expect(await screen.findByText("1 skipped")).toBeTruthy();
+    expect(await readText(storages.files, "/archive/2026/todo.md")).toBe("mine");
+  });
+
+  it("a rename never replaces a name taken after the dialog opened", async () => {
+    const storages = newDemoStorages();
+    render(<FileCommander storages={storages} panels={["/documents/notes"]} />);
+    const left = panel("notes");
+    fireEvent.click(await within(left).findByRole("row", { name: "todo.md" }));
+    fireEvent.keyDown(within(left).getByRole("grid"), { key: "F2" });
+    const dialog = await screen.findByRole("dialog");
+    await act(() => new Promise((r) => setTimeout(r, 20)));
+    await storages.files.write("/documents/notes/done.md", [new TextEncoder().encode("mine")]);
+    fireEvent.change(within(dialog).getByLabelText("Name"), { target: { value: "done.md" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Rename" }));
+    expect(await screen.findByText("done.md already exists here.")).toBeTruthy();
+    expect(await readText(storages.files, "/documents/notes/done.md")).toBe("mine");
+    expect(await readText(storages.files, "/documents/notes/todo.md")).toContain("# Todo");
   });
 
   it("a new folder may not take a name that is already there", async () => {

@@ -145,16 +145,14 @@ and the S3 form needs the room.
 - Unlocking mounts every locked S3 storage; locking unmounts them back to Locked.
 - Saved keys are never shown back in the form.
 - Removing a storage deletes its keys, never its files.
+- The CORS rule names the address this page is served from; the app's address is a setting
+  (`origin`) for when it is served from elsewhere.
+- Storage settings and keys stay on each device; following the person to other devices needs
+  synchronisation and comes later.
 
 ## Open questions
 
-1. **The app's own address.** Every bucket's CORS rule must name the address the Files app is
-   served from. A separate address per Sandclaw app means one rule per app in every bucket; one
-   shared address for all the apps would need one. Which is it?
-2. **Per browser or per person.** Storage settings and keys live in this browser now. Should
-   they follow the person to their other devices once that is possible — and the keys too, or
-   only the storages, with the keys entered again on each device?
-3. Should *Forget this browser* also lock at once, or only stop the silent unlock next time
+1. Should *Forget this browser* also lock at once, or only stop the silent unlock next time
    (as now)?
-4. Editing an S3 storage keeps the saved keys when the key fields stay empty. Is that clear
+2. Editing an S3 storage keeps the saved keys when the key fields stay empty. Is that clear
    enough, or should there be an explicit *Change keys* step?

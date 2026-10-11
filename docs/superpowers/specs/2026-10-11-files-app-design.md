@@ -293,10 +293,21 @@ export interface TransferResult { done: string[]; skipped: string[]; failed: { p
 - **Safe overwrite**: the target is never removed before the copy succeeded. A cross-mount move
   removes the source only after its copy succeeded; a failure leaves the source intact.
 - **Overwriting a folder replaces it** on every storage (it is never merged), as the dialog says.
-  Every copy goes to a temporary `.<name>.part-<random>` file or folder beside the target (the
-  storage's own `copy` on the same mount, streamed across mounts) and is then swapped in: the old
-  target is set aside and put back if the swap fails. A cancel or a failure removes the temporary
-  copy, so nothing partial is ever left under the real name.
+  Every cross-mount copy and every overwrite goes to a temporary `.<name>.part-<random>` file or
+  folder beside the target (the storage's own `copy` on the same mount, streamed across mounts)
+  and is then swapped in: the old target is set aside and put back if the swap fails. A cancel or
+  a failure removes the temporary copy, so nothing partial is ever left under the real name. If
+  the old target can't be put back either, the error names the hidden path it is kept under.
+- **Storages change while a transfer runs** (another tab, another device), and nothing that
+  changed is lost:
+  - A step without overwrite whose target name was taken after planning fails ("<name>
+    appeared there meanwhile; nothing was replaced."); it never replaces what appeared.
+  - A move removes only the source files it copied, unchanged since (same size and
+    modification time), and only the folders left empty; anything added or changed stays at
+    the source, and the step fails saying so.
+  - The dialog replaces one item only after it showed "already exists — it will be replaced"
+    for that exact name and folder; a name taken later is skipped. A rename refuses a name taken
+    after its dialog opened.
 - A failed step does not stop the batch; the result lists failures with their `Problem`.
 - **Import from the desktop**: `importDropped(dataTransfer)` reads the dropped items
   (`webkitGetAsEntry` for folders, recursively) into the same planner as a virtual source, so
@@ -352,13 +363,17 @@ persisted in `/.files/index/`. The panel's filter box gains a *Search in this fo
 ### Transfers
 
 - **Drag between panels**: a drop on a folder row, on a panel's empty area or on a breadcrumb
-  segment opens the **Copy / Move dialog**: the operation (plain drop pre-selects Move,
-  Ctrl / ⌥ pre-selects Copy), the target folder, and for one item an editable name with a
+  segment opens the **Copy / Move dialog**: the operation (a plain drop within one storage
+  pre-selects Move; across storages, or with Ctrl / ⌥, Copy, since a move there deletes the
+  original), the target folder, and for one item an editable name with a
   warning when it exists; for several items with clashes, one choice: Overwrite, Keep both,
   Skip.
 - **F5 / F6**: the same dialog; the target is the other panel, or a choice among the open
   panels' folders when there are several (the last used one first).
 - **Drop from the desktop**: files and folders; the same dialog without the Move choice.
+- **An unusable target is said in the dialog**: when the target folder is on a locked or
+  unreachable storage, the dialog shows the reason with Unlock (opens the vault) or Retry, and
+  the Copy / Move button stays disabled until it can be used.
 - **Progress strip** at the bottom of the dock: the current file, bytes done of total, items,
   Cancel; at the end a summary with the failures and their reasons.
 - **Delete**: a confirmation naming the count and saying there is no trash.
@@ -414,9 +429,15 @@ Tests sit at public seams only.
 
 ## Open questions
 
-1. Should Move be the pre-selected choice for a plain drop (as in Theia), or Copy (safer across
-   storages)? The design keeps Theia's rule; a cross-storage drop could default to Copy.
-2. The Files app's own address and deployment: a static site on its own origin, which every S3
-   bucket's CORS rule must list. One origin for all Sandclaw apps would need one rule.
-3. Should Storage settings be per browser (now) or follow the person once httpeers exists?
-4. Is a trash wanted later (a `.trash/` folder per mount)?
+Decided (2026-10-11):
+
+- A plain drop across storages pre-selects Copy; within one storage, Move.
+- The dialog says a target storage is locked or unreachable before anything starts.
+- The app's address is not fixed yet: it is a setting (`origin`), and the CORS rule the test
+  suggests names the address the page is served from (`location.origin`) unless it is set.
+- Storage settings and keys stay on each device. Account-wide settings need synchronisation
+  between devices (a CRDT such as Y.js) and come later.
+
+Open:
+
+1. Is a trash wanted later (a `.trash/` folder per mount)?

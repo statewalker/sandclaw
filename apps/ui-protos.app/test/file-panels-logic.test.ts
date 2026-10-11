@@ -17,6 +17,20 @@ const names = async (files: import("@statewalker/webrun-files").FilesApi, path: 
   return out;
 };
 
+const wrap = (files: FilesApi, over: Partial<FilesApi>): FilesApi => ({
+  read: (p, o) => files.read(p, o),
+  write: (p, c) => files.write(p, c),
+  mkdir: (p) => files.mkdir(p),
+  list: (p, o) => files.list(p, o),
+  stats: (p) => files.stats(p),
+  exists: (p) => files.exists(p),
+  remove: (p) => files.remove(p),
+  move: (a, b) => files.move(a, b),
+  copy: (a, b) => files.copy(a, b),
+  ...over,
+});
+const isPart = (p: string) => basename(p).includes(".part-");
+
 describe("demo storages", () => {
   it("lists the mounts at the root and reads through them", async () => {
     const { files, mounts } = newDemoStorages();
@@ -296,19 +310,6 @@ describe("runTransfer", () => {
 });
 
 describe("runTransfer fix round 1", () => {
-  const wrap = (files: FilesApi, over: Partial<FilesApi>): FilesApi => ({
-    read: (p, o) => files.read(p, o),
-    write: (p, c) => files.write(p, c),
-    mkdir: (p) => files.mkdir(p),
-    list: (p, o) => files.list(p, o),
-    stats: (p) => files.stats(p),
-    exists: (p) => files.exists(p),
-    remove: (p) => files.remove(p),
-    move: (a, b) => files.move(a, b),
-    copy: (a, b) => files.copy(a, b),
-    ...over,
-  });
-  const isPart = (p: string) => basename(p).includes(".part-");
   const listed = async (files: FilesApi, dir: string) => {
     const out: string[] = [];
     for await (const e of files.list(dir)) out.push(e.name);
@@ -606,5 +607,110 @@ describe("final review fixes", () => {
     expect(result.failed[0]?.problem.message).toContain("connection was reset");
     expect(await listed(files, "/archive/2026/dupont")).toEqual(["old.txt"]);
     expect(await listed(files, "/archive/2026")).toEqual(["dupont", "readme.md"]);
+  });
+});
+
+describe("nothing is lost when storages change during a transfer", () => {
+  const listed = async (files: FilesApi, dir: string) => (await names(files, dir)).sort();
+
+  it("a cross-storage copy never replaces a folder that appeared at its target meanwhile", async () => {
+    const { files } = newDemoStorages();
+    const plan = await planTransfer(files, {
+      op: "copy",
+      sources: ["/documents/clients/dupont"],
+      targetDir: "/archive/2026",
+      clash: "skip",
+    });
+    await writeText(files, "/archive/2026/dupont/mine.txt", "mine");
+    const result = await runTransfer(files, plan);
+    expect(result.failed[0]?.problem.message).toBe(
+      "dupont appeared there meanwhile; nothing was replaced.",
+    );
+    expect(await listed(files, "/archive/2026/dupont")).toEqual(["mine.txt"]);
+    expect(await listed(files, "/archive/2026")).toEqual(["dupont", "readme.md"]);
+  });
+
+  it("a same-storage copy never replaces a file that appeared at its target meanwhile", async () => {
+    const { files } = newDemoStorages();
+    const plan = await planTransfer(files, {
+      op: "move",
+      sources: ["/documents/readme.md"],
+      targetDir: "/documents/notes",
+      clash: "skip",
+    });
+    await writeText(files, "/documents/notes/readme.md", "mine");
+    const result = await runTransfer(files, plan);
+    expect(result.failed).toHaveLength(1);
+    expect(await readText(files, "/documents/notes/readme.md")).toBe("mine");
+    expect(await readText(files, "/documents/readme.md")).toBe("# Documents\n");
+  });
+
+  it("a cross-storage move keeps a file added to the source while it copied", async () => {
+    const { files: base } = newDemoStorages();
+    let added = false;
+    const files = wrap(base, {
+      write: async (p, c) => {
+        if (!added) {
+          added = true;
+          await writeText(base, "/photos/site-visit/03.jpg", "late");
+        }
+        return base.write(p, c);
+      },
+    });
+    const plan = await planTransfer(files, {
+      op: "move",
+      sources: ["/photos/site-visit"],
+      targetDir: "/documents",
+      clash: "skip",
+    });
+    const result = await runTransfer(files, plan);
+    expect(result.failed[0]?.problem.message).toContain("It changed during the move");
+    expect(await listed(base, "/documents/site-visit")).toEqual(["01.jpg", "02.jpg"]);
+    expect(await listed(base, "/photos/site-visit")).toEqual(["03.jpg"]);
+  });
+
+  it("a same-storage overwrite move keeps a source file changed while it copied", async () => {
+    const { files: base } = newDemoStorages();
+    await writeText(base, "/documents/notes/readme.md", "old");
+    const files = wrap(base, {
+      copy: async (a, b) => {
+        const done = await base.copy(a, b);
+        await writeText(base, "/documents/readme.md", "edited meanwhile");
+        return done;
+      },
+    });
+    const plan = await planTransfer(files, {
+      op: "move",
+      sources: ["/documents/readme.md"],
+      targetDir: "/documents/notes",
+      clash: "overwrite",
+    });
+    const result = await runTransfer(files, plan);
+    expect(result.failed).toHaveLength(1);
+    expect(await readText(base, "/documents/readme.md")).toBe("edited meanwhile");
+    expect(await readText(base, "/documents/notes/readme.md")).toBe("# Documents\n");
+  });
+
+  it("when the old target can't be put back, the error says where it is kept", async () => {
+    const { files: base } = newDemoStorages();
+    const files = wrap(base, {
+      move: async (a, b) => {
+        if (isPart(a) || basename(a).includes(".old-")) throw new Error("swap broke");
+        return base.move(a, b);
+      },
+    });
+    const plan = await planTransfer(files, {
+      op: "copy",
+      sources: ["/documents/readme.md"],
+      targetDir: "/archive/2026",
+      clash: "overwrite",
+    });
+    const result = await runTransfer(files, plan);
+    const message = result.failed[0]?.problem.message ?? "";
+    const kept = /kept as (\S+)\.$/.exec(message)?.[1] ?? "";
+    expect(message).toMatch(
+      /^swap broke The old version is kept as \/archive\/2026\/\.readme\.md\.old-/,
+    );
+    expect(await readText(base, kept)).toBe("# Archive 2026\n");
   });
 });

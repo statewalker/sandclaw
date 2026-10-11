@@ -40,13 +40,12 @@ describe("StorageSettings", () => {
     expect(await screen.findByRole("row", { name: /Backups/ })).toBeTruthy();
   });
 
-  it("a failed test shows the cause, the CORS rule, and Save anyway", async () => {
+  it("a failed test shows the cause, the CORS rule for this page's address, and Save anyway", async () => {
     render(
       <StorageSettings
         mounts={DEMO_MOUNTS}
         vault={new MockVault({ state: "unlocked", password: "correct horse" })}
         probe={() => fakeProbe("cors")}
-        origin={origin}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Add storage" }));
@@ -62,7 +61,9 @@ describe("StorageSettings", () => {
         "The bucket doesn't allow this site. Add this CORS rule to the bucket:",
       ),
     ).toBeTruthy();
-    expect(screen.getByText(/x-amz-copy-source/)).toBeTruthy();
+    expect(screen.getByText(/x-amz-copy-source/).textContent).toContain(
+      `"${window.location.origin}"`,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByRole("button", { name: "Save anyway" })).toBeTruthy();
   });

@@ -12,6 +12,7 @@ import {
 import type { FilesApi } from "@statewalker/webrun-files";
 import { basename, dirname } from "@statewalker/webrun-files";
 import { type FormEvent, useEffect, useId, useState } from "react";
+import { MountUnavailable, type Problem } from "./problem.js";
 import {
   type ClashPolicy,
   findClashes,
@@ -38,6 +39,8 @@ export interface TransferDialogProps {
   busy?: boolean;
   onConfirm(request: TransferRequest): void;
   onCancel(): void;
+  /** Unlock (or reach) a storage the dialog found unavailable. */
+  onProblemAction?(problem: Problem): void;
 }
 
 const CLASH_CHOICES: { value: ClashPolicy; label: string }[] = [
@@ -47,11 +50,15 @@ const CLASH_CHOICES: { value: ClashPolicy; label: string }[] = [
 ];
 
 interface Check {
+  /** The checked request this result belongs to. */
+  key?: string;
   /** One source: its name is taken in the target folder. */
   exists: boolean;
   /** Several sources: the names taken in the target folder. */
   clashes: string[];
   invalid?: string;
+  /** The target (or a source) is on a storage that can't be used now. */
+  problem?: Problem;
 }
 
 /** Copy or move: the operation, the target folder, the name (one item) or the clash choice (several). */
@@ -64,21 +71,28 @@ export function TransferDialog(props: TransferDialogProps) {
   const [name, setName] = useState(basename(first));
   const [clash, setClash] = useState<ClashPolicy>("keep-both");
   const [check, setCheck] = useState<Check>({ exists: false, clashes: [] });
+  const [retries, setRetries] = useState(0);
   const id = useId();
 
   const nameError = one ? validateName(name) : undefined;
-  const request: TransferRequest = {
+  const base = {
     op,
     sources,
     targetDir: folder.trim(),
     rename: one && name !== basename(first) ? name : undefined,
-    clash: one ? "overwrite" : clash,
   };
   // The clash choice is left out: picking one must not re-check (and so
   // re-render) the choices themselves. The check plans with "keep both"; a
   // plan only an overwrite makes invalid is refused by the run, in the summary.
-  const checked: TransferRequest = { ...request, clash: one ? "overwrite" : "keep-both" };
+  const checked: TransferRequest = { ...base, clash: one ? "overwrite" : "keep-both" };
   const key = JSON.stringify(checked);
+  // One item replaces only what the dialog warned about: a name taken after
+  // the check (or before it finished) is skipped, never silently replaced.
+  const replaceWarned = check.key === key && check.exists;
+  const request: TransferRequest = {
+    ...base,
+    clash: one ? (replaceWarned ? "overwrite" : "skip") : clash,
+  };
 
   // What the request would do, checked again on every change. The previous
   // result stays until the new one arrives, so nothing blinks while typing; a
@@ -88,27 +102,32 @@ export function TransferDialog(props: TransferDialogProps) {
     let current = true;
     if (nameError || !checked.targetDir) return;
     (async () => {
-      let next: Check = { exists: false, clashes: [] };
+      let next: Check = { key, exists: false, clashes: [] };
       try {
         const [plan, clashes] = await Promise.all([
           planTransfer(files, checked),
           one ? [] : findClashes(files, sources, checked.targetDir),
         ]);
-        next = { exists: plan.clashes.length > 0, clashes, invalid: plan.invalid };
-      } catch {
-        /* the run reports it */
+        next = { key, exists: plan.clashes.length > 0, clashes, invalid: plan.invalid };
+      } catch (e) {
+        // A locked or unreachable storage is said here, before anything starts;
+        // any other error is reported by the run.
+        if (e instanceof MountUnavailable) next = { ...next, problem: e.problem };
       }
       if (current) setCheck(next);
     })();
     return () => {
       current = false;
     };
-  }, [files, key, nameError]);
+  }, [files, key, nameError, retries]);
 
   const sameFolder =
     sources.some((s) => dirname(s) === request.targetDir) && (!one || name === basename(first));
   const verb = op === "copy" ? "Copy" : "Move";
-  const disabled = Boolean(props.busy || nameError || check.invalid || !request.targetDir);
+  const disabled = Boolean(
+    props.busy || nameError || check.invalid || check.problem || !request.targetDir,
+  );
+  const problem = check.problem;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -171,6 +190,22 @@ export function TransferDialog(props: TransferDialogProps) {
             />
             {sameFolder ? (
               <p className="text-muted-foreground">Same folder: a copy is made beside it.</p>
+            ) : null}
+            {problem ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="min-w-0 text-destructive">{problem.message}</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    if (problem.cause === "locked") props.onProblemAction?.(problem);
+                    setRetries((n) => n + 1);
+                  }}
+                >
+                  {problem.cause === "locked" ? "Unlock" : "Retry"}
+                </Button>
+              </div>
             ) : null}
           </div>
 
