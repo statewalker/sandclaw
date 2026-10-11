@@ -1,5 +1,5 @@
 import { type FileChange, newFileChanges } from "@statewalker/file-mounts.core";
-import { readText, writeText } from "@statewalker/webrun-files";
+import { type FilesApi, readText, writeText } from "@statewalker/webrun-files";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import { describe, expect, it } from "vitest";
 import { FileOperations } from "../src/index.js";
@@ -107,5 +107,55 @@ describe("FileOperations", () => {
     };
     await expect(ops.remove(["/docs/a.md", "/docs/b.md"])).rejects.toThrow("boom");
     expect(seen).toEqual([[{ type: "deleted", path: "/docs/a.md" }]]);
+  });
+
+  it("a move that fails at cleanup still reports the copy it made and the source it left changed", async () => {
+    const base = new MemFilesApi();
+    await writeText(base, "/src/dir/1.txt", "one");
+    await writeText(base, "/src/dir/2.txt", "two");
+    await base.mkdir("/dst");
+    let added = false;
+    const files: FilesApi = new Proxy(base, {
+      get(target, prop) {
+        const value = Reflect.get(target, prop);
+        if (prop !== "write") return typeof value === "function" ? value.bind(target) : value;
+        return async (p: string, c: AsyncIterable<Uint8Array>) => {
+          if (!added) {
+            added = true;
+            await writeText(target, "/src/dir/late.txt", "late");
+          }
+          return target.write(p, c);
+        };
+      },
+    });
+    const changes = newFileChanges();
+    const seen: FileChange[][] = [];
+    changes.subscribe((c) => seen.push([...c]));
+    const ops = new FileOperations(files, changes);
+    const { result } = await ops.transfer({
+      op: "move",
+      sources: ["/src/dir"],
+      targetDir: "/dst",
+      clash: "skip",
+    });
+    expect(result.failed).toHaveLength(1);
+    expect(seen).toEqual([
+      [
+        { type: "added", path: "/dst/dir" },
+        { type: "updated", path: "/src/dir" },
+      ],
+    ]);
+  });
+
+  it("a transfer from another source reports no source-side paths", async () => {
+    const { ops, seen } = await setup();
+    const drop = new MemFilesApi();
+    await writeText(drop, "/d/x.md", "X");
+    await drop.mkdir("/out");
+    await ops.transfer(
+      { op: "move", sources: ["/d/x.md"], targetDir: "/out", clash: "skip" },
+      { files: drop },
+    );
+    expect(seen).toEqual([[{ type: "added", path: "/out/x.md" }]]);
   });
 });

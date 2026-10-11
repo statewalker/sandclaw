@@ -26,11 +26,17 @@ export class FileOperations {
     const plan = await planTransfer(files, request);
     if (plan.invalid) throw new Error(plan.invalid);
     const result = await runTransfer(files, plan, opts);
+    const failed = new Set(result.failed.map((f) => f.path));
     const changes: FileChange[] = [];
     for (const step of plan.steps) {
-      if (!result.done.includes(step.from)) continue;
+      const done = result.done.includes(step.from);
+      // A failed step may have written its target or cleaned part of its source: look.
+      if (!done && !(failed.has(step.from) && (await this.files.exists(step.to)))) continue;
       changes.push({ type: step.overwrite ? "updated" : "added", path: step.to });
-      if (step.op === "move") changes.push({ type: "deleted", path: step.from });
+      // Source-side paths of a foreign source (a drop mount) mean nothing to listeners.
+      if (step.op !== "move" || opts.files) continue;
+      const stays = !done && (await this.files.exists(step.from));
+      changes.push({ type: stays ? "updated" : "deleted", path: step.from });
     }
     this.changes.emit(changes);
     return { plan, result };
