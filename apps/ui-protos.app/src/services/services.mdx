@@ -1,0 +1,99 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./services.stories.tsx";
+
+<Meta of={Stories} />
+
+# Services
+
+The services the hub opens to the group's browsers, in one list whatever they are. Sandclaw
+comes with two: the **LLM API** (LiteLLM), which the assistant uses for its language models,
+and the **LiteLLM UI**, where an admin sees the models and spending. The admin adds the rest:
+a documents archive on the office server, the printer's status page.
+
+Each service has a **name** (what members see in their menu), an **address in Sandclaw**
+(`/paperless`), **where it runs** (`http://192.168.1.20:8000`, the service's own address on the
+office network), and **who can use it**: everyone, or admins only. The address it runs at stays
+visible but small and grey: the admin needs it when something breaks, not every day.
+
+Health is one word next to the name: **Working**, **Slow** (answers, in over a second),
+**Not reachable**, **Off**, or **Testing…** while a test runs. Sandclaw tests a service when it
+is added, turned on, or its address changes; *Test again* is always there.
+
+Routes, headers and rewrite rules are not here. They stay in the technical console, behind one
+link at the bottom.
+
+## A — Rows that open in place
+
+One list; a row opens to its details and actions, and *Edit* turns the open row into the form.
+Adding puts the form at the top of the list. It reads well on a phone and keeps the whole list in
+view, but two services cannot be compared side by side, and the list jumps as rows open.
+
+<Story of={Stories.Inline} inline={false} height="640px" />
+
+## B — List and detail
+
+The list on the left, the chosen service on the right; on a phone the detail stacks under the
+list. Moving between services is one click and nothing jumps. On a phone the detail and the add
+form land below the list, so the admin has to scroll to see what the tap did.
+
+<Story of={Stories.ListDetail} inline={false} height="560px" />
+
+## Adding a service
+
+The form checks only when the admin tries to save, then names each mistake in place: a missing
+name, an address that does not start with `/`, an address another service already uses
+(`/Printer/` and `/printer` are the same), and a "where it runs" that is not a full `http://` or
+`https://` address. Saving adds the service and tests it straight away.
+
+<Story of={Stories.AddWithMistakes} inline={false} height="640px" />
+
+<Story of={Stories.PathTaken} inline={false} height="620px" />
+
+## When a service is down, slow or off
+
+A service that does not answer says what to do, in order: check that its machine is on and on
+the office network, test again, edit its address if it moved, or turn it off so it leaves
+members' menus. A slow one says so without alarm.
+
+<Story of={Stories.Down} inline={false} height="620px" />
+
+The LLM API runs on the hub itself, so its advice is different: restart the hub. Its line also
+says what members feel: the assistant cannot answer anyone.
+
+<Story of={Stories.AssistantDown} inline={false} height="640px" />
+
+Turning a service off keeps its settings; members no longer see it and its address answers "not
+available".
+
+<Story of={Stories.TurnedOff} inline={false} height="640px" />
+
+## Test
+
+*Test again* shows **Testing…** in the list and in the detail, then the answer and how long it
+took.
+
+<Story of={Stories.Testing} inline={false} height="560px" />
+
+## Remove
+
+Removing asks first and says what happens: the service leaves the menus, keeps running on its
+own machine, and turning it off is the way to keep its settings. The two built-in services have
+no *Remove*: the assistant needs the LLM API, and the LiteLLM UI comes with it. They can be
+turned off, and their address in Sandclaw is fixed.
+
+<Story of={Stories.Remove} inline={false} height="640px" />
+
+## Why members never see this
+
+A member never manages services: what they get is the result, a service's name in their menu
+that opens it. A service set to "admins only" is simply not there for them. An admin-only screen
+for members would have nothing to show but a list of names they already have in the menu.
+
+## Open questions
+
+- A or B? A fits a list of five; B pays off once there are a dozen.
+- Can two addresses overlap (`/llm` and `/llm/v1`)? Today only exact duplicates are refused.
+- Should Sandclaw test services on its own every few minutes and tell the admin when one goes
+  down, or only when the admin opens this list?
+- Is "Slow" over one second right for every service, or should it be per service?
+- Should turning off the LLM API ask first, since it stops the assistant for everyone?

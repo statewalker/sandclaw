@@ -1,0 +1,120 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./agent-tools.stories.tsx";
+
+<Meta of={Stories} />
+
+# Agent tools
+
+Which commands the assistant on this computer may use, and how. The agent harness runs in the
+browser as a peer service and reaches every local command through `@statewalker/shared-commands`:
+the files, the search indexes, notes and todos, connectors such as Mail, and whatever the
+in-browser applications register while they are loaded. This page is the member's say over that
+list. Each command is **allowed** (runs), **ask each time** (the agent stops and asks in the chat,
+like the file approvals in the assistant panel), or **blocked** (the agent never sees it).
+
+## How it maps to shared-commands
+
+- A **group** is one source registry. Files, indexes, notes and Mail each own a
+  `MutableCommandsRegistry`. An app `set(...)`s its declarations when it loads and `remove(...)`s
+  them when it closes. The agent's view is `CommandsRegistry.compose(...)` over all of them, and
+  `onUpdate` tells this page when commands come or go.
+- A **row** is one `CommandDeclaration`: its `label` is the title, its `description` the
+  sentence below it, and its `key` (`files:delete`) the small technical name.
+- The **agent's tool list** is `CommandsRegistry.filter(all, (d) => access(d) !== "block")`.
+  Blocked commands are left out entirely, so the model never hears of them. Commands set to ask
+  each time stay in the list. A gate listener registered at a high `priority` claims the call and
+  holds it until the user answers in the chat.
+- The **risk** marker (deletes, overwrites, sends, leaves this computer) is **not** in
+  shared-commands. Sandclaw keeps it as a table by key. An app's own commands carry no risk
+  marker, which is one more reason new app commands ask by default.
+
+The setting a command gets is **its own choice, else "ask" while it is new, else its group's
+setting, else the default**. By default the basic set is allowed and its risky commands ask;
+connectors and apps ask. Choices are stored by key, so when an app is closed its commands stay
+listed, greyed, with "Not loaded now — your choices are kept". They come back with the same
+setting when the app loads again.
+
+The header says what the agent gets right now ("The agent can use 26 commands now · 13 ask each
+time · 0 blocked"; Slides is closed, so its blocked command does not count). Reset to defaults clears every group setting and own choice. It does not
+bring back the "new" notices.
+
+## A — Every command with its own control
+
+Each group has its control at the top, and every command below it has its own Allow / Ask /
+Block. A command with its own choice says "Own choice · Follow the group". Everything is in sight,
+including when the agent last used each command, so it suits someone auditing. It is long:
+about 30 rows with three buttons each, and on a phone the controls wrap under the titles.
+
+<Story of={Stories.Rows} inline={false} height="900px" />
+
+## B — One control per group
+
+One row per group: its control, the counts ("4 allowed · 2 ask · 0 blocked"), and the risky
+commands that always ask, named. The commands open below for overrides. Most people only make
+group-level decisions ("Mail: ask", "Slides: block"), so B is short and puts the decision where
+it is usually made. The cost is that an override is hidden until the group is opened; the "own
+choice" count in the group line is the only trace. A search opens every group.
+
+<Story of={Stories.Groups} inline={false} height="760px" />
+
+**Leaning: B** as the Settings page and A's rows as what a group opens to. A wall of three-way
+controls answers a question few people ask.
+
+## An app comes and goes
+
+Opening the Spreadsheet app registers four commands. The notice "Spreadsheet app added 4
+commands — they ask each time until you decide" appears, and each one is tagged *New*. While a
+command is new it asks even if its group is set to Allow, so an app cannot widen what the agent
+does by shipping new commands. "Got it" ends the "new" state, and the commands then follow the
+group. Closing the app greys its group, and the counts in the header drop.
+
+<Story of={Stories.AppComesAndGoes} inline={false} height="820px" />
+
+## Defaults, search, empty search
+
+With nothing chosen, Reset is disabled. Every basic command is allowed except the risky ones, and
+every connector and app command asks.
+
+<Story of={Stories.Untouched} inline={false} height="600px" />
+
+The search matches the title, the description and the technical name, ignoring case and accents.
+A group whose name matches keeps all its commands.
+
+<Story of={Stories.SearchDelete} inline={false} height="520px" />
+
+<Story of={Stories.NoMatch} inline={false} height="300px" />
+
+## Who owns what: this page or the connector page (C5)
+
+A connector such as Mail shows up in two places. On the connector page (C5) the user connects an
+account and chooses its capabilities, for example "read mail" and "send mail". This page then
+decides whether the agent may use the commands the connector registers. If both pages had an
+"allow sending" setting, they would disagree sooner or later. The split:
+
+- **C5 owns what exists.** A capability that is switched off registers no commands, so here it
+  looks like an app that is not loaded: greyed, choices kept. C5 also owns credentials and
+  accounts.
+- **C6 owns what the agent may call.** Allow, ask or block per command or group lives only here.
+  The "Allow Mail" consent the agent asks for on first use writes this page's Mail group setting.
+  C5 links here ("What the agent may do with Mail →") rather than repeating the control.
+
+The rule: a switch that changes what the **computer can do** belongs to C5; a switch that changes
+what the **agent may do** belongs here. "Send mail" in C5 decides whether Sandclaw can send at all,
+for the user too. "Send a message: ask" here only governs the agent.
+
+## Open questions
+
+- Should a group set to Allow also allow its risky commands, as it does now? Or should risky
+  commands stay at ask unless changed one by one? Leaning: keep them at ask, and show
+  "2 still ask" on the group.
+- Should "Always allow" in a chat approval write an own choice on this page? Leaning: yes, and
+  the row should say "chosen in a chat".
+- Should the controls of a closed app stay editable, as they do now, or be read-only until it
+  loads? Leaning: editable.
+- Who marks a command risky? A Sandclaw table by key, as now, or a field on the shared-commands
+  declaration that apps fill in themselves? Leaning: the table, because a self-declared risk is
+  only advice.
+- Should an admin be able to set defaults or lock "blocked" for the whole group? Leaning: later,
+  as defaults only, never locks.
+- Should the agent's "last used" link to the tasks that used the command? Leaning: yes, once the
+  tasks view can be filtered by tool.

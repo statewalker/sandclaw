@@ -1,0 +1,104 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./first-steps.stories.tsx";
+
+<Meta of={Stories} />
+
+# First steps after joining
+
+What a member sees right after joining and choosing a folder: the workspace, still empty, with
+the folder being read in the background. The assistant zone greets them with a few first
+questions over **their** folder; the workspace says, lightly, where things are. Everything here
+is shown once: "Don't show this again" removes the welcome and the tips for good.
+
+The frame is a simplified workspace (no dock) with the real zones' look: the folder zone and the
+todos on the left, the open-file area in the middle, the assistant on the right. Under 768px the
+middle is gone and the zones stack: assistant, folder, todos.
+
+## Suggestions come from file names, not from reading
+
+The folder's listing is there the moment it is chosen; reading the files takes minutes to hours.
+So the first questions are built from names alone, and are ready at once:
+
+- the job most files are about ("Dupont — offer.docx", "Dupont — notes.md" → "What's the status
+  of the Dupont job?");
+- the latest quarter in a file name ("2026-Q3.xlsx" → "Summarise the Q3 figures");
+- the latest meeting note ("meeting 2026-10-02.md" → "What did we agree at the meeting on 2 Oct?");
+- a second job, open invoices, the todo list — in that order, four at most.
+
+A folder whose names say nothing ("IMG_0042.jpg", "scan.pdf") gets one generic question, "What
+is in this folder?". The risk is a suggestion over a file the assistant has not read yet: the
+answer then says how far it got ("Looking through the 3 files I've read so far…").
+
+Clicking a suggestion asks it, exactly as if typed. After the first question the welcome is gone;
+the next new chat shows the ordinary first-visit questions of the conversations panel.
+
+## Where things are: pointers, a tour, or nothing
+
+Three zones need naming once: **your folder**, **the assistant**, **your notes and todos**.
+
+### A — Pointers in each zone
+
+A small dismissible note at the top of each zone, read in any order or not at all. It does not
+block anything, and each one goes away on its own ✕. The cost: three boxes of text on a screen
+that is meant to look calm, and they push the zone's content down until dismissed.
+
+<Story of={Stories.Pointers} inline={false} height="720px" />
+
+### B — Three-step tour
+
+One card at a time (Next / Skip), the zone it talks about outlined. It tells the story in order
+(folder → assistant → notes) and leaves nothing behind once done. The cost: it is modal in
+spirit — most people skip tours on reflex, and then they have seen nothing. On a phone the zone
+it outlines may be below the fold.
+
+<Story of={Stories.Tour} inline={false} height="720px" />
+
+### Baseline — nothing
+
+The zones have titles and the assistant's welcome already says what it does. The member was
+just told about the folder on the join page. If the empty states are good, tips may be noise.
+
+<Story of={Stories.NoGuide} inline={false} height="720px" />
+
+Leaning: **A**, because each pointer sits where the thing is and costs one click to remove; but
+the baseline is the bar it has to beat.
+
+## While the folder is still being read
+
+Ask now: suggestions show at once with "Ask now — answers improve as I read", and a progress
+line. The member can start immediately; early answers may be thin.
+
+<Story of={Stories.ReadingAskNow} inline={false} height="720px" />
+
+Wait: the welcome says "Suggested questions appear when I'm done"; the composer still works.
+Nothing looks wrong, but the first minutes have nothing to click.
+
+<Story of={Stories.ReadingWait} inline={false} height="720px" />
+
+## An empty folder
+
+No files, no questions. The welcome offers to write a first note (the assistant reads it as soon
+as it is saved) or to choose another folder; the folder and todos zones say they are empty.
+
+<Story of={Stories.EmptyFolder} inline={false} height="720px" />
+
+## Dismissed for good
+
+Coming back after "Don't show this again": no welcome, no tips, an empty assistant with its
+composer.
+
+<Story of={Stories.Dismissed} inline={false} height="720px" />
+
+## Open questions
+
+- Pointers, tour, or nothing? Leaning pointers; nothing if the empty states test well.
+- Ask now or wait while reading? Leaning ask now: the names are known at once, and the answer
+  can say how far reading got.
+- Should the conversations panel's first-visit questions come from the same folder-name rules,
+  instead of a fixed list? Leaning yes, one source.
+- Is "Don't show this again" per browser or per person (synced to their other devices)? Leaning
+  per person.
+- An empty folder: is "Write a first note" enough, or should Sandclaw offer a starter (a
+  "Welcome.md" with a todo)? Leaning the plain note.
+- Do suggestions ever refresh (new files, a new quarter), or only on the first visit? Leaning
+  first visit only; the conversations panel covers later.

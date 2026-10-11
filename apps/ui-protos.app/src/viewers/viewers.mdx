@@ -1,0 +1,100 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./viewers.stories.tsx";
+
+<Meta of={Stories} />
+
+# Viewers
+
+A file from the user's folder opens as a tab in the center zone. PDF, DOCX, XLSX and images are
+read-only: Sandclaw shows them, it does not edit them (the program that made them does). Notes
+(`.md`) are the one editable kind; they have their own page, **Note editor**.
+
+The viewers here are mocked: nothing is parsed, the PDF is styled HTML pages, the DOCX one long
+page, the XLSX a grid. What is being designed is the frame around the content and the few controls
+each kind needs.
+
+## One header for every file
+
+Every viewer, and the note editor, share one header: the file name, its folder and size, then
+the actions:
+
+- **Ask about this file** attaches the file to the next question in the assistant panel. It is the
+  only labelled button: it is why the file is open in Sandclaw rather than in its own program.
+- **Make a note from this** (read-only files only) creates a note next to the user's notes, linking
+  to the file, for what the user wants to remember about it.
+- **Show in folder** reveals the file in the folder zone; **Download** saves a copy.
+
+On a narrow tab the three secondary actions keep their icon and lose their label (the tab, not
+the window, decides: the header uses container queries, so it behaves the same in a narrow dock
+panel and on a phone).
+
+## PDF
+
+One page at a time, with Previous / Next and the page count, and zoom (50–200%, **Fit** by
+default: the page takes the tab's width). The text scales with the page, so zoom is a real zoom,
+not a font size. Continuous scrolling is the obvious alternative (see the questions).
+
+<Story of={Stories.Pdf} inline={false} height="620px" />
+
+## DOCX
+
+A Word document has no fixed pages to speak of once it is not printed: it reads as one long page
+on a grey desk, like the document it is, with no controls of its own.
+
+<Story of={Stories.Docx} inline={false} height="620px" />
+
+## XLSX
+
+A grid with column letters and row numbers that stay put while the sheet scrolls, and the sheet
+tabs at the bottom, where spreadsheet users look for them. Clicking a cell shows its address and
+full value above the grid; there is no formula bar because there are no formulas to show (the
+values are what the file holds). The grid scrolls inside its own box: the page never scrolls
+sideways, even on a phone.
+
+<Story of={Stories.Xlsx} inline={false} height="620px" />
+
+## Images
+
+**Fit** first (the whole picture in the tab), then zoom steps; the image's size in pixels sits in
+the toolbar, for "is this photo good enough to print?".
+
+<Story of={Stories.Image} inline={false} height="620px" />
+
+## Opened from an answer
+
+A citation in an Ask answer opens the file at the cited passage: the passage is highlighted and
+scrolled to, and a banner says which question cited it — "Cited in: “When does the Dupont job
+start?”". Closing the banner removes the highlight; the file stays open as an ordinary tab. A
+PDF opens on the page holding the passage.
+
+<Story of={Stories.CitedDocx} inline={false} height="620px" />
+
+<Story of={Stories.CitedPdf} inline={false} height="620px" />
+
+## Files Sandclaw can't show
+
+"Can't show .dwg files", in those words: the file is not broken, Sandclaw just doesn't read this
+kind. The two ways out are offered as buttons: **Download**, and **Show in folder** (from where the
+user's own program opens it). "Ask about this file" is hidden: the assistant can't read it either,
+and offering it would end in a disappointing answer.
+
+<Story of={Stories.Unsupported} inline={false} height="420px" />
+
+## A large file, opening
+
+The header is there at once (the user sees the right file is opening), the body shows progress,
+and says why it is slow and that the rest of the app is not blocked.
+
+<Story of={Stories.Loading} inline={false} height="420px" />
+
+## Open questions
+
+- PDF: one page at a time (simple, page count obvious) or continuous scroll (what PDF readers do)?
+  Leaning continuous, with the page number following the scroll.
+- Should "Ask about this file" pre-fill a question ("Summarise this file") or only attach the file?
+- What goes in "Make a note from this": an empty note with a link, or the assistant's summary of
+  the file as a starting point?
+- A very large spreadsheet: show the first rows with "Showing 1,000 of 48,210 rows", or refuse
+  and offer Download?
+- Should the citation banner offer "Back to the answer", or is the assistant panel, still open
+  beside the tab, enough?

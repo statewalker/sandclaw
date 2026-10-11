@@ -1,0 +1,113 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./workspace-layout.stories.tsx";
+
+<Meta of={Stories} />
+
+# Workspace layout
+
+Sandclaw is an assistant over the user's folder, so the screen puts the documents in front and
+the assistant beside them. The question: can **one dockview** look like a fixed, Cowork-style
+layout to people who never touch it, and still let anyone rearrange panels?
+
+The stories run the real `dockview-react`. Open one on its own page to use the controls. The
+dashed strip under the top bar is a prototype-only control: it installs and uninstalls plugins
+while the app runs.
+
+## The contract
+
+- **A plugin names its target zones**, most preferred first: `left`, `center`, `right`,
+  `bottom`. The panel goes to the first zone the layout has. A plugin with **no target zones**
+  is never placed automatically; the user opens it from **Open panel**, and it lands in the last
+  active dock group.
+- **A layout** says which zones exist and how big they are. Layouts are **predefined**
+  (Assistant, Reading) or, later, **saved** by the user (a dockview snapshot). **Restore
+  layout** lays the workspace out again from one.
+- **Repair, not reset.** When a plugin is uninstalled, its panels are removed from the saved
+  layout and everything else stays where the user put it. Reinstalling places the panel in its
+  preferred zone again.
+- **Moving tabs or docks never resizes the other bars.** When a tab is dragged into a
+  split of the center, merged back, or a dock is moved or closed, the left and right bars
+  keep their width and the bottom bar its height; the center takes whatever is left. A bar
+  resized with its splitter keeps that new size. A dock moved as a whole takes the size of
+  its new place.
+- **A dragged panel takes the zone of the group it lands in**, so later placements follow
+  where the user put things.
+
+## C — Fixed bars, each unlockable
+
+The center is always a free, tabbed dock: documents open there, and their tabs can be
+reordered or split. Each side bar (left, right, bottom) is **fixed** by default:
+- nothing can be dropped into it;
+- nothing can be dragged out of it, neither one of its tabs nor the whole bar;
+- a bar holding a single panel shows no tab strip.
+
+**Left bar**, **Right bar** and **Bottom bar** in the top bar unlock one bar at a time. An
+unlocked bar shows its tab strip: its tabs can be moved anywhere, and the whole bar can be
+dragged to another position by its strip. A fixed bar that holds several tabs keeps its
+strip so the tabs can still be switched, but they cannot be dragged out.
+
+How it works: dockview's own group lock only refuses drops (`locked: "no-drop-target"`);
+the workspace adds the other half by cancelling any drag that starts in a fixed bar
+(`onWillDragPanel` / `onWillDragGroup`).
+
+<Story of={Stories.PerZone} inline={false} height="600px" />
+
+## On narrow screens: three modes
+
+Dockview has no responsive mode of its own: it is a grid of docks, and a five-dock grid
+squeezed onto a phone is unusable. So the workspace switches between three **modes** by the
+width of its own container (a `ResizeObserver`, not a media query, so it also works when the
+workspace is embedded):
+
+| Width | Mode | What it shows |
+| --- | --- | --- |
+| 1024 px and wider | **desktop** | the full dock: side bars, center, task strip |
+| 640–1023 px | **compact** | the center and the task strip; an activity bar opens the folder, the todos and the assistant as **overlays** on the side they prefer |
+| below 640 px | **mobile** | no dock: one view at a time (Documents, Folder, Todos, Assistant, Tasks) with a bottom bar; nothing to drag |
+
+- **Each dock mode keeps its own arrangement.** Rearrange the desktop, narrow the window and
+  widen it again: the desktop comes back as you left it. A mode never seen before starts from
+  its default layout.
+- **Desktop ↔ compact keeps the same dock**, re-laid out, so panels are not remounted.
+  Entering mobile removes the dock; coming back rebuilds it from the saved arrangement.
+- **Panels adapt to their own width**, not the screen's: each panel sits in a size container,
+  and its content uses container queries (`@md:`). A narrow sidebar on a wide monitor gets
+  the compact rendering of its content.
+- **No drag and drop on touch screens** (a coarse pointer): HTML5 drag and drop is unreliable
+  there.
+- **Settled:** in compact mode the assistant is an overlay like the other side panels (for
+  now); on mobile all open documents share one Documents view with a tab row.
+
+<Story of={Stories.Compact} inline={false} height="560px" />
+
+<Story of={Stories.Mobile} inline={false} height="640px" />
+
+## A — Lock toggle
+
+Locked by default: no drag and drop, and single-panel side zones have no tab strip, so they read
+as fixed areas. Zones can still be resized. **Layout unlocked** shows every tab strip and allows
+dragging anywhere.
+
+<Story of={Stories.LockToggle} inline={false} height="600px" />
+
+## B — Always movable
+
+No lock. Drag and drop always works. Side-zone tab strips are folded away and unfold while the
+pointer is over the zone, which gives the user something to grab.
+
+<Story of={Stories.AlwaysOn} inline={false} height="600px" />
+
+## Reading layout
+
+The folder and the documents. The assistant's only target is `right`, which this layout does
+not have, so it is left out.
+
+<Story of={Stories.Reading} inline={false} height="480px" />
+
+## Open questions
+
+- A, B or C?
+- Should a side zone with several stacked panels show a tab strip per panel (as now) when
+  unlocked, or one zone header?
+- When a plugin is uninstalled and later reinstalled, should it go back to where the user had
+  put it, rather than to its preferred zone?

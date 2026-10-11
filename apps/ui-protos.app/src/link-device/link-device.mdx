@@ -1,0 +1,78 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./link-device.stories.tsx";
+
+<Meta of={Stories} />
+
+# Link a device
+
+One operation serves two cases. **Adding a device**: Claire wants her new phone to be her, not
+a new member. **Merging**: Hugo joined from his home laptop with a separate invite as "Hugo B.",
+and now wants it to be the same person as Hugo Benali on his work computer.
+
+Either way, one device keeps its identity (the **keeper**) and the other takes it on (the
+**mover**). The keeper opens a link, valid 10 minutes; the mover opens it; both screens show
+the same 6-digit code; the person confirms on both, and only then does anything move. Each
+story shows both screens side by side: click on each device as the person would.
+
+## A — Compare the code, tap Yes on both
+
+The protocol's default. One glance and one tap per device. Its weakness is the careless tap:
+someone who taps Yes without looking gets no protection from the code.
+
+<Story of={Stories.AddCompare} inline={false} height="620px" />
+
+## B — Type the code shown on the other device
+
+The keeper types the code the phone shows; the phone still confirms. Typing forces the person
+to read the code, so a careless Yes cannot happen on the device that gives its identity away.
+It costs six digits on a keyboard, and on a phone keeper it is fiddlier.
+
+<Story of={Stories.AddType} inline={false} height="620px" />
+
+## Merging two names into one
+
+On his home laptop Hugo is "Hugo B.". Before he links, the laptop says what will happen: he
+becomes Hugo Benali there too, one person and one name, and his files and chats on the laptop
+stay. The code step repeats it in one line, so the last thing he reads before confirming is
+which name is kept.
+
+<Story of={Stories.Merge} inline={false} height="620px" />
+
+<Story of={Stories.MergeAtCompare} inline={false} height="560px" />
+
+## When it fails
+
+Every failure says that nothing was shared and what to do next. Only the keeper offers
+"Start again", because the new link has to come from there.
+
+- **Expired**: the link passed 10 minutes. The story shortens it to 8 seconds.
+- **Taken**: a second device opened the link, so it was closed. The keeper is told to start
+  again and to open the new link only on their own device.
+- **Declined**: someone tapped No, or the codes were different. In the story the phone shows
+  `482 139`: tap Yes anyway on both, or type what the phone shows, to see it.
+- **Timed out**: the code was not confirmed on both devices in time. The story shortens 2
+  minutes to 6 seconds.
+- **The other device left**: it closed before finishing.
+
+<Story of={Stories.Expired} inline={false} height="560px" />
+
+<Story of={Stories.TakenResult} inline={false} height="560px" />
+
+<Story of={Stories.Declined} inline={false} height="620px" />
+
+<Story of={Stories.TimedOut} inline={false} height="560px" />
+
+<Story of={Stories.OtherSideLeft} inline={false} height="560px" />
+
+## Open questions
+
+- A or B? Or A for adding a new device and B for a merge, where more is at stake?
+- In B, should the keeper type the code, or the mover? The keeper gives its identity away, but
+  the keeper may be the phone.
+- Where does "Link a device" live: only under My identity, or also as an option on the invite
+  page ("Already in Atelier Morel on another device?") so Hugo never creates "Hugo B."?
+- Should a merge be offered to the admin, who sees two similar names, rather than waiting for
+  Hugo to notice?
+- After "taken", should the admin also be told that someone else opened a link?
+- The "Declined" wording covers both a tapped No and a code mismatch. Should a mismatch say
+  "The codes were different" on its own, as a stronger warning?

@@ -1,0 +1,37 @@
+import { Controls, Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./group-status.stories.tsx";
+
+<Meta of={Stories} />
+
+# Group status
+
+Every question travels from the browser to the group's Sandclaw machine. When the link is
+healthy nobody should think about it; when it is not, people must understand that their data is
+fine, that the machine is the problem, and who can fix it.
+
+The pill always shows the group's name: "*Atelier Morel* · connected". Words like mesh, relay or
+peer never appear.
+
+## A — Pill only
+
+Quiet. When offline, the pill turns red and says so; the explanation is in its tooltip.
+
+<Story of={Stories.Pill} inline={false} height="120px" />
+
+## B — Pill and banner
+
+While offline, a banner under the top bar says what still works (chats and files in this
+browser), what waits (new questions), and who can fix it.
+
+<Story of={Stories.PillBanner} inline={false} height="140px" />
+
+## Connected
+
+<Story of={Stories.Connected} inline={false} height="100px" />
+<Controls of={Stories.Connected} />
+
+## Open questions
+
+- A or B?
+- Should the admin see more in the tooltip (direct or relayed connection, which machine)?
+- Is "connecting…" worth showing at all, or only after a few seconds?

@@ -1,0 +1,32 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./todos-view.stories.tsx";
+
+<Meta of={Stories} />
+
+# Notes and todos
+
+Notes and todos are **files in the user's folder**, not a store of their own. A todo is any
+Markdown checklist item (`- [ ] …`) in any file: a meeting note, a client file, the
+`Notes/todo.md` inbox. Ticking an item edits that line in its file, so the assistant, the folder
+and the list never disagree. New todos typed here go to `Notes/todo.md`; **New note** creates a
+dated Markdown file in `Notes/`. A conversation can also be saved as a note from the assistant
+panel.
+
+## A — Grouped by file
+
+Shows where each todo came from: the Dupont meeting's follow-ups stay together.
+
+<Story of={Stories.ByFile} inline={false} height="480px" />
+
+## B — One list
+
+Shorter; the file is a small label after each item.
+
+<Story of={Stories.OneList} inline={false} height="480px" />
+
+## Open questions
+
+- A or B?
+- Should a todo open its file at the line when clicked, with ticking only on the checkbox?
+- Do todos need dates ("by Friday"), and if so, as plain text the assistant understands, or as
+  a Markdown convention?

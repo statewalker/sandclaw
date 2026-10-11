@@ -1,0 +1,44 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./folder-zone.stories.tsx";
+
+<Meta of={Stories} />
+
+# Folder zone
+
+The left zone: the user's folder, which is the assistant's working context. The words are
+"folder" and "file" — never volume, mount or storage.
+
+## Ready
+
+Search narrows the tree to matching files and opens the folders on the way.
+
+<Story of={Stories.Ready} inline={false} height="480px" />
+
+## While the assistant reads the folder — A: a progress bar
+
+"Getting to know your folder" explains a slow first answer without the word indexing.
+
+<Story of={Stories.IndexingFooter} inline={false} height="480px" />
+
+## B: unread files dimmed
+
+Shows *which* files the assistant does not know yet; the count sits in the zone header.
+
+<Story of={Stories.IndexingMarks} inline={false} height="480px" />
+
+## After a restart
+
+Browsers forget access to a local folder when they restart, and only a click can give it back.
+The zone says so plainly instead of showing an error.
+
+<Story of={Stories.NeedsAccess} inline={false} height="260px" />
+
+## No folder yet
+
+<Story of={Stories.Empty} inline={false} height="220px" />
+
+## Open questions
+
+- A or B for indexing — or both (the bar while it runs, dimmed files only on hover)?
+- Should the folder's name be editable ("Atelier docs"), or always the name on disk?
+- Does the zone need a way to switch to a different folder, or is one folder per browser enough?

@@ -1,0 +1,80 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./grounded-answer.stories.tsx";
+
+<Meta of={Stories} />
+
+# Ask — a grounded answer
+
+Ask answers a question from the user's own files, and only from them. Every fact in the answer
+carries a numbered citation, and the same number marks the source card it comes from: the file,
+its folder, the section it sits under, and a short quote. Clicking a citation or a card opens
+the document, scrolled to the passage, which is highlighted; "Open file" would open it in the
+folder view.
+
+The search behind it returns passages (a file, a block in it, a quote, a relevance). The
+prototype's mock data has that shape; the screen shows only the passage, never how it was
+scored.
+
+## A — Citations inline, source cards below
+
+The answer reads as prose with small numbers after each sentence; the sources follow as cards
+with their quotes. Easy to scan top to bottom on a phone; on a wide screen the cards push the
+follow-up questions far down.
+
+<Story of={Stories.Inline} inline={false} height="640px" />
+
+## B — Answer left, sources in a side list
+
+The sources sit beside the answer as a compact list (no quotes; the preview shows the
+passage). The answer and its evidence are visible together on a laptop; under 768px the list
+stacks under the answer, which makes it A without the quotes.
+
+<Story of={Stories.Side} inline={false} height="520px" />
+
+## While it answers
+
+First "Searching your files…", then "Writing the answer…" while the sentences arrive; the
+sources are already listed, since they come from the search. The played-through story runs
+the whole sequence, and its follow-up chips ask again.
+
+<Story of={Stories.Live} inline={false} height="640px" />
+
+<Story of={Stories.Searching} inline={false} height="240px" />
+
+<Story of={Stories.Writing} inline={false} height="520px" />
+
+## When the files don't say
+
+Nothing found is said plainly: what was looked for, and two things to try (rephrase; check the
+folder is indexed). No sources, and no answer made up from general knowledge.
+
+<Story of={Stories.NotFound} inline={false} height="420px" />
+
+A partial answer gives what the files support, cited, and says in so many words which part it
+did not find.
+
+<Story of={Stories.Partial} inline={false} height="480px" />
+
+## In chat: Ask is a tool
+
+In a chat, the assistant calls the `ask` tool. Its call shows as one line, "Searched your files
+· 3 sources", that opens to the same source cards; the assistant then writes the answer with
+the same citation numbers. Type a question to run it again (questions about Dupont or Leroy have
+scripted answers; anything else is honestly not found). The thread is assistant-ui fed by a
+Flue session: messages that are not meant for display stay out of it, and while the agent works
+the send button becomes stop.
+
+<Story of={Stories.InChat} inline={false} height="680px" />
+
+<Story of={Stories.InChatHistory} inline={false} height="680px" />
+
+## Open questions
+
+- A or B? Or A on phones and B from laptop width up?
+- Should the source open in a dialog (as here) or in a side pane next to the answer, so the user
+  can read several sources without closing anything?
+- In chat, should the "Searched your files" line start open when the answer is short, or always
+  closed?
+- Should a partial answer offer a next step for the missing part ("Ask Claire", "Add a note")?
+- Is "I looked for …" useful to non-technical users, or noise? It explains a miss, but the
+  phrasings are the system's, not theirs.

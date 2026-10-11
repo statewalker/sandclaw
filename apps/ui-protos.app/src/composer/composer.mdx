@@ -1,0 +1,103 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./composer.stories.tsx";
+
+<Meta of={Stories} />
+
+# Chat — the composer
+
+Where the user writes to the assistant, and says which files to look at. The assistant runs in
+the browser and reads the user's folder itself; the AI it talks to is on the group's Sandclaw
+machine. So the composer has two kinds of things to add, and they travel differently:
+
+- **From the folder** — a file or a whole folder is sent as a **reference** (its path), never
+  its contents. The assistant reads it on this device with its file tool ("Read Clients/Dupont —
+  offer.docx" in the answer). A folder chip says how many files it holds.
+- **From this computer** — only photos and PDFs (up to 14 MB) are sent with the message itself.
+  Anything else has to be added to the folder first: the composer says so and offers "Add to
+  folder".
+
+Every story has **prototype controls** under the chat: drag a file from the folder tree, drop
+a photo or a spreadsheet from the computer, and take the Sandclaw machine offline or bring it
+back. Type a message and send it: the scripted assistant reads what was referenced, then
+answers.
+
+## A — Chips above the input, an attach menu
+
+Files and folders sit as removable chips above the text. "Attach" opens a menu: **From your
+folder** (a searchable list of the folder) or **From this computer** (photos and PDFs). Typing
+`@` also opens the folder list; the picked name goes into the sentence and its chip appears
+above. What will be read is always visible in one row, and removing it is one click; the cost
+is one more control in the composer.
+
+<Story of={Stories.EmptyA} inline={false} height="820px" />
+
+<Story of={Stories.WithContextA} inline={false} height="820px" />
+
+<Story of={Stories.MentionA} inline={false} height="820px" />
+
+## B — One "+" and `@`, references inline in the text
+
+The folder is reached only by `@`; the mention stays in the sentence, highlighted ("Check
+@Dupont — offer.docx against @Clients/"). "+" adds a photo or PDF from the computer. The
+composer is quieter and the sentence says what each file is for; but a reference is removed by
+deleting its text, and nothing outside the input lists what will be read. Users who never type
+`@` never find the folder from here.
+
+<Story of={Stories.EmptyB} inline={false} height="820px" />
+
+<Story of={Stories.WithContextB} inline={false} height="820px" />
+
+<Story of={Stories.MentionB} inline={false} height="820px" />
+
+`@` lists files and folders whose name contains what is typed; ↑ ↓ move, Enter or Tab pick, Esc
+closes the list and leaves the text as typed. Enter sends, Shift+Enter starts a new line; the
+hint line under the input says so.
+
+## While the assistant answers
+
+The send button stays; Stop appears beside it. A message sent during an answer is **queued**:
+it shows faded at the end of the conversation, "Will be sent after the current answer", with
+Remove, and goes out when the answer ends. The queue is kept here, not handed to the machine
+right away, so that a queued message can still be taken back.
+
+<Story of={Stories.Running} inline={false} height="820px" />
+
+Stop ends the answer; what was written stays, marked **Stopped**. A queued message is then sent
+at once: "Stop, I meant…" is the usual reason to write during an answer.
+
+<Story of={Stories.Stopped} inline={false} height="820px" />
+
+## When the Sandclaw machine doesn't answer
+
+The message is kept, not lost: "Not sent — the Sandclaw machine isn't answering", with Retry and
+Remove. Retry while the machine is still away keeps it there. Use the controls to bring the
+machine back, then Retry.
+
+<Story of={Stories.Offline} inline={false} height="820px" />
+
+The other way: the message is sent by itself when the machine is back, and says so. Bring the
+machine back with the controls to see it go.
+
+<Story of={Stories.OfflineAutoRetry} inline={false} height="820px" />
+
+## A file from outside the folder
+
+A spreadsheet dropped from the computer can't be sent, and the assistant can't read it where it
+is. The composer says why and offers "Add to folder"; here the copy lands at the top of the
+folder and becomes a reference chip.
+
+<Story of={Stories.OutsideFile} inline={false} height="820px" />
+
+## Open questions
+
+- A or B? A shows what will be read; B reads as a sentence. A keeps `@` too, so B is A without
+  the chip row and the folder entry in the menu.
+- Retry by hand (as here) or send by itself when the machine is back? Sending by itself is less
+  work, but a question sent an hour later may no longer be wanted.
+- After Stop, should queued messages go out at once (as here), or wait for the user to confirm?
+- "Add to folder": where does the copy go — the top of the folder, an "Inbox" folder, or a folder
+  the user picks?
+- Should a referenced folder have a limit ("Clients/ · 240 files" is a lot to read), and what does
+  the composer say when it is over it?
+- Photos and PDFs from the computer go with the message and are not kept in the folder. Should
+  the composer offer to keep a copy, so the next question can refer to it?

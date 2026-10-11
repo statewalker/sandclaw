@@ -1,0 +1,72 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./how-answered.stories.tsx";
+
+<Meta of={Stories} />
+
+# Ask — how this was answered (D4)
+
+Under a grounded answer (D1), a "How was this answered?" link opens what happened between the
+question and the answer: for trust ("it really read my files") and for debugging ("why did it
+miss the invoice?"). These are the very answers of D1, with the same citation numbers.
+
+The steps are those of the search pipeline, all run on this computer:
+
+1. **Your question.**
+2. **Rephrased into N searches** — key words, meaning, and a phrasing that looks like an answer
+   (`lex`, `vec`, `hyde` with scores on).
+3. **Searched 4 indexes** — per index (Words, Meaning, Topics, Contents) its top results; an index
+   that returned nothing says so.
+4. **Ranked the passages by how well they answer** — the merged list, reranked, each tagged with
+   the indexes that found it; a dashed line marks the bar below which nothing is used.
+5. **Used N passages** — each with its citation number (the same button as in the answer, opening
+   the passage) and the answer's sentences that cite it.
+6. **Found but not used** — with why: below the bar, or good enough but not needed.
+
+Plain words first: scores, the threshold and the query types are hidden until "Show scores".
+The "used" step starts open; the others open on demand.
+
+<Story of={Stories.FromAnswer} inline={false} height="720px" />
+
+## A — Step timeline
+
+The steps in order, each a line that opens to its detail. Reads as a story; the detail is where
+it happened.
+
+<Story of={Stories.Timeline} inline={false} height="760px" />
+
+<Story of={Stories.WithScores} inline={false} height="760px" />
+
+## B — Funnel
+
+The same stages as bars whose counts shrink: 3 searches → 14 results → 5 passages → 4 good enough
+→ 3 cited. The shape answers "how much was there to choose from" at a glance; each bar opens to the
+same detail as A.
+
+<Story of={Stories.Funnel} inline={false} height="760px" />
+
+## Partly answered, and not found
+
+The budget question: the price passage is used; for the site foreman, the closest passage (the
+list of who attended the meeting) is below the bar, so the answer says it didn't find it.
+
+<Story of={Stories.Partial} inline={false} height="760px" />
+
+Not found: what was searched, which indexes returned something, and the closest passage against
+the bar — here the Leroy brief, which talks about the roof timber but not what was paid. The
+Contents index returned nothing.
+
+<Story of={Stories.NotFound} inline={false} height="620px" />
+
+<Story of={Stories.NotFoundFunnel} inline={false} height="620px" />
+
+## Open questions
+
+- **A or B?** Leaning A for the dialog (it explains), with B's counts as the step summaries — the
+  timeline already shows them in words.
+- **Who sees the link?** Leaning: everyone, since "how" builds trust; scores stay behind the toggle.
+- **Dialog or a side pane?** A dialog hides the answer it explains; a pane beside it would let the
+  citation numbers be compared directly. Leaning: pane from laptop width, dialog on phones.
+- **Is the threshold a fixed number** the user may change ("answer from weaker passages")? Leaning
+  no: show it, don't expose it.
+- **Should "not needed" passages be offered** as "also relevant" under the answer itself? Leaning
+  no; they belong here.

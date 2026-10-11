@@ -1,0 +1,92 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./conversations.stories.tsx";
+
+<Meta of={Stories} />
+
+# Chat — conversations
+
+The assistant keeps every chat the user has had over their folder. This prototype asks how they
+find, resume, tidy and keep them: in a side list next to the chat (A), or behind a title button
+in the header of the narrow assistant panel (B).
+
+## What a chat is, underneath
+
+Each chat is one conversation with the assistant, kept at its own address (the assistant's
+address plus a chat id Sandclaw picks). That conversation can be read and continued, but it
+cannot be listed, renamed or deleted. So Sandclaw keeps its own **chat index**: id, title,
+created, last activity, archived, and a one-line preview. Everything in the list comes from that
+index; opening a chat connects the thread to that chat's address.
+
+Three things follow from it:
+
+- **No delete, only Archive.** Removing a chat hides it from the list: "Archive — you can find it
+  under Archived". The conversation itself stays, and Restore brings it back.
+- **The title is Sandclaw's.** A new chat is called "New chat" until its first question, which
+  becomes the title (shortened, no question mark). Renaming in place (the pencil) fixes it; from
+  then on the first question no longer changes it.
+- **A chat goes one way.** No editing an earlier question, no regenerating, no branches: to go
+  somewhere else, ask again or start a new chat.
+
+## A — List in the side panel
+
+The chats sit beside the open chat, grouped by time (Today, Yesterday, Previous 7 days, Earlier),
+each with its title, when it was last active and the last thing said. The open chat is
+highlighted; a chat still answering says "Answering…" in place of its time. Search looks through
+titles and everything said in the chats, accents ignored ("ines" finds "Inès"), and shows the
+passage that matched. Archived chats fold away at the bottom, each with Restore.
+
+Good on a laptop when chats are the main thing on screen. Under 768px the list stacks above the
+chat and takes a third of the height, which is cramped: on a phone, A should become B.
+
+<Story of={Stories.Sidebar} inline={false} height="700px" />
+
+## B — Switcher in the assistant header
+
+In the right-hand assistant zone there is no room for a second column. The header shows the
+open chat's title as a button; it opens the same list over the chat, and picking a chat closes it.
+A small spinner next to the title says another chat is still answering. New chat stays one tap
+away in the header.
+
+The chat keeps the whole width of the panel; finding another chat costs one extra tap, and the
+list hides the chat while it is open.
+
+<Story of={Stories.Switcher} inline={false} height="700px" />
+
+<Story of={Stories.SwitcherOpen} inline={false} height="700px" />
+
+## The open chat's actions
+
+The pencil renames in place (Enter keeps, Escape cancels). **Save as note** writes the chat into
+`Notes/` as a Markdown note: each question as a heading, the answer under it, and the files the
+answer cited. The confirmation names the file, "Saved as Notes/Dupont start date.md", with Open.
+**Archive** says where the chat went and offers Undo.
+
+Resuming is opening: an old chat shows its history and the message box continues it. Questions
+about Dupont or Leroy have scripted answers; anything else is honestly not found.
+
+## The first chat
+
+With no chats yet, the list holds the one new chat and the thread suggests a few questions over
+the folder; tapping one asks it.
+
+<Story of={Stories.FirstVisit} inline={false} height="700px" />
+
+<Story of={Stories.FirstVisitSwitcher} inline={false} height="700px" />
+
+## Open questions
+
+- **A, B, or both by width?** A on laptops, B in the assistant zone and on phones is the
+  leaning; one component with two presentations.
+- **Where do a chat's actions live?** Here they are in the open chat's header (rename, save as
+  note, archive), so the list stays a plain list that works by touch. The alternative is a "…"
+  menu on each row, which lets the user archive without opening, at the cost of a menu per row.
+- **Pinning.** Should a chat be pinnable to the top of the list (e.g. "Dupont job")? The index
+  could hold it; it is left out here until someone asks for it.
+- **Save as note twice.** Saving the same chat again: overwrite the note, add a number, or append
+  what was said since? The prototype just reports the same path.
+- **What is in the note.** The answer with its sources, as here, or only the answers (a cleaner
+  note, but the user loses where it came from)?
+- **Searching archived chats.** Search finds archived chats too and opens the Archived section;
+  should they rather be left out unless the user asks?
+- **Empty new chats.** New chat from an empty chat keeps the same one rather than making another
+  "New chat". Should an empty chat disappear from the list when the user leaves it?

@@ -1,0 +1,138 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./file-manager.stories.tsx";
+
+<Meta of={Stories} />
+
+# File management
+
+The things a member does to the files of the folder: make a note or a folder, rename, move,
+delete, add files from the computer, download, open. The folder is a real folder on the user's
+disk (the browser's File System Access API), so every action here changes their disk, and the
+words have to say so plainly. Notes, todos and what the assistant produces are ordinary files
+in it.
+
+Common to both variants:
+
+- **Click a file to open it.** It opens in the viewer its extension calls for (note editor, PDF,
+  spreadsheet, document, image, text); the line under the tree says which. A file with no viewer
+  (a `.zip`) says so and offers *Download*. Click a folder to open or close it.
+- **New note**, not "new file": a non-technical user makes notes; the app makes `Untitled.md`
+  and puts its name straight into rename. A name already there gets " (2)".
+- **Names** are checked as you type: empty, one of `/ \ : * ? " < > |`, or already in the
+  folder. The check ignores case, because Windows and macOS disks treat `Notes` and `notes` as
+  the same file; a rename that changes only the case is allowed. The field selects the name
+  without its extension, so typing does not drop `.pdf` by accident.
+- **Drag** moves within the tree; the folder under the pointer is outlined, the dragged rows are
+  dimmed, and a line says what will happen ("Move “Dupont — offer.docx” to “Finance”"). A folder
+  can't be dropped into itself or a folder inside it, nor where it already is: those targets
+  simply don't light up. The same drag carries the path as `application/x-sandclaw-path`, so a
+  file dropped on the chat composer becomes a reference there.
+- **Files dropped from the computer** are added to the folder under the pointer (or to the top
+  when dropped on the empty part). An import never replaces a file: a name already there becomes
+  "name (2).ext", and the line says so.
+- **Outputs** is where the assistant writes what it produces. It has a sparkle and "Made by the
+  assistant"; its files have the sparkle too. The folder itself can't be renamed, moved or
+  deleted (the assistant would lose its place); its files can, like any other.
+- **Show in folder** is not a tree action: it is how other places (a chat chip, a viewer's title,
+  an assistant message "saved to Outputs/…") land here: the tree opens the folders on the way,
+  selects the file and scrolls to it. The browser cannot open the computer's own file manager.
+
+## A — Row menu, rename in place
+
+Each row has a "…" button (shown on hover and on the selected row), the same menu opens on a
+right-click and on Shift+F10. A file's menu: Open, Download, Rename, Move to…, Delete…; a
+folder's: New note, New folder, Add files…, Rename, Move to…, Delete…. The "…" in the header
+does the same for the top of the folder. One entry at a time. Familiar from Google Drive and
+VS Code; nothing is on screen until it's needed.
+
+<Story of={Stories.RowMenu} inline={false} height="620px" />
+
+## B — Toolbar on the selection
+
+A row of buttons over the tree acts on what is selected; Ctrl/⌘-click or Space adds to the
+selection, so three invoices move or go to the trash in one step. New note, New folder and Add
+files go into the selected folder (or the selected file's folder). Every action is always in
+view, at the cost of a row of icons whose meaning has to be guessed or hovered (they have
+tooltips and labels for screen readers).
+
+<Story of={Stories.Toolbar} inline={false} height="620px" />
+
+## Rename with an error
+
+The error shows under the field while typing, and Enter does nothing until it's fixed. Escape,
+or clicking away from an invalid name, keeps the old one.
+
+<Story of={Stories.RenameError} inline={false} height="620px" />
+
+## Delete: Sandclaw's trash, or for good
+
+What the browser can do decides this. Its file access deletes for real: a deleted file does
+**not** go to the computer's Trash or Recycle Bin, and nothing in the browser can put it there.
+Users expect a Trash, and losing a client's contract to a mis-click is the worst thing this
+panel could do. So two options:
+
+- **Sandclaw's trash** (recommended): "deleting" moves the entry into a hidden `.sandclaw/trash/`
+  inside the folder, kept 30 days, with *Undo* right after and a Trash list in settings. The
+  confirmation can be gentle ("Move to trash"). The cost: the files still take disk space, and
+  someone looking at the folder in their computer's file manager still sees them under
+  `.sandclaw`.
+- **For good**: matches what happens on disk, nothing hidden. Then the confirmation must say so
+  in words that can't be misread: "deleted from your computer. They don't go to your computer's
+  Trash, and this can't be undone", and the button names what goes ("Delete 4 files"), red.
+
+Both confirmations count what is inside a folder: "the folder and the 4 files in it".
+
+<Story of={Stories.DeleteToTrash} inline={false} height="620px" />
+
+<Story of={Stories.DeletePermanent} inline={false} height="620px" />
+
+## Drag to move
+
+<Story of={Stories.DragMove} inline={false} height="620px" />
+
+## Add files from the computer
+
+Two dropped files, one of them clashing with `Dupont — notes.md` already in *Clients*.
+
+<Story of={Stories.DropImport} inline={false} height="620px" />
+
+## Outputs
+
+As it looks after "Show in folder" on the summary the assistant wrote.
+
+<Story of={Stories.Outputs} inline={false} height="620px" />
+
+## Keyboard
+
+The tree follows the ARIA tree pattern: ↑ ↓ Home End move, → opens a folder (then goes into
+it), ← closes it (then goes to its parent), Enter opens. F2 renames, Delete asks to delete.
+In A, Shift+F10 or the menu key opens the row's menu, arrows move in it, Escape closes it. In B,
+Space adds to the selection and ← → move along the toolbar.
+
+<Story of={Stories.Keyboard} inline={false} height="620px" />
+
+<Story of={Stories.KeyboardToolbar} inline={false} height="620px" />
+
+## Phone
+
+Touch screens have no drag and drop in the browser. The "…" is always visible, rows are taller,
+and *Move to…* opens a list of folders; the ones that can't take the entry are greyed out.
+*Move to…* is in the desktop menu too, for keyboard users.
+
+<Story of={Stories.Phone} inline={false} height="620px" />
+
+## Open questions
+
+- A or B? Leaning A for members (nothing to learn), with B's multi-select added to A later only
+  if people ask to move many files at once.
+- Trash or for good? Leaning Sandclaw's trash with *Undo*, and no confirmation at all for a
+  single file once Undo exists; confirm only for folders and several items.
+- Can the assistant delete or overwrite files outside *Outputs*, and does that go to the same
+  trash? Leaning: yes, the same trash, so a user can always undo the assistant.
+- Changing a file's extension while renaming (`offer.docx` to `offer.pdf`): warn ("it may no
+  longer open"), or allow silently? Leaning: warn, once, under the field.
+- Download a whole folder as a `.zip`? Leaning no for now; files only.
+- Should a closed folder open when a drag hovers it for a moment, as on desktop file managers?
+  Leaning yes, after ~600 ms.
+- Should *Outputs* be organised by the assistant (a sub-folder per conversation or per day)?
+  Leaning flat, newest first, until it gets long.

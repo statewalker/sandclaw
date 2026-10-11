@@ -1,0 +1,145 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./installer.stories.tsx";
+
+<Meta of={Stories} />
+
+# Machine installer
+
+The wizard that turns the group's Mac mini into a Sandclaw machine. It runs on that Mac only, at
+`http://localhost`, and is a separate surface from the app: nobody else in the group ever sees
+it. It checks the Mac, has the person choose the AI models and name the group, downloads and
+starts everything, tests it, and ends with **the first admin invite** — the link that brings the
+installer's own laptop or phone into the group.
+
+The person installing is not necessarily technical: whoever in the group "is good with
+computers". Every screen speaks plain words; what a helper would need (the error Docker gave,
+the container and port, the log line) sits behind **Show details**.
+
+**The setup service is not designed yet.** Every step here is a mock: the machine facts, the
+model catalogue, the download and the service tests are invented to look plausible, and the
+progress is driven by a timer.
+
+## The steps, questions first
+
+1. **Check this Mac** — Docker installed and running, free disk, memory, GPU (Apple silicon).
+2. **Choose the AI models** — chat, summaries, search; each with its size and download time.
+3. **Name the group** — the group's name and the installer's own name (the first admin).
+4. **Download** — Sandclaw's images (hub, LiteLLM, indexer) and the chosen models.
+5. **Start and test** — model runtime, LLM API, indexer, hub, in that order: each needs the one
+   before.
+6. **Invite yourself** — QR code and link.
+
+All the questions come before the waiting. Once the names are given the rest needs nobody: the
+person can walk away for the 20 minutes the download takes and come back to the invite, instead
+of returning to find the wizard stopped at "What's the group called?".
+
+A failed check blocks; a warning only informs. Docker missing or stopped, too little disk and
+less than 8 GB of memory block. 8–15 GB of memory, tight disk and an Intel Mac (no usable GPU)
+warn, because Sandclaw still runs, slower or with smaller models.
+
+## A — Wizard with a step rail
+
+One step per screen, Back and Next at the bottom, the steps listed on the left (a row of numbered
+dots on a phone). The person always knows how far they are and how much is left. Back works
+until the download starts; after that there is nothing to go back to.
+
+<Story of={Stories.Check} inline={false} height="720px" />
+
+The models step shows what each model costs in the two things the person can judge: **size**
+and **download time** on their connection. Models too big for the Mac's memory are greyed out
+with the reason. A summary model already picked for chat is counted once. If the total does not
+fit the free disk (with room for the group's data), Next stays off.
+
+<Story of={Stories.Models} inline={false} height="1150px" />
+
+<Story of={Stories.Names} inline={false} height="620px" />
+
+## Progress per step
+
+The download shows one bar for the total, the time left, and a line per item (done, downloading,
+waiting). Start and test goes through the four services in order, saying what each does and what
+its test is. Both move on by themselves; only the end of the tests asks for a click ("Make my
+invite"), so the person sees that everything passed.
+
+<Story of={Stories.Download} inline={false} height="620px" />
+
+<Story of={Stories.Start} inline={false} height="620px" />
+
+## A missing prerequisite
+
+The failing item says what is wrong and what to do ("Install Docker Desktop from docker.com,
+open it once, then check again"); **Check again** reads the Mac anew. The prototype answers the
+second check with a fixed Mac.
+
+<Story of={Stories.NoDocker} inline={false} height="720px" />
+
+<Story of={Stories.DockerStopped} inline={false} height="760px" />
+
+## Resuming after a restart
+
+The setup service keeps its progress on disk. When the Mac restarts mid-way, opening the page
+again lands on the step it was on, with the steps done ticked and a line saying so; the download
+keeps what it had.
+
+<Story of={Stories.Resumed} inline={false} height="640px" />
+
+## A failed test
+
+The failed service is named, the error is in plain words ("The LLM API didn't answer within a
+minute. It may still be starting."), Retry is the obvious button, and the log is under Show
+details for a helper. "Nothing is lost: the downloads are kept" is said because the fear after a
+failure is having to start over. The prototype passes on Retry.
+
+<Story of={Stories.TestFailed} inline={false} height="760px" />
+
+## The first admin invite
+
+The end of the installer is the start of the app: a QR code (for a phone) and the link with
+Copy (for a laptop). Opening it makes the installer the group's admin, on the device they will
+actually use; from there they invite the others. The link works once and for 24 hours.
+
+<Story of={Stories.Invite} inline={false} height="760px" />
+
+## B — One page, sections open in turn
+
+Every step is a section on one page. Done sections fold to a one-line summary with **Change**
+(until the download starts); the current one is open; later ones are titled and greyed, "Opens
+after …". The page scrolls to the section that opens.
+
+<Story of={Stories.SinglePage} inline={false} height="1000px" />
+
+<Story of={Stories.SinglePageLater} inline={false} height="1000px" />
+
+This is genuinely different from A in what it shows: the whole path and every answer at once, so
+"what did I pick?" is answered without going back, and the summaries are a ready-made record of
+the setup. It costs a long page, and on a phone the open section sits under a stack of folded
+ones.
+
+**Leaning: A.** The person installing is not necessarily technical, and a wizard is the form
+everyone recognises from installing software; it shows one thing to do at a time, which is what
+matters when Docker is not running. B's main gain (seeing the answers) is small here: three
+answers, all repeated on the invite screen or in the rail.
+
+## Open questions
+
+- Q1. Who installs: one technical member, or anyone in the group following the screens? The
+  plain-language design assumes the second.
+- Q2. Where do models run: Docker Model Runner (uses the Apple GPU, ships with Docker Desktop) or
+  a model runtime in a container (CPU only on a Mac)? The prototype assumes Model Runner.
+- Q3. Offer cloud models (Anthropic, OpenAI) here too, with an API key, or only local models at
+  install and cloud ones later in AI models? Leaning local only here.
+- Q4. Should the installer also install or start Docker Desktop itself, or only point to it?
+  Leaning point to it: installing Docker needs the Mac's admin password and its own prompts.
+- Q5. After a restart, re-run the machine check silently before resuming (Docker may not be
+  running yet)? Leaning yes, and show the check step only if something fails.
+- Q6. What if the invite link expires unused, or is opened on the wrong device? The localhost
+  page could stay reachable to make a new one; or the invite step could be re-opened from a
+  command. Leaning keep the page available on localhost after setup.
+- Q7. The hub test "opens the group's address from outside this Mac": through the relay, the
+  local network, or both? This decides whether a blocked router fails the install or only warns.
+- Q8. Disk room on top of the downloads is set to 20 GB for indexes and data. Is that the right
+  floor for a small group's folders?
+- Q9. Should the installer measure the connection speed (for the download estimates) or show
+  sizes only? Measuring costs a few seconds and a download.
+- Q10. Is the localhost page protected at all (anyone with a session on the Mac can open it)?
+  Leaning no protection before the first admin exists, closed once the invite is used.

@@ -1,0 +1,116 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./sites.stories.tsx";
+
+<Meta of={Stories} />
+
+# Sites
+
+A site is a set of pages the assistant writes from the user's files, every fact cited: "Dupont
+renovation" from the Clients folder, or a **default site**, "About Atelier Morel", from the topics
+Ask found across the whole folder. It is a basic static site, opened in its own tab.
+
+A site lives **only on this computer**: its index is built here and its pages are written here.
+Every place a site shows says so ("Only on this computer"), because a member who opens Sandclaw on
+another device will not find it, and nothing else would explain why.
+
+What there is to design is not the viewer but the **generation**: writing takes minutes, page by
+page, with the AI model, and pages can fail. The table of contents is edited elsewhere (E2); here
+it is a button, *Edit table of contents*.
+
+## What a site's state says
+
+One line per site, the most urgent first:
+
+| State | Shown as | Why it wins |
+| --- | --- | --- |
+| generating | Generating page 3 of 8 | Something is happening now |
+| stopped | Stopped · 2 of 8 pages written | The user stopped it and must resume |
+| failed | 2 pages failed | Pages are missing from the site |
+| stale | 3 files changed since the last build | The site is complete but may be wrong |
+| up to date | Up to date | Nothing to do |
+
+"Files changed" counts source files changed since the last build, not pages: the assistant cannot
+tell which pages a change affects without rewriting them. A build that ends clears the count, even
+when pages failed; the failed pages then speak for themselves.
+
+## A — Cards, progress on its own page
+
+One card per site; two columns when there is room. *See pages* opens the site's progress page:
+the pages, overall progress, *Stop*, *Try again* on a failed page, *Regenerate* on a written one.
+Reads as "my sites" — few, named things. Following a generation takes the whole panel, which suits
+a long wait the user watches for a while, then leaves.
+
+<Story of={Stories.Cards} inline={false} height="720px" />
+
+## B — Rows, progress inline
+
+A compact list; a generating site unfolds its pages under its row. The user sees every site and
+the generation at once, and a failed page is fixed without leaving the list. With eight pages
+unfolded, the rows below are pushed far down; on a phone the list becomes the progress.
+
+<Story of={Stories.Rows} inline={false} height="720px" />
+
+My leaning: **A**. Sites are few (a handful per office), so the cards cost no space, and a
+generation is something to watch on its own, then leave. Inline progress is worth keeping for
+*one* failed page, where leaving the list is the larger cost.
+
+## New site
+
+Two short steps. First, what the site is about: **a folder** (one page per subject in it:
+"Clients" gives an overview, then Dupont, Leroy, Contracts) or **the topics Ask found** (the
+default site). The name is optional and defaults to the folder, or "About Atelier Morel". Second,
+the suggested table of contents, read-only here with *Edit table of contents* for the editor, and
+how long it will take. *Generate* closes the dialog and the first page starts writing at once.
+
+<Story of={Stories.NewFromFolder} inline={false} height="760px" />
+
+<Story of={Stories.NewFromTopics} inline={false} height="640px" />
+
+## Generation, page by page
+
+Each page is **waiting**, **writing…**, **written**, or **failed** with the reason in the user's
+words ("The AI model didn't answer", "No source files left for this section"). One page is written
+at a time, so the estimate is simply a minute a page. *Stop* keeps what is written; the rest is
+"Not written — stopped" until *Resume*. A page being rewritten keeps its previous version in the
+site until the new one is done.
+
+<Story of={Stories.Generating} inline={false} height="720px" />
+
+*Try again* queues one failed page alone; the other failures stay as they are.
+
+<Story of={Stories.SomeFailed} inline={false} height="520px" />
+
+## The site's tab
+
+Little UI of our own: the site name, "Only on this computer", *Open in new window*, *Regenerate*,
+*Edit table of contents*, then the site in an iframe. The site itself is plain HTML: the table of
+contents at the left (on top on a phone), the page's prose with numbered citations in the same
+look as Ask's answers, a picture, and the page's sources. A citation opens the cited file in
+Sandclaw: the site posts the file path to the app, which here only says so.
+
+<Story of={Stories.Viewer} inline={false} height="760px" />
+
+When files changed since the build, a banner says how many, with *Regenerate* next to it. While
+pages are written, the banner says which one; when pages failed, it says they are missing.
+
+<Story of={Stories.ViewerStale} inline={false} height="760px" />
+
+## No sites yet
+
+The empty list offers the default site, the one that needs no choice.
+
+<Story of={Stories.Empty} inline={false} height="320px" />
+
+## Open questions
+
+- A or B? Leaning A, with a failed page fixable from the card without leaving the list.
+- Should *Regenerate* rewrite only pages whose sources changed? Leaning yes once the index can map
+  a page to its files; until then, all pages, after a confirmation.
+- Should the stale banner list the changed files? Leaning a disclosure ("3 files") listing them,
+  so the user can judge whether a rebuild is worth the minutes.
+- Generation needs this browser open: should closing the tab warn while pages are written?
+  Leaning yes, a browser "leave page?" prompt.
+- Can another member see that a site exists on Claire's computer, without its pages? Leaning no:
+  "Only on this computer" stays literally true.
+- Should a page that failed for lack of sources offer to drop the section from the table of
+  contents, instead of *Try again*? Leaning yes, it will fail again otherwise.

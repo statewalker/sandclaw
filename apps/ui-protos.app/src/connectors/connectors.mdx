@@ -1,0 +1,114 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./connectors.stories.tsx";
+
+<Meta of={Stories} />
+
+# Connectors
+
+The member's saved sign-ins to outside services — mail through an MCP server, a calendar, the
+shared drive — that let the assistant, running in this browser, act for them. Three things to
+see on one screen: **what is connected** (as which account, since when, last used), **what each
+connector lets the assistant do**, and **how to stop it**.
+
+Sign-ins are the member's own. They stay in this browser: not shared with the group, not seen by
+the admin, not synced to the member's other devices. The page says so under its title, because
+"Settings" in a group app otherwise reads as "the admin can see this".
+
+## What a connector may do
+
+Each connector lists its capabilities in the member's words ("Read your mail", "Write drafts",
+"Send mail"), each set to **Allowed**, **Ask each time** or **Off**. Defaults follow what the
+capability touches:
+
+| Kind | Example | Default | Choices |
+| --- | --- | --- | --- |
+| Looks | Read, search your mail | Allowed | all three |
+| Writes for you only | Write drafts, save to the drive | Allowed | all three |
+| Reaches other people | Send mail, send invitations | Ask each time | Ask each time, Off |
+| A tool of an unknown MCP server | `create_ticket` | Ask each time | all three |
+
+Sending never runs unasked: a draft is harmless until it leaves, so the assistant drafts freely
+and the member presses send (or answers the ask). "Ask each time" uses the same request card as
+the assistant panel's first-use consent.
+
+## States
+
+| State | What the member sees | What to do |
+| --- | --- | --- |
+| Not connected | "The assistant cannot use Mail" | Connect |
+| Signing in | Waiting for the popup; "No popup? …" | Open it again, Cancel |
+| Connected | Signed in as, since, last used, last activity | — |
+| Sign-in expired | The date it expired; choices kept | Sign in again |
+| Not answering | Since when; "your sign-in is fine" | Nothing: it is the service |
+
+An expired sign-in wins over a service that is down: the member can fix the first, and only once
+signed in can Sandclaw tell whether the service answers. "Not answering" says the sign-in is fine
+so the member does not revoke and reconnect for nothing.
+
+## A — List with a page per connector
+
+One line per connector: name, state, and the one line that matters (the last thing it did, or
+"Sign in again to use it"). A line opens the connector's page: status, capabilities, recent
+activity, revoke. Calm and scales to many connectors; but what each connector may do is one tap
+away, and a member skimming Settings never sees that Mail can draft.
+
+<Story of={Stories.List} inline={false} height="560px" />
+
+<Story of={Stories.ListPage} inline={false} height="760px" />
+
+## B — Cards, capabilities in place
+
+One card per connector with its capabilities and choices shown. A member realistically has two
+to four connectors, and the point of the page is "see what each may do": B shows it without a
+click. It is long on a phone, and an unknown MCP server with many tools makes a tall card.
+
+<Story of={Stories.Cards} inline={false} height="900px" />
+
+**Leaning: B**, because the capability list *is* the content of this page and the count stays
+small; A's page becomes the fallback if a member ever has many connectors.
+
+## Adding a connector
+
+A short catalog: Mail, Calendar, Shared drive. "Other MCP server — by address" sits behind
+**Advanced**, for technical members: an https address (http only on this machine, since the
+sign-in travels to it). Its capabilities are unknown until signed in; then each tool the server
+lists shows by its own name, set to ask each time.
+
+<Story of={Stories.Add} inline={false} height="560px" />
+
+<Story of={Stories.AddByAddress} inline={false} height="760px" />
+
+The sign-in happens in the service's own popup window (not prototyped). Sandclaw only waits, and
+says what to do when the popup was blocked or hidden.
+
+<Story of={Stories.Connecting} inline={false} height="440px" />
+
+<Story of={Stories.Empty} inline={false} height="320px" />
+
+## Expired, and not answering
+
+<Story of={Stories.Expired} inline={false} height="700px" />
+
+<Story of={Stories.Down} inline={false} height="620px" />
+
+## Revoke
+
+Revoke asks first and says what stops (the capabilities not already off), what stays (drafts in
+the Drafts folder, events in the calendar, files on the drive, notes in the folder), and that
+cutting access on the service's side is done there. The connector stays listed as not connected
+with its choices kept, so connecting again restores them; "Remove from the list" forgets it.
+
+<Story of={Stories.Revoke} inline={false} height="620px" />
+
+## Open questions
+
+- A or B? Leaning B (few connectors, the capabilities are the content).
+- Should Sandclaw also cancel the sign-in on the service's side when revoking (token revocation),
+  where the service allows it? Leaning yes, with the note kept for services that do not.
+- Can sending ever be "Allowed" (e.g. replies to one known person)? Leaning no for now.
+- After revoke, keep the capability choices for a later reconnect, or reset to defaults? Leaning
+  keep.
+- Should the admin be able to forbid a connector kind for the group (e.g. no unknown MCP servers)
+  even though they never see the sign-ins? Leaning yes, as a group policy elsewhere.
+- Recent activity: last line only, or a full per-connector log the member can scroll? Leaning the
+  last few lines here, the full record in the task log.

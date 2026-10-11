@@ -7,6 +7,7 @@ catalog:
   "@ai-sdk/google": ^4.0.87
   "@ai-sdk/openai": ^4.0.83
   "@ai-sdk/provider": ^4.0.21
+  "@assistant-ui/react": ^0.15.26
   "@base-ui/react": ^1.8.0
   "@biomejs/biome": ^2.5.15
   "@browser-ai/transformers-js": ^3.0.4
@@ -76,11 +77,15 @@ catalog:
   "@statewalker/ui.view.shadcn": ^0.1.1
   "@statewalker/webrun-files": "^0.10.0"
   "@statewalker/webrun-files-browser": "^0.10.0"
+  "@statewalker/webrun-files-composite": ^0.10.0
   "@statewalker/webrun-files-mem": ^0.10.0
   "@statewalker/webrun-files-node": ^0.10.0
   "@statewalker/workspace.browser": "^0.5.0"
   "@statewalker/workspace.core": "^0.5.0"
   "@statewalker/workspace.view.react": "^0.2.0"
+  "@storybook/addon-docs": ^10.6.1
+  "@storybook/addon-themes": ^10.6.1
+  "@storybook/react-vite": ^10.6.1
   "@tailwindcss/typography": ^0.5.20
   "@tailwindcss/vite": ^4.3.3
   "@tanstack/react-query": "^5.104.1"
@@ -113,6 +118,7 @@ catalog:
   remark-gfm: ^4.0.1
   shadcn: ^4.21.1
   "shiki": "^4.5.0"
+  storybook: ^10.6.1
   tailwind-merge: ^3.7.0
   tailwindcss: ^4.3.3
   "tsdown": "^0.23.0"

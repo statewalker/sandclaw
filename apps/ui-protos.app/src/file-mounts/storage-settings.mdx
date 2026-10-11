@@ -1,0 +1,158 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./storage-settings.stories.tsx";
+
+<Meta of={Stories} />
+
+# Files app — storage settings
+
+Settings → **Storage**: every storage the Files app shows, what state it is in and what to do
+about it, the form that adds or edits one, and the password that protects the S3 keys. The
+prototype runs on a pretend S3 that fails on demand, so every message below can be seen.
+What to look at: **whether each status says what to do next**, **whether a failed connection
+test explains itself**, and **when the password is asked for**.
+
+## The list
+
+A row per storage: its type, its name, where it points, its status and the one action that
+status needs.
+
+| Status | Action |
+|---|---|
+| Mounted | none |
+| Needs access (a local folder after a reload) | **Reconnect**: "Click Reconnect to give access to *folder* again." |
+| Locked (the keys are locked) | **Unlock** opens the password dialog; unlocking mounts every locked S3 storage at once |
+| Failed | the reason in plain words, **Details** with the raw message, **Retry** (runs the test again) |
+| Unmounted | **Mount** |
+
+Each row also has **Edit**, **Unmount** and **Remove**. Remove asks first: "Remove *name*? Its
+saved keys are deleted. The files themselves stay where they are."
+
+<Story of={Stories.List} inline={false} height="760px" />
+
+<Story of={Stories.ListLocked} inline={false} height="760px" />
+
+## Adding a storage
+
+**Add storage** asks for the type first: **Local folder**, **Browser storage** or **S3**. Local
+folders exist only in Chrome and Edge; elsewhere the choice is greyed with "This browser can't
+open local folders; use Chrome or Edge." A local folder needs *Choose folder…* and a name (the
+prototype pretends the folder chosen is *Projects*); browser storage needs only a name.
+
+<Story of={Stories.AddChooseType} inline={false} height="560px" />
+
+<Story of={Stories.NoLocalFolders} inline={false} height="560px" />
+
+The S3 form: name and key (the key follows the name until it is edited), provider (AWS,
+Cloudflare R2, MinIO / RustFS, Backblaze B2, Wasabi, Other: each fills the endpoint pattern,
+region and path-style), endpoint, region, bucket, prefix, access key ID, secret access key (with
+show / hide), path-style addressing and read-only. Mistakes show under their field — "Enter a
+name.", "Bucket names are 3–63 lowercase letters, digits, dots and dashes.", "Replace the part in
+`<…>` with your value." — only after the first *Save* or *Test connection*, not while typing.
+Editing never shows the saved keys back: both key fields stay empty and empty keeps them.
+
+<Story of={Stories.AddS3} inline={false} height="760px" />
+
+## Testing a connection
+
+*Test connection* runs five checks in order and stops at the first failure: **the address
+answers**, **the keys are accepted**, **the bucket exists**, **listing is allowed**, **writing is
+allowed** (skipped, with a dash, for a read-only storage). Each gets a tick, a cross, a dash or
+a spinner while it runs. A failure is said in plain words, with the raw message under
+*Details*:
+
+| What went wrong | What the person reads |
+|---|---|
+| Wrong keys | "Wrong access key or secret." |
+| Clock off | "This computer's clock is off by more than 15 minutes; S3 refuses the request." |
+| No bucket | "Bucket `name` not found at this endpoint." |
+| Keys lack a right | "These keys can't list this bucket." / "These keys can't write to this bucket." |
+| CORS | "The bucket doesn't allow this site. Add this CORS rule to the bucket:" and the rule |
+| Host down or wrong address | "No answer from *endpoint*." |
+| No answer at all | "No answer in 15 seconds." |
+
+*Save* runs the same test first. When it fails, the form stays open and offers **Save anyway**,
+for a bucket that is offline now but right. A storage saved that way is listed as **Failed**
+with the test's reason, and Retry.
+
+<Story of={Stories.TestPassing} inline={false} height="760px" />
+
+<Story of={Stories.TestBadKeys} inline={false} height="760px" />
+
+<Story of={Stories.TestNoBucket} inline={false} height="760px" />
+
+<Story of={Stories.TestDeniedWrite} inline={false} height="760px" />
+
+<Story of={Stories.TestUnreachable} inline={false} height="760px" />
+
+<Story of={Stories.TestClockSkew} inline={false} height="760px" />
+
+### CORS, the one that needs the bucket owner
+
+A browser talks to S3 directly, so the bucket must allow the Files app's address. When it
+does not, the browser reports only "Failed to fetch" — the same as a host that is down. The
+test tells them apart with a plain request the browser may send without CORS: if the host
+answers that, the host is up and CORS is what refused. The message then carries a ready rule
+for the app's address, with the headers copy and move need (`x-amz-copy-source`,
+`x-amz-metadata-directive`) and `ETag` exposed, and a **Copy rule** button.
+
+<Story of={Stories.TestCors} inline={false} height="900px" />
+
+## The keys and their password
+
+S3 keys are kept encrypted under a password. It is asked for when the first S3 storage is
+saved ("Protect your keys with a password": at least 8 characters, typed twice), and at
+start-up S3 storages wait, **Locked**, until it is entered ("Unlock your keys"; a wrong one
+says "Wrong password."). *Remember on this browser* unlocks silently next time.
+
+The **Secret keys** section shows the state and offers Unlock or Lock, Change password, Forget
+this browser (when remembered) and Reset, which asks first: "Delete all saved keys? Storages
+stay, waiting for their keys again." After a reset the S3 storages say "No saved keys: edit the
+storage to enter them again.", with **Edit** as their action instead of Retry.
+
+<Story of={Stories.CreateVault} inline={false} height="560px" />
+
+<Story of={Stories.UnlockVault} inline={false} height="560px" />
+
+<Story of={Stories.ChangePassword} inline={false} height="560px" />
+
+## Phone
+
+The rows wrap: name and status on the first line, where on the second, the actions below. The
+form's fields stack in one column.
+
+<Story of={Stories.Phone} inline={false} height="760px" />
+
+## A — The list, and the form on its own page (built)
+
+*Add storage* and *Edit* replace the list with the form; Save or Cancel brings the list back.
+The S3 form is long (eleven fields and a test report that can hold a CORS rule), and on its
+own page it has the whole width, on a phone too.
+
+## B — The list, and the form in a side sheet (not built)
+
+The form slides in from the right over the list, which stays visible behind it. It keeps the
+person's place in a long list and feels lighter for a quick edit. But the sheet is narrow on a
+desktop and the whole screen on a phone anyway, and the CORS rule needs width to be readable.
+
+**Leaning: A.** The list is short (a handful of storages), so losing sight of it costs little,
+and the S3 form needs the room.
+
+## Decisions assumed (from the design)
+
+- Saving an S3 storage tests it first; a failed test saves only through *Save anyway*, and the
+  storage is then listed as **Failed** with that test's reason (and Retry).
+- The password is asked for on the first S3 save, not before; other storage types never ask.
+- Unlocking mounts every locked S3 storage; locking unmounts them back to Locked.
+- Saved keys are never shown back in the form.
+- Removing a storage deletes its keys, never its files.
+- The CORS rule names the address this page is served from; the app's address is a setting
+  (`origin`) for when it is served from elsewhere.
+- Storage settings and keys stay on each device; following the person to other devices needs
+  synchronisation and comes later.
+
+## Open questions
+
+1. Should *Forget this browser* also lock at once, or only stop the silent unlock next time
+   (as now)?
+2. Editing an S3 storage keeps the saved keys when the key fields stay empty. Is that clear
+   enough, or should there be an explicit *Change keys* step?

@@ -2,7 +2,7 @@
 
 ## What it is
 
-The StateWalker chat and wiki applications, and the packages they are built from. Two web apps live here: `chat-mini.app`, a browser chat client with an AI agent, file viewers and self-indexing wikis, and `wiki-viewer.app`, a server-rendered viewer for wiki reports and live wiki questions. Two packages are published to npm: `@statewalker/wiki.core` (the wiki engine) and `@statewalker/wiki.view.react` (its React panel). Everything else is private to this workspace.
+The StateWalker chat and wiki applications, and the packages they are built from. Two web apps live here: `chat-mini.app`, a browser chat client with an AI agent, file viewers and self-indexing wikis, and `wiki-viewer.app`, a server-rendered viewer for wiki reports and live wiki questions. `ui-protos.app` is a Storybook of Sandclaw UI prototypes. Two packages are published to npm: `@statewalker/wiki.core` (the wiki engine) and `@statewalker/wiki.view.react` (its React panel). Everything else is private to this workspace.
 
 ## Layout
 
@@ -16,6 +16,7 @@ apps/
   chat-mini.chat/       @statewalker/chat-mini.chat        (private library)
   chat-mini.chat-react/ @statewalker/chat-mini.chat-react  (private library)
   wiki-viewer.app/      @statewalker/wiki-viewer-app   (private app)
+  ui-protos.app/        @statewalker/ui-protos-app     (private app)
 ```
 
 | Package | What | Published |
@@ -27,6 +28,7 @@ apps/
 | [`@statewalker/chat-mini.chat-react`](apps/chat-mini.chat-react) | Chat renderer fragment: chat panel, turn views, sessions panel, deep links. | private |
 | [`@statewalker/chat-mini-app`](apps/chat-mini.app) | The chat web app (Vite, port 3460). | private app |
 | [`@statewalker/wiki-viewer-app`](apps/wiki-viewer.app) | The wiki viewer web app (HonoX, Vite port 5173). | private app |
+| [`@statewalker/ui-protos-app`](apps/ui-protos.app) | Storybook of Sandclaw UI prototypes (port 6006), built to a static site. | private app |
 
 ```
 chat-mini.app ──▶ app-shell, chat-mini.chat(-react), wiki.core, wiki.view.react

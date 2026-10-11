@@ -1,0 +1,52 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./invitations-log.stories.tsx";
+
+<Meta of={Stories} />
+
+# Invitations log
+
+What happened to the invites the group issued: who joined, which links were declined, which
+expired unused or were cancelled, which are still waiting. It is a log to read, not a place to
+act. Each invite's state comes from its events: **waiting** (not answered, not expired),
+**accepted**, **declined**, **expired**, **cancelled**.
+
+Both variants share the same controls. The period (last 7 / **30** / 90 days, or all) keeps an
+invite when any of its events falls in it. The search matches the invite's name, the person who
+joined, their device, and who created it, ignoring case and accents ("ines" finds "Inès"). The
+state chips filter and count what the period and search left.
+
+## A — One row per invite
+
+One row per invite: its name, role, who created it and when, its state, and the outcome in a
+sentence ("Hugo Benali joined from Chrome on Windows", "Expired unused on 2 Oct"). A waiting
+invite says when it expires. A row opens to its timeline. Answers "what became of the invite I
+sent Marc?" at a glance; the order of events across invites is lost.
+
+<Story of={Stories.ByInvite} inline={false} height="620px" />
+
+## B — Event log
+
+One line per event, newest first, grouped by day, like an activity feed. Answers "what happened
+this week?"; the current state of an invite has to be pieced together from several lines, and
+an invite still waiting shows only as "created".
+
+<Story of={Stories.EventLog} inline={false} height="620px" />
+
+## Search and empty states
+
+<Story of={Stories.Search} inline={false} height="420px" />
+
+An empty period names the period, so it does not read as "the log is broken".
+
+<Story of={Stories.EmptyPeriod} inline={false} height="300px" />
+
+<Story of={Stories.NoMatch} inline={false} height="300px" />
+
+## Open questions
+
+- A or B? Or A as the default with B as a second tab of the same panel?
+- Should a waiting invite be cancellable from the log, or does the log stay read-only and the
+  invite list keep the actions?
+- An invite a member made for their own device ("Inès — phone"): show it with the others, mark
+  it ("for her own device"), or hide it behind a filter?
+- Does an admin need to know an invite link was opened but not answered, or is "waiting" enough?

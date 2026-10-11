@@ -1,0 +1,25 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Welcome" />
+
+# Sandclaw UI prototypes
+
+Design variants for Sandclaw screens, side by side, with the discussion next to them. Each
+entry under **Prototypes** has a docs page that argues for and against its variants, and one
+story per variant or state to open on its own.
+
+Everything here is built from the same shadcn primitives (`@statewalker/ui.view.shadcn`) and
+theme tokens as the shipped app, so what you see is what the app would look like. Use the
+toolbar's theme switch to check the dark theme.
+
+## Adding a prototype
+
+1. Create `src/<topic>/<topic>.tsx` with one exported component per variant. Mock data goes
+   in `src/mock.ts`.
+2. Add `src/<topic>/<topic>.stories.tsx`: one story per variant or state, titled
+   `Prototypes/<Topic>`.
+3. Add `src/<topic>/<topic>.mdx`: what question the prototype answers, a `<Canvas>` per
+   variant with its trade-offs, and the open questions.
+
+Prototypes are throwaway. When a direction wins, it is rebuilt in the real packages; the
+prototype is deleted or kept as the record of the alternatives.

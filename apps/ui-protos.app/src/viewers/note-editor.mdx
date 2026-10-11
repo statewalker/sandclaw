@@ -1,0 +1,92 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./note-editor.stories.tsx";
+
+<Meta of={Stories} />
+
+# Note editor
+
+Notes are Markdown files in the user's folder: the one kind of file Sandclaw edits. They hold the
+user's todos (`- [ ]` lines, collected by **Notes and todos**), meeting notes, what the assistant
+was asked to write down. The editor is designed once, here, for the user app.
+
+The users are not technical. Markdown is the file format, not something they should have to
+learn: they should be able to read a note as a formatted page, tick a todo, and type, without
+meeting `**` and `- [ ]` unless they choose to.
+
+Both variants share the header of the **Viewers** (name, folder, Ask, Show in folder, Download),
+the save status, the conflict banner and the citation highlight.
+
+## A — Source | Preview | Side by side
+
+Three modes, **Preview** first: a note opens as the formatted page. Todos tick in the preview, and
+the tick is written to the line it came from. Clicking anywhere else in the preview switches to
+**Source** with the caret on the line clicked, so "I want to change this sentence" is one click.
+**Side by side** is source and preview together; on a narrow tab it stacks them, source above.
+
+The model is honest — the file is text, the preview is a view of it — and familiar to anyone who
+used a Markdown app. The cost is the mode switch: typing means leaving the formatted page for a
+page of symbols.
+
+<Story of={Stories.Modes} inline={false} height="640px" />
+
+<Story of={Stories.SideBySide} inline={false} height="640px" />
+
+## B — One live editor
+
+No modes. The note is always the formatted page; the block clicked (a paragraph, a heading, a
+list) turns into its Markdown source while the user types in it, and back when they leave it (or
+press Escape). "Click to write…" at the end adds a new paragraph. Todos tick in place.
+
+The source shows only where the user is typing, a few lines at a time, so the symbols are less
+scary and the rest of the note stays readable. The costs: what the user clicks changes shape
+under the pointer, a whole list or table becomes source at once, and there is no place to see the
+file as it is.
+
+<Story of={Stories.Live} inline={false} height="640px" />
+
+**Leaning B** for this audience: the formatted page is where they live, and editing one block at a
+time keeps Markdown small. A's Source mode could still be reached from a menu for the rare user
+who wants the whole file as text.
+
+## Saving
+
+There is no Save button. A note is written when typing pauses (here 0.8 s); the header says
+**Saving…**, then **Saved**.
+
+<Story of={Stories.Saving} inline={false} height="420px" />
+
+When the folder is disconnected (the browser lost permission, the drive was unplugged), edits stay
+in the tab and the header says so in plain words: **Not saved — the folder is disconnected**, with
+**Reconnect**. Reconnecting writes the pending edits at once.
+
+<Story of={Stories.Disconnected} inline={false} height="420px" />
+
+## Changed on disk while editing
+
+Another program (a sync app, a phone, a text editor) changed the note while it was open here.
+Saving stops — writing now would silently erase their change — and a banner asks:
+
+- **Keep mine** writes this tab's version over theirs;
+- **Take theirs** replaces this tab's text with the file on disk;
+- **See both** shows the two versions, differing lines marked, each with "Keep this version".
+
+There is no merge: merging Markdown by hand is not something these users should be asked to do.
+
+<Story of={Stories.Conflict} inline={false} height="640px" />
+
+## Opened from an answer
+
+As for the viewers: the cited passage is highlighted and scrolled to, with the "Cited in" banner.
+
+<Story of={Stories.Cited} inline={false} height="640px" />
+
+## Open questions
+
+- A or B? Leaning B, with A's whole-file Source reachable from a menu.
+- In A, should Preview be remembered per note (a note last edited as source reopens as source)?
+- Conflict: should "Keep mine" also keep a copy of theirs (`meeting 2026-10-02 (theirs).md`) so
+  nothing is ever lost? Leaning yes.
+- A disconnected folder: keep accepting edits (risking a bigger conflict later), or turn the note
+  read-only until Reconnect? Leaning keep accepting.
+- Should the editor offer a small formatting bar (bold, list, todo) for users who don't know the
+  syntax, or is "type `- [ ]`" acceptable since todos can also be added from the Todos panel?
