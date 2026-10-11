@@ -3,6 +3,12 @@ import { describe, expect, it } from "vitest";
 import { newDemoStorages } from "../src/file-panels/demo-storages.js";
 import { breadcrumb, clickSelect, siblings, sortEntries } from "../src/file-panels/paths.js";
 import { MountUnavailable } from "../src/file-panels/problem.js";
+import {
+  findClashes,
+  freeName,
+  planTransfer,
+  validateName,
+} from "../src/file-panels/transfer-plan.js";
 
 const names = async (files: import("@statewalker/webrun-files").FilesApi, path: string) => {
   const out: string[] = [];
@@ -88,5 +94,96 @@ describe("sorting and selection", () => {
     expect(s.selected).toEqual(["/b", "/c", "/d"]);
     s = clickSelect(s.selected, s.anchor, order, "/c", { shift: false, ctrl: true });
     expect(s.selected).toEqual(["/b", "/d"]);
+  });
+});
+
+describe("planTransfer", () => {
+  it("refuses a folder into itself or below it", async () => {
+    const { files } = newDemoStorages();
+    const plan = await planTransfer(files, {
+      op: "move",
+      sources: ["/documents/clients"],
+      targetDir: "/documents/clients/dupont",
+      clash: "skip",
+    });
+    expect(plan.invalid).toBe("A folder can't be copied or moved into itself.");
+    expect(plan.steps).toEqual([]);
+  });
+
+  it("dropping into the source's own folder copies under a free name", async () => {
+    const { files } = newDemoStorages();
+    const plan = await planTransfer(files, {
+      op: "move",
+      sources: ["/documents/readme.md"],
+      targetDir: "/documents",
+      clash: "skip",
+    });
+    expect(plan.steps).toEqual([
+      {
+        op: "copy",
+        from: "/documents/readme.md",
+        to: "/documents/readme copy.md",
+        overwrite: false,
+      },
+    ]);
+  });
+
+  it("applies the clash policy: skip, overwrite, keep both", async () => {
+    const { files } = newDemoStorages();
+    await files.write("/archive/2026/todo.md", [new TextEncoder().encode("old")]);
+    const req = {
+      op: "copy" as const,
+      sources: ["/documents/notes/todo.md"],
+      targetDir: "/archive/2026",
+    };
+    expect(await findClashes(files, req.sources, req.targetDir)).toEqual(["todo.md"]);
+    expect((await planTransfer(files, { ...req, clash: "skip" })).skipped).toEqual([
+      "/documents/notes/todo.md",
+    ]);
+    expect((await planTransfer(files, { ...req, clash: "overwrite" })).steps[0]).toMatchObject({
+      to: "/archive/2026/todo.md",
+      overwrite: true,
+    });
+    expect((await planTransfer(files, { ...req, clash: "keep-both" })).steps[0]).toMatchObject({
+      to: "/archive/2026/todo copy.md",
+      overwrite: false,
+    });
+  });
+
+  it("two sources with the same name never overwrite each other", async () => {
+    const { files } = newDemoStorages();
+    const plan = await planTransfer(files, {
+      op: "copy",
+      sources: ["/documents/readme.md", "/archive/2026/readme.md"],
+      targetDir: "/browser",
+      clash: "keep-both",
+    });
+    expect(plan.steps.map((s) => s.to)).toEqual(["/browser/readme.md", "/browser/readme copy.md"]);
+  });
+
+  it("a single source can be renamed", async () => {
+    const { files } = newDemoStorages();
+    const plan = await planTransfer(files, {
+      op: "copy",
+      sources: ["/documents/readme.md"],
+      targetDir: "/browser",
+      rename: "intro.md",
+      clash: "skip",
+    });
+    expect(plan.steps[0]?.to).toBe("/browser/intro.md");
+  });
+});
+
+describe("names", () => {
+  it("frees a name", () => {
+    expect(freeName("a.md", new Set(["a.md"]))).toBe("a copy.md");
+    expect(freeName("a.md", new Set(["a.md", "a copy.md"]))).toBe("a copy 2.md");
+    expect(freeName("folder", new Set(["folder"]))).toBe("folder copy");
+  });
+  it("validates a name", () => {
+    expect(validateName("")).toBe("Enter a name.");
+    expect(validateName("a/b")).toBe("A name can't contain / or \\.");
+    expect(validateName("..")).toBe("This name is reserved.");
+    expect(validateName("ok.md")).toBeUndefined();
   });
 });
