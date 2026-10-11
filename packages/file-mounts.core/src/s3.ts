@@ -4,7 +4,6 @@
 import {
   DeleteObjectCommand,
   HeadBucketCommand,
-  ListBucketsCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
@@ -70,6 +69,15 @@ function asNetworkError(error: unknown): unknown {
   return network;
 }
 
+async function hostAnswers(endpoint: string, fetchFn: typeof fetch = fetch): Promise<boolean> {
+  try {
+    await fetchFn(endpoint, { mode: "no-cors" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function newS3Probe(
   settings: S3Settings,
   keys: S3Keys,
@@ -78,14 +86,18 @@ export function newS3Probe(
   const client = newClient(settings, keys);
   const Bucket = settings.bucket;
   const prefix = settings.prefix.replace(/^\/+/, "");
-  // One signed call answers two checks: does the endpoint answer, are the keys
-  // accepted. AccessDenied there still means the keys were authenticated.
+  // One signed, bucket-scoped call answers two checks: does the endpoint answer,
+  // are the keys accepted. It is bucket-scoped because a bucket's CORS rule
+  // applies to it (a service-level ListBuckets gets no CORS headers). A missing
+  // bucket or AccessDenied still means the keys were authenticated.
   let authOutcome: Promise<unknown> | undefined;
   const listBuckets = () =>
-    (authOutcome ??= client.send(new ListBucketsCommand({})).then(
-      () => undefined,
-      (e: unknown) => e,
-    ));
+    (authOutcome ??= client
+      .send(new ListObjectsV2Command({ Bucket, Prefix: prefix, MaxKeys: 0 }))
+      .then(
+        () => undefined,
+        (e: unknown) => e,
+      ));
   const send = async (run: () => Promise<unknown>) => {
     try {
       await run();
@@ -94,14 +106,7 @@ export function newS3Probe(
     }
   };
   return {
-    async hostAnswers() {
-      try {
-        await (opts.fetch ?? fetch)(settings.endpoint, { mode: "no-cors" });
-        return true;
-      } catch {
-        return false;
-      }
-    },
+    hostAnswers: () => hostAnswers(settings.endpoint, opts.fetch),
     async check(id) {
       switch (id) {
         case "endpoint": {
@@ -121,7 +126,9 @@ export function newS3Probe(
             await client.send(new HeadBucketCommand({ Bucket }));
           } catch (e) {
             if (statusOf(e) === 404) {
-              throw { name: "NoSuchBucket", message: `${Bucket} does not exist.` };
+              const missing = new Error(`${Bucket} does not exist.`);
+              missing.name = "NoSuchBucket";
+              throw missing;
             }
             if (statusOf(e) === 403) return; // it exists; listing says whether it may be read
             throw asNetworkError(e);
@@ -158,7 +165,7 @@ export function testConnection(
   );
 }
 
-export function s3MountType(opts: { origin?: string } = {}): MountType {
+export function s3MountType(opts: { origin?: string; fetch?: typeof fetch } = {}): MountType {
   return {
     id: "s3",
     label: "S3 bucket",
@@ -193,13 +200,21 @@ export function s3MountType(opts: { origin?: string } = {}): MountType {
       try {
         for await (const _ of api.list("/")) break;
       } catch (e) {
+        const error = asNetworkError(e);
+        // A browser reports a missing CORS rule like a dead host; an unsigned
+        // no-cors request tells them apart.
+        const answers =
+          nameOf(error) === "TypeError"
+            ? await hostAnswers(settings.endpoint, opts.fetch)
+            : undefined;
         throw new MountUnavailable(
           mount.key,
-          classifyS3Error(asNetworkError(e), {
+          classifyS3Error(error, {
             check: "list",
             endpoint: settings.endpoint,
             bucket: settings.bucket,
             origin: opts.origin ?? globalThis.location?.origin ?? "",
+            hostAnswers: answers,
           }),
         );
       }

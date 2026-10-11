@@ -69,9 +69,12 @@ without mounting.
 
 `testConnection` runs five checks in order and stops at the first failure:
 
-1. **The address answers.** A signed `ListBuckets`; any HTTP answer, even a refusal, counts.
+1. **The address answers.** A signed `ListObjectsV2` with `MaxKeys: 0` on the bucket; any HTTP answer,
+   even a refusal, counts. It is bucket-scoped because the bucket's CORS rule applies to it; a
+   service-level `ListBuckets` gets no CORS headers from AWS or R2 and would always look like CORS.
 2. **The keys are accepted.** The same call: `InvalidAccessKeyId`, `SignatureDoesNotMatch` and
-   `RequestTimeTooSkewed` fail here. An `AccessDenied` still means the keys were recognised.
+   `RequestTimeTooSkewed` fail here. `AccessDenied` and `NoSuchBucket` still mean the keys were
+   recognised; the next checks report those.
 3. **The bucket exists.** `HeadBucket`; a 403 passes, because listing says whether the bucket may be read.
 4. **Listing is allowed.** `ListObjectsV2` under the prefix.
 5. **Writing is allowed.** Puts and deletes a small object `<prefix>.<key>-write-test-<uuid>`. Skipped
@@ -85,9 +88,9 @@ host is up and the browser blocked the signed call: the problem is `cors`, and t
 rule for the page's origin. If it does not answer, the problem is `unreachable`. Without this second
 request the two cases are indistinguishable in a browser.
 
-Storages other than AWS usually have no region; the client then signs with `us-east-1`, which is what
-MinIO, RustFS and similar servers expect by default. The AWS preset requires a region in the form, so
-AWS is never signed with a guessed one.
+When the region is left empty, which the "Other" and R2 presets allow, the client signs with
+`us-east-1`, which is what S3-compatible servers expect by default. The AWS, MinIO / RustFS, B2 and
+Wasabi presets require a region in the form, so those are never signed with a guessed one.
 
 Messages, as the person sees them:
 
@@ -101,6 +104,7 @@ Messages, as the person sees them:
 | Host dead | ``No answer from `endpoint`.`` |
 | Hang | `No answer in 15 seconds.` |
 | Vault locked | `Locked: unlock to use the S3 storages.` |
+| S3 keys not entered | `Enter the keys for this storage in Settings → Storage.` |
 | Folder access lost | ``Click Reconnect to give access to `folder` again.`` |
 | Browser without folders | `This browser can't open local folders; use Chrome or Edge.` |
 
@@ -125,8 +129,10 @@ if (!report.ok) console.log(report.problem?.message, report.problem?.fix?.json);
 Read a mount that cannot be used:
 
 ```ts
+import { MountUnavailable } from "@statewalker/file-mounts.core";
+
 try {
-  await table.files.list("/archive").next();
+  for await (const _ of table.files.list("/archive")) break;
 } catch (e) {
   if (e instanceof MountUnavailable) console.log(e.problem.cause, e.problem.message);
 }
@@ -187,7 +193,7 @@ except `saveMountConfigs`, so a damaged file survives until the person saves.
 
 ## Running the S3 suite against a real server
 
-The unit suite needs no network:
+The unit suite needs no S3 server or Docker:
 
 ```
 pnpm --filter @statewalker/file-mounts.core test
