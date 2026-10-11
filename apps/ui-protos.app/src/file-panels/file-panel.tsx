@@ -88,6 +88,9 @@ const KEY_COMMANDS: Record<string, PanelCommand> = {
   Delete: "delete",
 };
 
+/** The root only lists the storages: nothing there can be renamed, moved, deleted or created. */
+const ROOT_COMMANDS: PanelCommand[] = ["copy", "download", "copy-path", "open-in-new-panel"];
+
 const MOUNT_ICONS: Record<DemoMount["type"], LucideIcon> = {
   "local-folder": HardDrive,
   opfs: Globe,
@@ -185,8 +188,11 @@ export function FilePanel(props: FilePanelProps) {
     return sortEntries(shown, sort);
   }, [listing, filter, sort]);
   const order = useMemo(() => visible.map((e) => e.path), [visible]);
+  // Commands act only on what is on screen: a row hidden by the filter is never deleted unseen.
+  const shownSelection = selected.filter((p) => order.includes(p));
 
-  const handle = (paths = selected): PanelHandle => ({ path, selected: paths });
+  const handle = (paths = shownSelection): PanelHandle => ({ path, selected: paths });
+  const allowed = (c: PanelCommand) => !atRoot || ROOT_COMMANDS.includes(c);
   const mountOf = (p: string) => p.split("/")[1] ?? "";
   const mountByKey = (key: string) => mounts.find((m) => m.key === key);
 
@@ -227,8 +233,11 @@ export function FilePanel(props: FilePanelProps) {
     } else if (command) {
       // With nothing selected a command acts on the cursor row, or on nothing;
       // a new folder needs no row.
-      const paths = selected.length ? selected : cursor ? [cursor] : [];
-      if (paths.length || command === "mkdir") onCommand?.(command, handle(paths));
+      const atCursor = cursor && order.includes(cursor) ? [cursor] : [];
+      const paths = shownSelection.length ? shownSelection : atCursor;
+      if (allowed(command) && (paths.length || command === "mkdir")) {
+        onCommand?.(command, handle(paths));
+      }
     } else if (e.key.length === 1 && e.key !== " " && !e.ctrlKey && !e.metaKey && !e.altKey) {
       setFilter(e.key);
       filterBox.current?.focus();
@@ -239,7 +248,7 @@ export function FilePanel(props: FilePanelProps) {
   };
 
   const startDrag = (e: DragEvent, entry: FileInfo) => {
-    const paths = selected.includes(entry.path) ? selected : [entry.path];
+    const paths = selected.includes(entry.path) ? shownSelection : [entry.path];
     e.dataTransfer.setData(PATHS_TYPE, JSON.stringify(paths));
     e.dataTransfer.effectAllowed = "copyMove";
   };
@@ -278,18 +287,20 @@ export function FilePanel(props: FilePanelProps) {
   };
 
   const menuItems = (entry: FileInfo): MenuItem[] => {
-    const paths = selected.includes(entry.path) ? selected : [entry.path];
+    const paths = selected.includes(entry.path) ? shownSelection : [entry.path];
     const run = (c: PanelCommand) => () => onCommand?.(c, handle(paths));
+    const item = (c: PanelCommand, label: string, hint?: string): MenuItem[] =>
+      allowed(c) ? [{ label, hint, onSelect: run(c) }] : [];
     const isFile = entry.kind === "file";
     return [
       { label: "Open", onSelect: () => open(entry) },
-      ...(isFile ? [] : [{ label: "Open in new panel", onSelect: run("open-in-new-panel") }]),
-      { label: "Copy to…", hint: "F5", onSelect: run("copy") },
-      { label: "Move to…", hint: "F6", onSelect: run("move") },
-      { label: "Rename", hint: "F2", onSelect: run("rename") },
-      { label: "Delete", hint: "F8", onSelect: run("delete") },
-      ...(isFile ? [{ label: "Download", onSelect: run("download") }] : []),
-      { label: "Copy path", onSelect: run("copy-path") },
+      ...(isFile ? [] : item("open-in-new-panel", "Open in new panel")),
+      ...item("copy", "Copy to…", "F5"),
+      ...item("move", "Move to…", "F6"),
+      ...item("rename", "Rename", "F2"),
+      ...item("delete", "Delete", "F8"),
+      ...(isFile ? item("download", "Download") : []),
+      ...item("copy-path", "Copy path"),
     ];
   };
 
@@ -343,6 +354,7 @@ export function FilePanel(props: FilePanelProps) {
           size="icon-sm"
           aria-label="New folder"
           title="New folder"
+          disabled={atRoot}
           onClick={() => onCommand?.("mkdir", handle())}
         >
           <FolderPlus className="size-4" />

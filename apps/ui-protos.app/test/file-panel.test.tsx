@@ -166,4 +166,38 @@ describe("FilePanel", () => {
       screen.getAllByRole("row", { selected: true }).map((r) => r.getAttribute("data-name")),
     ).toEqual(["dupont"]);
   });
+
+  it("at the root only Open, Copy to… and their kind work: no rename, move, delete or new folder", async () => {
+    const onCommand = vi.fn();
+    render(<Harness start="/" onCommand={onCommand} />);
+    const row = await screen.findByRole("row", { name: "Documents" });
+    expect(screen.getByRole("button", { name: "New folder" })).toHaveProperty("disabled", true);
+    fireEvent.contextMenu(row);
+    const items = within(await screen.findByRole("menu"))
+      .getAllByRole("menuitem")
+      .map((i) => i.textContent);
+    expect(items.some((i) => /Rename|Move to|Delete/.test(i ?? ""))).toBe(false);
+    expect(items.some((i) => i?.startsWith("Open"))).toBe(true);
+    expect(items.some((i) => i?.startsWith("Copy to"))).toBe(true);
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    const grid = screen.getByRole("grid");
+    for (const key of ["F2", "F6", "F7", "F8", "Delete"]) fireEvent.keyDown(grid, { key });
+    expect(onCommand).not.toHaveBeenCalled();
+    fireEvent.keyDown(grid, { key: "F5" });
+    expect(onCommand).toHaveBeenCalledWith("copy", { path: "/", selected: ["/documents"] });
+  });
+
+  it("a command acts only on the selected rows the filter still shows", async () => {
+    const onCommand = vi.fn();
+    render(<Harness onCommand={onCommand} />);
+    fireEvent.click(await screen.findByRole("row", { name: /clients/ }));
+    fireEvent.click(screen.getByRole("row", { name: /readme/ }), { ctrlKey: true });
+    fireEvent.change(screen.getByLabelText("Filter by name"), { target: { value: "read" } });
+    expect(await rows()).toEqual(["readme.md"]);
+    fireEvent.keyDown(screen.getByRole("grid"), { key: "F8" });
+    expect(onCommand).toHaveBeenCalledWith("delete", {
+      path: "/documents",
+      selected: ["/documents/readme.md"],
+    });
+  });
 });

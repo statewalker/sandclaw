@@ -1,7 +1,7 @@
 // Runs a planned copy or move: byte progress per chunk, cancel in the middle
-// of a file, and an overwrite that replaces the old file only with a complete copy.
+// of a file, and a target that is replaced only by a complete copy.
 import type { FilesApi } from "@statewalker/webrun-files";
-import { basename, dirname, joinPath } from "@statewalker/webrun-files";
+import { basename, dirname, joinPath, normalizePath } from "@statewalker/webrun-files";
 import { MountUnavailable, type Problem } from "./problem.js";
 import type { TransferPlan, TransferStep } from "./transfer-plan.js";
 
@@ -28,27 +28,36 @@ const firstSegment = (path: string) => path.split("/")[1] ?? "";
 
 interface FileJob {
   from: string;
-  to: string;
+  /** The path below the step's target; "" for a step that is one file. */
+  rel: string;
   size: number;
 }
 interface StepContent {
   files: FileJob[];
+  /** Every folder to recreate below the target (empty ones too); "" is the target itself. */
   dirs: string[];
 }
 
-/** What a step moves: its files as [source, target] and every folder to recreate (empty ones too). */
+/** What a step moves: its files and folders, relative to the step's source. */
 async function contentOf(files: FilesApi, step: TransferStep): Promise<StepContent> {
   const stats = await files.stats(step.from);
-  if (!stats) throw new Error(`${basename(step.from)} no longer exists.`);
+  if (!stats) throw new Error("It no longer exists.");
   if (stats.kind === "file")
-    return { files: [{ from: step.from, to: step.to, size: stats.size }], dirs: [] };
-  const out: StepContent = { files: [], dirs: [step.to] };
+    return { files: [{ from: step.from, rel: "", size: stats.size }], dirs: [] };
+  const out: StepContent = { files: [], dirs: [""] };
   for await (const e of files.list(step.from, { recursive: true })) {
-    const to = joinPath(step.to, e.path.slice(step.from.length));
-    if (e.kind === "file") out.files.push({ from: e.path, to, size: e.size });
-    else out.dirs.push(to);
+    const rel = e.path.slice(step.from.length);
+    if (e.kind === "file") out.files.push({ from: e.path, rel, size: e.size });
+    else out.dirs.push(rel);
   }
   return out;
+}
+
+/** A step onto its own source, or into it, would destroy the source while "succeeding". */
+function intoItself(step: TransferStep): boolean {
+  const from = normalizePath(step.from);
+  const to = normalizePath(step.to);
+  return to === from || to.startsWith(`${from}/`);
 }
 
 const randomSuffix = () => Math.random().toString(36).slice(2, 10);
@@ -56,20 +65,20 @@ const sibling = (path: string, tag: string) =>
   joinPath(dirname(path), `.${basename(path)}.${tag}-${randomSuffix()}`);
 
 /** A false result from copy, move or remove means the source was not there. */
-function must(done: boolean, from: string) {
-  if (!done) throw new Error(`${basename(from)} no longer exists.`);
+function must(done: boolean) {
+  if (!done) throw new Error("It no longer exists.");
 }
 
 /** Puts a complete `tmp` in place of `to`; the old `to` is set aside and restored if the swap fails. */
 async function swapIn(files: FilesApi, tmp: string, to: string) {
   if (!(await files.exists(to))) {
-    must(await files.move(tmp, to), tmp);
+    must(await files.move(tmp, to));
     return;
   }
   const aside = sibling(to, "old");
-  must(await files.move(to, aside), to);
+  must(await files.move(to, aside));
   try {
-    must(await files.move(tmp, to), tmp);
+    must(await files.move(tmp, to));
   } catch (e) {
     await quietly(() => files.remove(to));
     await quietly(() => files.move(aside, to));
@@ -104,11 +113,12 @@ export async function runTransfer(
     cancelled: false,
   };
 
-  // 1. Sizes up front, so progress has a total; a step that cannot be read fails now.
+  // 1. Sizes up front, so progress has a total; a step that cannot be run fails now.
   const contents = new Map<TransferStep, StepContent>();
   let bytesTotal = 0;
   for (const step of plan.steps) {
     try {
+      if (intoItself(step)) throw new Error("An item can't be copied or moved into itself.");
       const content = await contentOf(files, step);
       contents.set(step, content);
       for (const j of content.files) bytesTotal += j.size;
@@ -123,33 +133,44 @@ export async function runTransfer(
   const report = (file: string) =>
     opts.onProgress?.({ file, bytesDone, bytesTotal, itemsDone, itemsTotal });
 
-  // Streams one file; returns false when cancelled (the incomplete file is removed).
-  const copyFile = async (job: FileJob, overwrite: boolean): Promise<boolean> => {
-    const tmp = overwrite ? sibling(job.to, "part") : job.to;
+  // Streams one file; returns false when cancelled.
+  const copyFile = async (from: string, to: string): Promise<boolean> => {
     let stopped = false;
     async function* chunks() {
-      for await (const chunk of files.read(job.from, { signal })) {
+      for await (const chunk of files.read(from, { signal })) {
         if (signal?.aborted) {
           stopped = true;
           return;
         }
         bytesDone += chunk.length;
-        report(job.from);
+        report(from);
         yield chunk;
       }
     }
+    await files.write(to, chunks());
+    return !(stopped || signal?.aborted);
+  };
+
+  // Across mounts: the whole file or folder is written under a temporary sibling name and
+  // swapped in only when complete, so a cancel or a failure leaves nothing partial under the
+  // real name, and an overwritten folder is replaced, not merged. Returns false when cancelled.
+  const acrossMounts = async (step: TransferStep, content: StepContent): Promise<boolean> => {
+    const tmp = sibling(step.to, "part");
     try {
-      await files.write(tmp, chunks());
-      if (stopped || signal?.aborted) {
-        await quietly(() => files.remove(tmp));
-        return false;
+      for (const dir of content.dirs) await files.mkdir(joinPath(tmp, dir));
+      for (const job of content.files) {
+        if (!(await copyFile(job.from, joinPath(tmp, job.rel)))) {
+          await quietly(() => files.remove(tmp));
+          return false;
+        }
       }
-      if (overwrite) await swapIn(files, tmp, job.to);
-      return true;
+      await swapIn(files, tmp, step.to);
     } catch (e) {
       await quietly(() => files.remove(tmp));
       throw e;
     }
+    if (step.op === "move") must(await files.remove(step.from));
+    return true;
   };
 
   // Same mount: the backend copies or moves; an overwrite goes through a temporary sibling.
@@ -159,18 +180,17 @@ export async function runTransfer(
         await (step.op === "move"
           ? files.move(step.from, step.to)
           : files.copy(step.from, step.to)),
-        step.from,
       );
     } else {
       const tmp = sibling(step.to, "part");
       try {
-        must(await files.copy(step.from, tmp), step.from);
+        must(await files.copy(step.from, tmp));
         await swapIn(files, tmp, step.to);
       } catch (e) {
         await quietly(() => files.remove(tmp));
         throw e;
       }
-      if (step.op === "move") must(await files.remove(step.from), step.from);
+      if (step.op === "move") must(await files.remove(step.from));
     }
     bytesDone += size;
   };
@@ -189,16 +209,10 @@ export async function runTransfer(
           step,
           content.files.reduce((n, j) => n + j.size, 0),
         );
-      } else {
-        for (const dir of content.dirs) await files.mkdir(dir);
-        for (const job of content.files) {
-          if (!(await copyFile(job, step.overwrite))) {
-            // 3. Cancelled: nothing of this step stays as if complete.
-            result.cancelled = true;
-            return result;
-          }
-        }
-        if (step.op === "move") must(await files.remove(step.from), step.from);
+      } else if (!(await acrossMounts(step, content))) {
+        // 3. Cancelled: nothing of this step is left behind.
+        result.cancelled = true;
+        return result;
       }
       itemsDone++;
       result.done.push(step.from);

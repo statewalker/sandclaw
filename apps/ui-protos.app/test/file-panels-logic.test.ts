@@ -235,26 +235,42 @@ describe("runTransfer", () => {
     expect(await readText(files, "/archive/2026/readme.md")).toBe("# Archive 2026\n");
   });
 
-  it("cancelling mid-file removes the partial copy and keeps the source", async () => {
-    vi.useFakeTimers();
-    const { files } = newDemoStorages({ slowMs: 100 });
-    const plan = await planTransfer(files, {
-      op: "move",
-      sources: ["/archive/2025/backup.zip"],
-      targetDir: "/documents",
-      clash: "skip",
-    });
-    const controller = new AbortController();
-    const running = runTransfer(files, plan, { signal: controller.signal });
-    await vi.advanceTimersByTimeAsync(250);
-    controller.abort();
-    await vi.runAllTimersAsync();
-    const result = await running;
-    vi.useRealTimers();
-    expect(result.cancelled).toBe(true);
-    expect(await files.exists("/documents/backup.zip")).toBe(false);
-    expect(await files.exists("/archive/2025/backup.zip")).toBe(true);
-  });
+  it.each([
+    { name: "from", source: "/archive/2025/backup.zip", targetDir: "/documents" },
+    { name: "to", source: "/photos/site-visit/01.jpg", targetDir: "/archive" },
+  ])(
+    "cancelling mid-file $name the slow S3 mount removes the partial copy and keeps the source",
+    async ({ source, targetDir }) => {
+      vi.useFakeTimers();
+      const { files } = newDemoStorages({ slowMs: 100 });
+      const plan = await planTransfer(files, {
+        op: "move",
+        sources: [source],
+        targetDir,
+        clash: "skip",
+      });
+      const controller = new AbortController();
+      let last = { bytesDone: 0, bytesTotal: 0 };
+      const running = runTransfer(files, plan, {
+        signal: controller.signal,
+        onProgress: (p) => {
+          last = p;
+        },
+      });
+      await vi.advanceTimersByTimeAsync(450);
+      const atAbort = last;
+      controller.abort();
+      await vi.runAllTimersAsync();
+      const result = await running;
+      vi.useRealTimers();
+      expect(atAbort.bytesDone).toBeGreaterThan(0);
+      expect(atAbort.bytesDone).toBeLessThan(atAbort.bytesTotal);
+      expect(result.cancelled).toBe(true);
+      expect(await names(files, targetDir)).not.toContain(basename(source));
+      expect((await names(files, targetDir)).filter((n) => n.includes(".part-"))).toEqual([]);
+      expect(await files.exists(source)).toBe(true);
+    },
+  );
 
   it("an unavailable target fails each step with the mount's problem", async () => {
     const locked = {
@@ -432,7 +448,7 @@ describe("runTransfer fix round 1", () => {
     };
     const result = await runTransfer(files, plan);
     expect(result.done).toEqual([]);
-    expect(result.failed[0]?.problem.message).toBe("readme.md no longer exists.");
+    expect(result.failed[0]?.problem.message).toBe("It no longer exists.");
   });
 
   it("a cross-mount folder move keeps empty subfolders", async () => {
@@ -447,5 +463,148 @@ describe("runTransfer fix round 1", () => {
     await runTransfer(files, plan);
     expect(await files.exists("/archive/dupont/empty")).toBe(true);
     expect(await files.exists("/archive/dupont/offer.pdf")).toBe(true);
+  });
+});
+
+describe("final review fixes", () => {
+  const listed = async (files: FilesApi, dir: string) => (await names(files, dir)).sort();
+
+  it.each(["/documents/", "/documents/./", "/documents//"])(
+    "moving a folder into its own folder written as %s copies beside it, never onto itself",
+    async (targetDir) => {
+      const { files } = newDemoStorages();
+      const plan = await planTransfer(files, {
+        op: "move",
+        sources: ["/documents/clients"],
+        targetDir,
+        clash: "overwrite",
+      });
+      expect(plan.steps).toEqual([
+        {
+          op: "copy",
+          from: "/documents/clients",
+          to: "/documents/clients copy",
+          overwrite: false,
+        },
+      ]);
+    },
+  );
+
+  it("normalizes the sources too", async () => {
+    const { files } = newDemoStorages();
+    const plan = await planTransfer(files, {
+      op: "move",
+      sources: ["/documents//clients/"],
+      targetDir: "/documents/clients/dupont",
+      clash: "skip",
+    });
+    expect(plan.invalid).toBe("A folder can't be copied or moved into itself.");
+  });
+
+  it("the runner refuses a step onto itself or into itself and touches nothing", async () => {
+    const { files } = newDemoStorages();
+    const step = (from: string, to: string) => ({ op: "move" as const, from, to, overwrite: true });
+    const result = await runTransfer(files, {
+      steps: [
+        step("/documents/clients", "/documents/clients/"),
+        step("/documents/notes", "/documents/notes/inner"),
+      ],
+      skipped: [],
+      clashes: [],
+    });
+    expect(result.done).toEqual([]);
+    expect(result.failed.map((f) => f.problem.message)).toEqual([
+      "An item can't be copied or moved into itself.",
+      "An item can't be copied or moved into itself.",
+    ]);
+    expect(await listed(files, "/documents/clients")).toEqual(["dupont", "martin"]);
+    expect(await listed(files, "/documents/notes")).toEqual(["meeting-2026-10-02.md", "todo.md"]);
+  });
+
+  it("the root of all storages is read-only and no transfer may target it", async () => {
+    const { files } = newDemoStorages();
+    await expect(files.mkdir("/new")).rejects.toThrow();
+    await expect(writeText(files, "/a.txt", "a")).rejects.toThrow();
+    const plan = await planTransfer(files, {
+      op: "copy",
+      sources: ["/documents/readme.md"],
+      targetDir: "/",
+      clash: "skip",
+    });
+    expect(plan).toMatchObject({ steps: [], invalid: "Choose a folder inside a storage." });
+  });
+
+  it("an overwrite may not replace a folder that holds another source of the request", async () => {
+    const { files } = newDemoStorages();
+    await writeText(files, "/documents/x/a/g.txt", "g");
+    await writeText(files, "/documents/a/f.txt", "f");
+    const plan = await planTransfer(files, {
+      op: "move",
+      sources: ["/documents/x/a", "/documents/a/f.txt"],
+      targetDir: "/documents",
+      clash: "overwrite",
+    });
+    expect(plan.invalid).toBe("A folder can't be replaced by something inside it.");
+    expect(plan.steps).toEqual([]);
+  });
+
+  it("a cross-storage folder overwrite replaces the folder: the old extra files are gone", async () => {
+    const { files } = newDemoStorages();
+    await writeText(files, "/archive/2026/dupont/old.txt", "old");
+    const plan = await planTransfer(files, {
+      op: "copy",
+      sources: ["/documents/clients/dupont"],
+      targetDir: "/archive/2026",
+      clash: "overwrite",
+    });
+    const result = await runTransfer(files, plan);
+    expect(result.done).toEqual(["/documents/clients/dupont"]);
+    expect(await listed(files, "/archive/2026/dupont")).toEqual(["offer.pdf", "plan.png"]);
+    expect(await listed(files, "/archive/2026")).toEqual(["dupont", "readme.md"]);
+  });
+
+  it("cancelling a folder copy mid-way leaves no target folder and the source intact", async () => {
+    vi.useFakeTimers();
+    const { files } = newDemoStorages({ slowMs: 100 });
+    const plan = await planTransfer(files, {
+      op: "move",
+      sources: ["/photos/site-visit"],
+      targetDir: "/documents",
+      clash: "skip",
+    });
+    const controller = new AbortController();
+    let last = { file: "", bytesDone: 0 };
+    const running = runTransfer(files, plan, {
+      signal: controller.signal,
+      onProgress: (p) => {
+        last = p;
+      },
+    });
+    await vi.advanceTimersByTimeAsync(850);
+    const atAbort = last;
+    controller.abort();
+    await vi.runAllTimersAsync();
+    const result = await running;
+    vi.useRealTimers();
+    // The first file was complete, the second one under way.
+    expect(atAbort.file).toBe("/photos/site-visit/02.jpg");
+    expect(result.cancelled).toBe(true);
+    expect(await listed(files, "/documents")).toEqual(["clients", "notes", "readme.md", "reports"]);
+    expect(await listed(files, "/photos/site-visit")).toEqual(["01.jpg", "02.jpg"]);
+  });
+
+  it("a folder overwrite whose copy fails mid-way keeps the old target folder", async () => {
+    const { files } = newDemoStorages({ failPaths: ["/archive/2026/dupont/plan.png"] });
+    await writeText(files, "/archive/2026/dupont/old.txt", "old");
+    const plan = await planTransfer(files, {
+      op: "copy",
+      sources: ["/documents/clients/dupont"],
+      targetDir: "/archive/2026",
+      clash: "overwrite",
+    });
+    const result = await runTransfer(files, plan);
+    expect(result.failed[0]?.problem.message).toContain("connection was reset");
+    expect(await listed(files, "/archive/2026/dupont")).toEqual(["old.txt"]);
+    expect(await listed(files, "/archive/2026")).toEqual(["dupont", "readme.md"]);
   });
 });

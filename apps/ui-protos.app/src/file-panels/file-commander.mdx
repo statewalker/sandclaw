@@ -109,7 +109,10 @@ key bar takes a row on every screen.
 
 - A plain drop between panels pre-selects **Move**; Ctrl / ⌥ pre-selects Copy.
 - **Keep both** is the default for clashes; one choice covers every clash in a batch.
-- An overwrite replaces the old file only with a complete copy.
+- An overwrite replaces the old file only with a complete copy; an overwritten folder is
+  replaced, not merged.
+- A cancelled or failed copy leaves nothing partial: a file or folder appears under its name only
+  once it is complete (a cancelled folder copy keeps none of the files already copied).
 - A failed item does not stop the batch; the summary lists each failure with its reason.
 - Delete is permanent on every storage, and the confirmation says so.
 - Phone width: one panel, no drag and drop, commands through the menu.
@@ -123,7 +126,5 @@ key bar takes a row on every screen.
 3. When the target of a copy is locked or not answering, the dialog still lets the copy start
    and the failure shows in the summary. Should the dialog say so before the click (and offer
    Unlock / Retry there)?
-4. A cancelled folder copy leaves the files already copied in place (only the file in progress
-   is removed). Keep them, or remove the whole partial folder?
-5. Several other panels open: should F5 still go straight to the most recently used one (one
+4. Several other panels open: should F5 still go straight to the most recently used one (one
    key, then Enter), with the list only as an option, as now?

@@ -1,8 +1,7 @@
 // The prototype's storages: real in-memory file systems, mounted side by side
 // like the app's local folder, browser storage and S3 buckets.
 import type { FilesApi, ListOptions, ReadOptions } from "@statewalker/webrun-files";
-import { basename, dirname } from "@statewalker/webrun-files";
-import { CompositeFilesApi } from "@statewalker/webrun-files-composite";
+import { CompositeFilesApi, readOnly } from "@statewalker/webrun-files-composite";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import { MountUnavailable, type Problem } from "./problem.js";
 
@@ -47,7 +46,8 @@ const MOUNTS: Omit<DemoMount, "files">[] = [
 export function newDemoStorages(
   opts: { slowMs?: number; failPaths?: string[]; unavailable?: Record<string, Problem> } = {},
 ): { files: FilesApi; mounts: DemoMount[] } {
-  const root = new CompositeFilesApi(new MemFilesApi());
+  // Nothing can be written beside the mounts: the root only lists them.
+  const root = new CompositeFilesApi(readOnly(new MemFilesApi()));
   const mounts = MOUNTS.map((m) => {
     const problem = opts.unavailable?.[m.key];
     let files: FilesApi = new MemFilesApi({ initialFiles: SEED[m.key] });
@@ -102,16 +102,16 @@ export function slowFiles(api: FilesApi, ms: number): FilesApi {
 
 /**
  * Writing one of `paths` fails after consuming its content, like a dropped
- * connection. A temporary `.name.part-…` beside it fails too, so an overwrite
- * (written to a temporary name first) fails the same way.
+ * connection. The same path under a temporary `.name.part-…` file or folder
+ * fails too, so a copy (written to a temporary name first) fails the same way.
  */
 export function failingFiles(api: FilesApi, paths: string[]): FilesApi {
-  const fails = (path: string) =>
-    paths.some(
-      (p) =>
-        p === path ||
-        (dirname(p) === dirname(path) && basename(path).startsWith(`.${basename(p)}.part-`)),
-    );
+  const real = (path: string) =>
+    path
+      .split("/")
+      .map((s) => /^\.(.+)\.part-[a-z0-9]*$/.exec(s)?.[1] ?? s)
+      .join("/");
+  const fails = (path: string) => paths.includes(real(path));
   return {
     ...bind(api),
     async write(path, content) {

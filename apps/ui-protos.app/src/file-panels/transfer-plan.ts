@@ -1,7 +1,7 @@
 // What a copy or move will do, decided before anything is written: the
 // dialog shows the clashes, the runner executes the steps.
 import type { FilesApi } from "@statewalker/webrun-files";
-import { basename, dirname, extname, joinPath } from "@statewalker/webrun-files";
+import { basename, dirname, extname, joinPath, normalizePath } from "@statewalker/webrun-files";
 
 export type TransferOp = "copy" | "move";
 export type ClashPolicy = "overwrite" | "keep-both" | "skip";
@@ -37,30 +37,36 @@ export async function findClashes(
   sources: string[],
   targetDir: string,
 ): Promise<string[]> {
-  const taken = await namesIn(files, targetDir);
+  const dir = normalizePath(targetDir);
+  const taken = await namesIn(files, dir);
   return sources
-    .filter((s) => dirname(s) !== targetDir && taken.has(basename(s)))
+    .filter((s) => dirname(s) !== dir && taken.has(basename(s)))
     .map((s) => basename(s));
 }
 
 export async function planTransfer(files: FilesApi, req: TransferRequest): Promise<TransferPlan> {
-  const into = (s: string) => req.targetDir === s || req.targetDir.startsWith(`${s}/`);
-  if (req.sources.some(into)) {
-    return {
-      steps: [],
-      skipped: [],
-      clashes: [],
-      invalid: "A folder can't be copied or moved into itself.",
-    };
+  // "/a/", "/a/./" and "/a//" are all "/a": compared raw, they would slip past the checks below.
+  const targetDir = normalizePath(req.targetDir);
+  const sources = req.sources.map(normalizePath);
+  const refuse = (invalid: string): TransferPlan => ({
+    steps: [],
+    skipped: [],
+    clashes: [],
+    invalid,
+  });
+  const inside = (path: string, dir: string) => path === dir || path.startsWith(`${dir}/`);
+  if (targetDir === "/") return refuse("Choose a folder inside a storage.");
+  if (sources.some((s) => inside(targetDir, s))) {
+    return refuse("A folder can't be copied or moved into itself.");
   }
-  const existing = await namesIn(files, req.targetDir);
+  const existing = await namesIn(files, targetDir);
   const planned = new Set<string>();
   const plan: TransferPlan = { steps: [], skipped: [], clashes: [] };
-  for (const from of req.sources) {
-    let name = (req.sources.length === 1 && req.rename) || basename(from);
+  for (const from of sources) {
+    let name = (sources.length === 1 && req.rename) || basename(from);
     let op = req.op;
     let overwrite = false;
-    if (dirname(from) === req.targetDir && name === basename(from)) {
+    if (dirname(from) === targetDir && name === basename(from)) {
       // Dropped where it already is: the only useful meaning is a copy beside it.
       op = "copy";
       name = freeName(name, new Set([...existing, ...planned]));
@@ -75,14 +81,10 @@ export async function planTransfer(files: FilesApi, req: TransferRequest): Promi
       if (req.clash === "keep-both") name = freeName(name, new Set([...existing, ...planned]));
       else overwrite = true;
     }
-    const to = joinPath(req.targetDir, name);
-    if (overwrite && from.startsWith(`${to}/`)) {
-      return {
-        steps: [],
-        skipped: [],
-        clashes: [],
-        invalid: "A folder can't be replaced by something inside it.",
-      };
+    const to = joinPath(targetDir, name);
+    // Replacing `to` would destroy any source of this request that lives there.
+    if (overwrite && sources.some((s) => inside(s, to))) {
+      return refuse("A folder can't be replaced by something inside it.");
     }
     planned.add(name);
     plan.steps.push({ op, from, to, overwrite });

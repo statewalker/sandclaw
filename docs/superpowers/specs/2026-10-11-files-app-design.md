@@ -290,9 +290,13 @@ export interface TransferResult { done: string[]; skipped: string[]; failed: { p
 - **Running**: files are streamed (`read` → `write`) so byte progress is real and the signal
   stops mid-file. Folders are walked with `list({ recursive: true })` to count bytes first.
   Same-mount operations use the storage's own `copy` / `move` (S3 `CopyObject`, no download).
-- **Safe overwrite**: the target is never removed before the copy succeeded. A copy writes over
-  the target directly (`FilesApi.write` replaces it; an S3 PUT is atomic). A cross-mount move
+- **Safe overwrite**: the target is never removed before the copy succeeded. A cross-mount move
   removes the source only after its copy succeeded; a failure leaves the source intact.
+- **Overwriting a folder replaces it** on every storage (it is never merged), as the dialog says.
+  Every copy goes to a temporary `.<name>.part-<random>` file or folder beside the target (the
+  storage's own `copy` on the same mount, streamed across mounts) and is then swapped in: the old
+  target is set aside and put back if the swap fails. A cancel or a failure removes the temporary
+  copy, so nothing partial is ever left under the real name.
 - A failed step does not stop the batch; the result lists failures with their `Problem`.
 - **Import from the desktop**: `importDropped(dataTransfer)` reads the dropped items
   (`webkitGetAsEntry` for folders, recursively) into the same planner as a virtual source, so
