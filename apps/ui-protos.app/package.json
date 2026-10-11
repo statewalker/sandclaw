@@ -26,6 +26,9 @@
   },
   "dependencies": {
     "@assistant-ui/react": "catalog:",
+    "@statewalker/webrun-files": "catalog:",
+    "@statewalker/webrun-files-composite": "catalog:",
+    "@statewalker/webrun-files-mem": "catalog:",
     "@statewalker/ui.view.shadcn": "catalog:",
     "dockview-react": "catalog:",
     "lucide-react": "catalog:",

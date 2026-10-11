@@ -77,6 +77,7 @@ catalog:
   "@statewalker/ui.view.shadcn": ^0.1.1
   "@statewalker/webrun-files": "^0.10.0"
   "@statewalker/webrun-files-browser": "^0.10.0"
+  "@statewalker/webrun-files-composite": ^0.10.0
   "@statewalker/webrun-files-mem": ^0.10.0
   "@statewalker/webrun-files-node": ^0.10.0
   "@statewalker/workspace.browser": "^0.5.0"
