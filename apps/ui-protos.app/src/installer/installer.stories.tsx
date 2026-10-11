@@ -3,7 +3,7 @@ import { macMini } from "./install-steps.js";
 import { Installer } from "./installer.js";
 
 const meta = {
-  title: "Prototypes/Machine installer",
+  title: "Mesh/Set up/Machine installer",
   component: Installer,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FolderZone } from "./folder-zone.js";
 
 const meta = {
-  title: "Prototypes/Folder zone",
+  title: "Files/Folder zone",
   component: FolderZone,
   // The zone as it sits on the left of the workspace.
   decorators: [

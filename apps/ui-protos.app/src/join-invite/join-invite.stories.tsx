@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { JoinFlow } from "./join-invite.js";
 
 const meta = {
-  title: "Prototypes/Join from invite",
+  title: "Mesh/Join/Join from invite",
   component: JoinFlow,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

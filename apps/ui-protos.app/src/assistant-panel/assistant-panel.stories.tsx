@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AssistantPanel } from "./assistant-panel.js";
 
 const meta = {
-  title: "Prototypes/Assistant panel",
+  title: "Chats/Assistant panel",
   component: AssistantPanel,
   // The panel as it sits in the workspace's right zone.
   decorators: [

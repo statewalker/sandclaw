@@ -3,7 +3,7 @@ import { dupontBudget, dupontStart, leroyTimber } from "./answers.js";
 import { AskChat, AskPanel } from "./grounded-answer.js";
 
 const meta = {
-  title: "Prototypes/Ask — grounded answer",
+  title: "Indexing and search/Grounded answer",
   component: AskPanel,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

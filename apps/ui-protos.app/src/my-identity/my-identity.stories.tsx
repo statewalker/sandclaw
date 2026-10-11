@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { MyIdentityCard, MyIdentityPage } from "./my-identity.js";
 
 const meta = {
-  title: "Prototypes/My identity and devices",
+  title: "Mesh/Manage/My identity and devices",
   component: MyIdentityPage,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

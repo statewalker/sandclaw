@@ -3,7 +3,7 @@ import { Appearance } from "./appearance.js";
 import { Settings } from "./settings.js";
 
 const meta = {
-  title: "Prototypes/Settings",
+  title: "Workspace/Settings",
   component: Settings,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

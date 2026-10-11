@@ -151,7 +151,7 @@ function DemoSettings({
 }
 
 const meta = {
-  title: "Prototypes/Files app/Storage settings",
+  title: "Files/Storage settings",
   // The demo data is exported for the component test, not a story.
   excludeStories: ["DEMO_MOUNTS"],
   component: DemoSettings,

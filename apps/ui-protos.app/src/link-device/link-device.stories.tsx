@@ -3,7 +3,7 @@ import { comparePair, failedPair } from "./flow.js";
 import { LinkDevices } from "./link-device.js";
 
 const meta = {
-  title: "Prototypes/Link a device",
+  title: "Mesh/Join/Link a device",
   component: LinkDevices,
   parameters: { layout: "fullscreen" },
   argTypes: {

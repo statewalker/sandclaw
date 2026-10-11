@@ -4,7 +4,7 @@ import { AiModels, LiteLlmAdminPage } from "./ai-models.js";
 import { daysAgo, models, usage } from "./usage.js";
 
 const meta = {
-  title: "Prototypes/AI models",
+  title: "Agents/AI models",
   component: AiModels,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

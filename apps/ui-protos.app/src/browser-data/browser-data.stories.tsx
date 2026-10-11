@@ -3,7 +3,7 @@ import { BrowserData } from "./browser-data.js";
 import { MB } from "./storage.js";
 
 const meta = {
-  title: "Prototypes/Data kept in this browser",
+  title: "Workspace/Data kept in this browser",
   component: BrowserData,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

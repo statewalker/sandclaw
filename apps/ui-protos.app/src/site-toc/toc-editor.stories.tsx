@@ -3,7 +3,7 @@ import { TocEditor } from "./toc-editor.js";
 import { dupontToc, editedDupontToc } from "./toc-mock.js";
 
 const meta = {
-  title: "Prototypes/Site table of contents",
+  title: "Sites/Table of contents",
   component: TocEditor,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

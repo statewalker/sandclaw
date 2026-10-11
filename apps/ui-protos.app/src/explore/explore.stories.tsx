@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { IndexExplorer } from "./explore.js";
 
 const meta = {
-  title: "Prototypes/Explore — the indexes",
+  title: "Indexing and search/Explore the indexes",
   component: IndexExplorer,
   parameters: { layout: "fullscreen" },
   // Centred by a grid, not by Storybook's "centered" layout: that one sizes the

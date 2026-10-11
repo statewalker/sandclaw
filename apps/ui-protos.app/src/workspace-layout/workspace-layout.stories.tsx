@@ -3,7 +3,7 @@ import type { JSX } from "react";
 import { Workspace } from "./workspace.js";
 
 const meta = {
-  title: "Prototypes/Workspace layout",
+  title: "Workspace/Layout",
   component: Workspace,
 } satisfies Meta<typeof Workspace>;
 

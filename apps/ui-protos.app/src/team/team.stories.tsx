@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { TeamOneList, TeamTwoPanes } from "./team.js";
 
 const meta = {
-  title: "Prototypes/Team",
+  title: "Mesh/Manage/Team",
   component: TeamOneList,
   parameters: { layout: "fullscreen" },
   argTypes: {
