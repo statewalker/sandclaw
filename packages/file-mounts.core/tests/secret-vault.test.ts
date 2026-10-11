@@ -128,4 +128,19 @@ describe("SecretVault", () => {
     await fresh.load();
     expect(await fresh.unlock("p3", false)).toBe(true);
   });
+
+  it("unlock in a stale tab takes the password set in another tab; a wrong one leaves it locked", async () => {
+    const files = new MemFilesApi();
+    const a = newVault(files);
+    await a.load();
+    await a.create("p1", false);
+    await a.set("archive/key", "v");
+    const b = newVault(files);
+    expect(await b.load()).toBe("locked");
+    expect(await a.changePassword("p1", "p2")).toBe(true);
+    expect(await b.unlock("p1", false)).toBe(false);
+    expect(b.state).toBe("locked");
+    expect(await b.unlock("p2", false)).toBe(true);
+    expect(await b.get("archive/key")).toBe("v");
+  });
 });

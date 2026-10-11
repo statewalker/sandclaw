@@ -13,7 +13,10 @@ export interface MountField {
 export interface MountContext {
   /** A user gesture is available: permission prompts may be shown. */
   interactive: boolean;
-  /** A secret field of this mount from the vault; throws SecretsLocked when locked. */
+  /**
+   * A secret field of this mount from the vault; undefined when there is no vault,
+   * throws SecretsLocked when it is locked.
+   */
   secret(field: string): Promise<string | undefined>;
 }
 
@@ -21,6 +24,8 @@ export interface MountType {
   readonly id: MountTypeId;
   readonly label: string;
   readonly fields: MountField[];
+  /** `create` may wait on a permission prompt: an interactive create is not timed out. */
+  readonly prompts?: true;
   isAvailable(): { ok: true } | { ok: false; reason: string };
   create(mount: MountConfig, ctx: MountContext): Promise<FilesApi>;
   /** Drops what the type stored for the mount (a folder handle). */

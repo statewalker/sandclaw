@@ -186,14 +186,17 @@ export class FilesMountTable extends BaseClass implements MountTable {
     const ctx = {
       interactive,
       secret: async (field: string) => {
+        // No vault: there is nothing to unlock, only keys to enter.
+        if (this.secrets.state === "absent") return undefined;
         if (this.secrets.state !== "unlocked") throw new SecretsLocked();
         return this.secrets.get(`${config.key}/${field}`);
       },
     };
     try {
-      // A person answering a permission prompt sets the pace; only unattended creates time out.
+      // A person answering a permission prompt sets the pace; every other create times out.
       const creating = type.create(config, ctx);
-      const api = await (interactive ? creating : withTimeout(creating, this.createTimeoutMs));
+      const waits = interactive && type.prompts;
+      const api = await (waits ? creating : withTimeout(creating, this.createTimeoutMs));
       return { config, status: { state: "mounted" }, api: config.readOnly ? readOnly(api) : api };
     } catch (error) {
       if (error instanceof SecretsLocked) return this.unusable(config, { state: "locked" });

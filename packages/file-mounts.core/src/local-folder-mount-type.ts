@@ -24,6 +24,7 @@ export function localFolderMountType(
     id: "local-folder",
     label: "Local folder",
     fields: [],
+    prompts: true,
     isAvailable: () =>
       picker()
         ? { ok: true }

@@ -1,5 +1,5 @@
 import type { FilesApi } from "@statewalker/webrun-files";
-import { readText, writeText } from "@statewalker/webrun-files";
+import { dirname, joinPath, readText, writeText } from "@statewalker/webrun-files";
 import { type MountConfig, type MountTypeId, validateKey } from "./mount-config.js";
 
 export const MOUNTS_FILE = "/.files/mounts.json";
@@ -21,15 +21,11 @@ function asConfig(raw: unknown, taken: string[]): MountConfig | undefined {
   };
 }
 
-/** The saved mounts. A damaged file loads as none, with a problem, and is never rewritten here. */
-export async function loadMountConfigs(
-  files: FilesApi,
-  path = MOUNTS_FILE,
-): Promise<{ configs: MountConfig[]; problem?: string }> {
-  if (!(await files.exists(path))) return { configs: [] };
+/** Reads the file's text; `problem` says what could not be used. */
+function parseConfigs(text: string): { configs: MountConfig[]; problem?: string } {
   let raw: unknown;
   try {
-    raw = JSON.parse(await readText(files, path));
+    raw = JSON.parse(text);
   } catch {
     raw = undefined;
   }
@@ -48,15 +44,38 @@ export async function loadMountConfigs(
     if (config) configs.push(config);
   }
   const lost = raw.length - configs.length;
-  return lost
-    ? { configs, problem: `${lost} saved storages could not be read and were left out.` }
-    : { configs };
+  if (!lost) return { configs };
+  const what = lost === 1 ? "1 saved storage" : `${lost} saved storages`;
+  return {
+    configs,
+    problem: `${what} could not be read and ${lost === 1 ? "was" : "were"} left out.`,
+  };
 }
 
+/** The saved mounts. A damaged file loads as none, with a problem, and is never rewritten here. */
+export async function loadMountConfigs(
+  files: FilesApi,
+  path = MOUNTS_FILE,
+): Promise<{ configs: MountConfig[]; problem?: string }> {
+  if (!(await files.exists(path))) return { configs: [] };
+  return parseConfigs(await readText(files, path));
+}
+
+/**
+ * Writes the mounts. A file that does not load cleanly is first copied, as it was, to
+ * `mounts.damaged-<timestamp>.json` beside it: the save never silently drops what it couldn't read.
+ */
 export async function saveMountConfigs(
   files: FilesApi,
   configs: MountConfig[],
   path = MOUNTS_FILE,
 ) {
+  if (await files.exists(path)) {
+    const text = await readText(files, path);
+    if (parseConfigs(text).problem) {
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      await writeText(files, joinPath(dirname(path), `mounts.damaged-${stamp}.json`), text);
+    }
+  }
   await writeText(files, path, JSON.stringify(configs, null, 2));
 }

@@ -50,8 +50,25 @@ table.files; // one FilesApi: /<key>/... for every mount
 ```
 
 After the person unlocks the vault, call `table.apply(configs)` again: mounts that were `locked` are
-created, mounts that are already `mounted` are kept. Inside a click, `table.apply(configs, { interactive: true })`
-or `table.reconnect(key)` may show a permission prompt.
+created, mounts that are already `mounted` are kept. `apply` returns the `FileChange[]` of the mount
+roots it added, replaced or removed; nothing else announces them, so pass the list to the change hub,
+or open panels keep showing "Locked" until they are navigated again:
+
+```ts
+import { newFileChanges } from "@statewalker/file-mounts.core";
+
+const changes = newFileChanges(); // the hub panels subscribe to
+if (await vault.unlock(password, remember)) changes.emit(await table.apply(configs));
+```
+
+`table.reconnect(key)` returns only the status: after it, emit an `updated` change for `/<key>`.
+Inside a click, `table.apply(configs, { interactive: true })` or `table.reconnect(key)` may show a
+permission prompt.
+
+`vault.lock()` does not unmount S3 storages that are already mounted: their client holds the keys
+until the next `apply` that recreates them, or a reload. Likewise, keys changed in the vault for a
+config that did not change are not picked up by `apply` (the mount is kept as is); `reconnect(key)`
+creates it again with the new keys.
 
 ## What each mount type needs
 
@@ -59,11 +76,16 @@ or `table.reconnect(key)` may show a permission prompt.
 |---|---|---|
 | `local-folder` | Chromium (Chrome, Edge) | After a page reload the folder needs one click: `table.reconnect(key)` inside the handler. |
 | `opfs` | A browser with `navigator.storage.getDirectory` | Lives in the page's private storage, in the folder `mounts/<key>`. |
-| `s3` | An unlocked vault, a bucket with a CORS rule | Fields: endpoint, region, bucket, prefix, path-style, access key ID, secret access key (the last two go to the vault). |
+| `s3` | An unlocked vault, a bucket with a CORS rule | Fields: endpoint, region, bucket, prefix, path-style, access key ID, secret access key (the last two go to the vault, as accounts `<key>/accessKeyId` and `<key>/secretAccessKey`). |
 | `memory` | nothing | Gone on reload; used by tests and demos. |
 
 A mount saved with `readOnly: true` is wrapped so writes throw; `mounted: false` keeps the settings
 without mounting.
+
+The mount key is also where a storage keeps what belongs to it: OPFS data at `mounts/<key>`, S3 keys
+in the vault under `<key>/<field>`. Changing a mount's key therefore shows an empty OPFS storage, and
+an S3 storage that says `Enter the keys for this storage in Settings → Storage.` The old data and keys
+are not deleted; they stay under the old key, unreachable until a mount uses that key again.
 
 ## How S3 settings are tested and why the messages are what they are
 
@@ -104,7 +126,7 @@ Messages, as the person sees them:
 | Host dead | ``No answer from `endpoint`.`` |
 | Hang | `No answer in 15 seconds.` |
 | Vault locked | `Locked: unlock to use the S3 storages.` |
-| S3 keys not entered | `Enter the keys for this storage in Settings → Storage.` |
+| S3 keys not entered, or no vault created yet | `Enter the keys for this storage in Settings → Storage.` |
 | Folder access lost | ``Click Reconnect to give access to `folder` again.`` |
 | Browser without folders | `This browser can't open local folders; use Chrome or Edge.` |
 
@@ -164,6 +186,8 @@ load unlocks silently. The data key is never stored. Writes take a Web Lock, and
 the file, so two tabs setting different accounts keep both.
 
 A wrong password never changes anything: `unlock` returns `false` and the state stays `locked`.
+`unlock` checks the password against `vault.key.json` as it is on disk at that moment, so after
+another tab changed the password, the new one unlocks this tab too, without a reload.
 A lost password cannot be recovered. `reset()` deletes the two vault files and the remembered key;
 the stored files in the mounts are never touched, only the ability to open S3 storages until the keys
 are entered again.
@@ -171,17 +195,30 @@ are entered again.
 ### How the table keeps working when one storage does not
 
 `apply` and `reconnect` run one after another through a queue; mounts of one `apply` are created in
-parallel. `apply` validates every key first and rejects before changing anything. A non-interactive
-create that does not settle in 15 s (`createTimeoutMs`) is `failed` with `No answer in 15 seconds.`;
-other mounts are unaffected. Interactive creates are not timed out: a browser permission prompt always
-settles, so waiting on one does not hang.
+parallel. `apply` validates every key first and rejects before changing anything. A create that does
+not settle in 15 s (`createTimeoutMs`) is `failed` with `No answer in 15 seconds.`; other mounts are
+unaffected, and the queue moves on. The message names 15 seconds whatever `createTimeoutMs` is set to.
 
-### mounts.json is never overwritten by a failed read
+The one exception is a type that declares `prompts: true` (only `local-folder`), created
+interactively (`reconnect`, or `apply` with `interactive: true`): it waits on a browser permission
+prompt, which always settles when the person answers, and timing it out would fail a folder while
+they are still reading the prompt. Every other type is timed out even inside a click, because an S3
+host that never answers would otherwise hold the queue, and every later `apply` and `reconnect`,
+forever.
+
+### A save over a damaged mounts.json first keeps a backup of it
 
 `loadMountConfigs` returns the mounts in `/.files/mounts.json`. A file that is not valid JSON or not a
 list loads as no mounts, with `problem: "The storage settings file is damaged; it is kept as is until you save."`.
-Entries that cannot be read are left out with a problem count. Nothing in the package rewrites the file
-except `saveMountConfigs`, so a damaged file survives until the person saves.
+Entries that cannot be read are left out with a problem count, for example
+`2 saved storages could not be read and were left out.` Loading never rewrites the file.
+
+The next `saveMountConfigs` writes only the mounts it is given, so the entries left out would be
+gone. Before writing, it reads the file again; if it does not load cleanly (by the same rules), its
+exact text is first copied to `mounts.damaged-<timestamp>.json` in the same folder (for example
+`/.files/mounts.damaged-2026-10-11T09-30-00-000Z.json`). Nothing removes these backups; a file there
+means a save replaced settings that could not be read, and the lost entries can be recovered from it
+by hand.
 
 ### Constraints
 

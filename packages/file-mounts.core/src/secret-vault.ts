@@ -132,7 +132,8 @@ export class SecretVault extends BaseClass implements SecretStore {
   }
 
   async unlock(password: string, remember: boolean): Promise<boolean> {
-    const keyFile = this.keyFile;
+    // Another tab may have changed the password since load: check against the file as it is now.
+    const keyFile = await this.readJson<KeyFile>(KEY_FILE);
     if (!keyFile) return false;
     const key = await passwordKey(password, fromBase64(keyFile.kdf.salt), keyFile.kdf.iterations);
     try {
@@ -140,6 +141,7 @@ export class SecretVault extends BaseClass implements SecretStore {
     } catch {
       return false;
     }
+    this.keyFile = keyFile;
     if (remember) await this.keys.set(keyFile.id, key);
     this.setState("unlocked");
     return true;

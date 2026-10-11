@@ -9,6 +9,7 @@ import {
   memoryMountType,
   NeedsUserGesture,
   problemOf,
+  s3MountType,
 } from "../src/index.js";
 
 const unlocked = { state: "unlocked" as const, get: async (a: string) => `secret of ${a}` };
@@ -199,14 +200,53 @@ describe("FilesMountTable", () => {
     expect(table.configs().map((c) => c.key)).toEqual(["docs"]);
   });
 
-  it("an interactive create is not timed out while the person answers", async () => {
-    const type = scripted(async (_m, ctx) => {
-      if (!ctx.interactive) throw new NeedsUserGesture();
-      await new Promise((r) => setTimeout(r, 120));
-      return new MemFilesApi();
-    });
+  it("an interactive create of a prompting type is not timed out while the person answers", async () => {
+    const type: MountType = {
+      ...scripted(async (_m, ctx) => {
+        if (!ctx.interactive) throw new NeedsUserGesture();
+        await new Promise((r) => setTimeout(r, 120));
+        return new MemFilesApi();
+      }),
+      prompts: true,
+    };
     const table = new FilesMountTable({ types: [type], secrets: unlocked, createTimeoutMs: 30 });
     await table.apply([{ key: "home", name: "Home", type: "s3", config: {} }]);
     expect(await table.reconnect("home")).toEqual({ state: "mounted" });
+  });
+
+  it("a reconnect to a storage that never answers times out and doesn't stall the next apply", async () => {
+    const hanging = scripted(() => new Promise(() => {}));
+    const table = new FilesMountTable({
+      types: [hanging, memoryMountType()],
+      secrets: unlocked,
+      createTimeoutMs: 30,
+    });
+    await table.apply([{ key: "slow", name: "Slow", type: "s3", config: {} }]);
+    expect(await table.reconnect("slow")).toEqual({
+      state: "failed",
+      problem: { cause: "timeout", message: "No answer in 15 seconds." },
+    });
+    await table.apply([mem("docs")]);
+    expect(await names(table, "/")).toEqual(["docs"]);
+  });
+
+  it("with no vault at all, an S3 storage asks for its keys rather than an unlock", async () => {
+    const absent = { state: "absent" as const, get: async () => undefined };
+    const table = new FilesMountTable({ types: [s3MountType()], secrets: absent });
+    await table.apply([
+      {
+        key: "archive",
+        name: "Archive",
+        type: "s3",
+        config: { endpoint: "https://s3.test", bucket: "b" },
+      },
+    ]);
+    expect(table.list()[0]?.status).toEqual({
+      state: "failed",
+      problem: {
+        cause: "invalid-settings",
+        message: "Enter the keys for this storage in Settings → Storage.",
+      },
+    });
   });
 });
