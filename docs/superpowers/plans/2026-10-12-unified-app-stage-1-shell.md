@@ -44,6 +44,10 @@ These rulings narrow the spec where the code showed a simpler path; each costs l
 9. **F10 focuses the menubar; Alt alone does not** (Alt alone opens the browser's menu on Linux and Windows).
 10. **The App's own activity bar, overlays and phone stack**, not `SidePanelOverlays`/`MobileStack`: those are built for the Workspace story's stand-in panels (hard-coded icons, no activity bar on desktop, no More).
 11. **Slot hooks are local** (`useSlotValues`, `useKeyedSlotValues`, 20 lines) rather than a dependency on `@statewalker/ui.view.react`, which pulls the workbench's app-workspace code.
+12. **No `enabled?(state)` on menu items**: the commander always has an active file panel (the Files tree counts), so Edit's file commands are never without a target; a command with an empty selection does nothing (the commander's own rule).
+13. **No Assistant › New chat in Stage 1**: nothing in the prototypes can start a chat from outside the Assistant panel (the spec's rule: items with nothing behind them are left out).
+14. **No View › Layout › Reset**: choosing a layout already lays the dock out from scratch.
+15. **The file panels belong to the shell, not the Files feature**: switching Files off removes the Files tree, the file menu items and Storages, but the center keeps its file panels (the commander dock is the App's main layout).
 
 ## Review Focus
 

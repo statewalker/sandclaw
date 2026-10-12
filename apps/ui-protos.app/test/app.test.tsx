@@ -33,7 +33,10 @@ describe("App", () => {
     const member = renderApp({ viewer: "member" });
     expect(labels(member)).not.toContain("AI models…");
     expect(labels(member)).not.toContain("Invitations log");
-    expect([...member.slots.getSnapshot(settingsTabsSlot).keys()]).not.toContain("team");
+    const memberTabs = [...member.slots.getSnapshot(settingsTabsSlot).values()];
+    expect(memberTabs.length).toBeGreaterThan(0);
+    expect(memberTabs.filter((t) => t.group !== "you")).toEqual([]);
+    expect([...member.slots.getSnapshot(appViewsSlot).keys()]).not.toContain("invitations-log");
   });
 
   it("a feature switched off leaves no view, menu item or settings section behind", () => {
@@ -74,6 +77,27 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "secret" } });
     fireEvent.click(screen.getByRole("button", { name: "Unlock" }));
     expect(screen.queryByLabelText("Password")).toBeNull();
+  });
+
+  it("with Settings open, a menu shortcut does not reach the panel behind it", async () => {
+    renderApp();
+    const row = await screen.findByRole("row", { name: /backup\.zip/ });
+    fireEvent.mouseDown(row);
+    fireEvent.click(row);
+    fireEvent.keyDown(document.body, { key: ",", ctrlKey: true });
+    expect(screen.getByRole("dialog", { name: "Settings" })).toBeTruthy();
+    fireEvent.keyDown(document.body, { key: "Delete" });
+    expect(screen.queryByRole("dialog", { name: /^Delete/ })).toBeNull();
+    expect(screen.getByRole("dialog", { name: "Settings" })).toBeTruthy();
+  });
+
+  it("behind the lock, Ctrl+, does not open Settings", () => {
+    renderApp();
+    fireEvent.keyDown(screen.getByRole("menuitem", { name: "File" }), { key: "Enter" });
+    fireEvent.click(screen.getByRole("menuitem", { name: /^Lock/ }));
+    fireEvent.keyDown(document.body, { key: ",", ctrlKey: true });
+    expect(screen.queryByRole("navigation", { name: "Settings sections" })).toBeNull();
+    expect(screen.getByLabelText("Password")).toBeTruthy();
   });
 
   it("choosing Dark in Settings › Appearance darkens the App at once", () => {

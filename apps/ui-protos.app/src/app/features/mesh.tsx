@@ -1,5 +1,20 @@
-import { Avatar, AvatarFallback } from "@statewalker/ui.view.shadcn";
-import { Lock as LockIcon, Mail, Settings, Smartphone, UserRound, Users } from "lucide-react";
+import {
+  Avatar,
+  AvatarFallback,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@statewalker/ui.view.shadcn";
+import {
+  Activity,
+  Lock as LockIcon,
+  Mail,
+  Settings,
+  Smartphone,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { BrowserData } from "../../browser-data/browser-data.js";
 import { GroupPill } from "../../group-status/group-status.js";
@@ -84,11 +99,23 @@ export const mesh: Feature = {
     }
 
     function LockScreen() {
-      if (!useStore(locked)) return null;
+      // A modal dialog that cannot be dismissed: it traps Tab, and the shell's shortcuts stand down.
+      const stay = (e: Event) => e.preventDefault();
       return (
-        <div className="bg-background absolute inset-0 z-50 grid place-items-center p-4">
-          <UnlockScreen onUnlock={() => locked.set(false)} />
-        </div>
+        <Dialog open={useStore(locked)}>
+          <DialogContent
+            className="max-w-sm border-0 bg-transparent p-0 shadow-none sm:rounded-none [&>button]:hidden"
+            onEscapeKeyDown={stay}
+            onPointerDownOutside={stay}
+            onInteractOutside={stay}
+          >
+            <DialogTitle className="sr-only">Locked</DialogTitle>
+            <DialogDescription className="sr-only">
+              Type your password to unlock the App.
+            </DialogDescription>
+            <UnlockScreen onUnlock={() => locked.set(false)} />
+          </DialogContent>
+        </Dialog>
       );
     }
 
@@ -159,6 +186,11 @@ export const mesh: Feature = {
               ),
             ]
           : []),
+        menuItem(
+          ShowPanel,
+          { id: "team" },
+          { id: "mesh.status", menu: "Mesh", order: 5, label: "Group status", Icon: Activity },
+        ),
         menuItem(
           ShowPanel,
           { id: "my-identity" },

@@ -43,8 +43,10 @@ export interface AppProps {
 /**
  * The whole app, signed in to a mesh. Changing the viewer or the features
  * starts a new App (`key`), so contributions are made once and never patched.
- * Contributions are not disposed on unmount: they live in this App's own
- * buses and go with them, and none of them touches anything outside.
+ * Contributions are not disposed on unmount: they live in the buses the App
+ * made for itself, which are dropped with it, and none of them touches anything
+ * outside. A `runtime` passed in is a test seam: it is contributed to once per
+ * mount, so a test must not rerender or remount the App with the same one.
  */
 export function App({
   viewer = "admin",

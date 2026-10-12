@@ -120,7 +120,7 @@ export const files: Feature = {
         menuItem(
           ShowPanel,
           { id: "files-tree" },
-          { id: "go.file", menu: "Go", order: 10, label: "Go to file…", Icon: FolderTree },
+          { id: "go.file", menu: "Go", order: 10, label: "Files", Icon: FolderTree },
         ),
       ]),
       settingsTab(rt.slots, "storages", 35, () => <DemoStorageSettings vault="unlocked" />),

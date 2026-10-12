@@ -207,6 +207,12 @@ describe("AppShell on a desktop", () => {
 describe("AppShell on a tablet", () => {
   it("compact: side views open as overlays from the activity bar; Escape and the backdrop close them", () => {
     renderShell("compact");
+    const bar = screen.getByRole("navigation", { name: "Activity bar" });
+    expect(
+      within(bar)
+        .getAllByRole("button")
+        .map((b) => b.getAttribute("aria-label")),
+    ).toEqual(["Outline", "Todos", "Chat", "Settings"]);
     expect(screen.queryByText("Outline view")).toBeNull();
     expect(screen.getByText("Jobs view")).toBeTruthy();
     fireEvent.click(activity("Chat"));

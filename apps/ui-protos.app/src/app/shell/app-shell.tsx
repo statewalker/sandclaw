@@ -309,6 +309,15 @@ export function AppShell({ commanderRef, initialMode = "desktop" }: AppShellProp
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || isTyping(e)) return;
+      // Behind a modal layer (Settings, a dialog, the lock, the phone menu) the shortcuts are
+      // off. Radix does not set aria-modal, so an open dialog is told by its data-state; the
+      // bell's non-modal popover has none.
+      if (
+        document.querySelector(
+          '[data-state="open"][role="dialog"], [data-state="open"][role="alertdialog"]',
+        )
+      )
+        return;
       const item = itemsRef.current.find((i) => i.shortcut && matchesShortcut(i.shortcut, e));
       if (!item) return;
       e.preventDefault();
@@ -328,11 +337,13 @@ export function AppShell({ commanderRef, initialMode = "desktop" }: AppShellProp
 
   const run = (item: AppMenuItem) => item.run(rt.commands);
   const activityViews = views.filter((v) => v.zone === "left" && v.activity !== undefined);
-  const barViews = (
+  const barViews =
     mode === "compact"
-      ? [...activityViews, ...views.filter((v) => v.zone === "right")]
-      : activityViews
-  ).sort(byActivity);
+      ? [
+          ...activityViews.sort(byActivity),
+          ...views.filter((v) => v.zone === "right").sort(byActivity),
+        ]
+      : activityViews.sort(byActivity);
   const pressed = (id: string) =>
     mode === "compact" ? overlay === id : !!dockApi && isShownLeft(dockApi, id);
   const toggle = (view: AppView) => {
@@ -392,7 +403,7 @@ export function AppShell({ commanderRef, initialMode = "desktop" }: AppShellProp
                 />
                 <div className="relative min-h-0 min-w-0 flex-1">
                   <DockviewReact
-                    className="dockview-theme-light dockview-theme-sandclaw absolute inset-0"
+                    className="dockview-theme-light dockview-theme-sandclaw absolute inset-0 isolate"
                     components={components}
                     tabComponents={fileTabComponents}
                     onReady={onReady}

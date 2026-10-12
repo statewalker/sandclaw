@@ -67,6 +67,8 @@ export function PhoneMenu({ menus, onRun }: { menus: Menu[]; onRun(item: AppMenu
       {open && (
         <div
           role="dialog"
+          aria-modal="true"
+          data-state="open"
           aria-label="Menu"
           className="bg-background absolute inset-0 z-50 flex flex-col"
         >
