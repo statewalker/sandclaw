@@ -350,12 +350,15 @@ export function useCommander(props: CommanderOptions) {
     }
   };
 
+  // Counts the reveals: a presentation that shows one view at a time (the phone) follows it.
+  const [revealed, setRevealed] = useState(0);
   /** Shows `path`'s folder in the active docked panel, with `path` selected. */
   const reveal = (path: string) => {
     const target = activeDocked();
     if (!target) return;
     update(target.id, { path: dirname(path), selected: [path] });
     activate(target.id);
+    setRevealed((n) => n + 1);
   };
 
   /** What a panel's `FilePanel` needs; the presentation adds `active`, `phone` and its frame. */
@@ -480,6 +483,8 @@ export function useCommander(props: CommanderOptions) {
     setViewer,
     openFile,
     reveal,
+    revealed,
+    activeDocked,
     noticeBar,
     progressStrip,
     dialogs: (
@@ -496,7 +501,11 @@ const DOCUMENTS = "/documents/";
 /** A known document of the user's folder in its viewer; else a file's text, or a stand-in. */
 export function ViewerBody({ viewer }: { viewer: Viewer }) {
   const rest = viewer.path.startsWith(DOCUMENTS) ? viewer.path.slice(DOCUMENTS.length) : undefined;
-  if (rest && viewerFiles[rest]) return <FileViewer path={rest} citation={viewer.citation} />;
+  // Keyed on the passage: the viewer keeps its citation, so a new one opens it afresh.
+  if (rest && viewerFiles[rest])
+    return (
+      <FileViewer key={viewer.citation?.blockId ?? ""} path={rest} citation={viewer.citation} />
+    );
   return viewer.text !== undefined ? (
     <pre className="min-h-0 flex-1 overflow-auto p-3 text-sm whitespace-pre-wrap break-words">
       {viewer.text}
