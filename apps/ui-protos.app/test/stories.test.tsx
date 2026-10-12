@@ -4,6 +4,7 @@ import type { ComponentType } from "react";
 import { afterEach, expect, it } from "vitest";
 import * as agentTools from "../src/agent-tools/agent-tools.stories.js";
 import * as aiModels from "../src/ai-models/ai-models.stories.js";
+import * as app from "../src/app/app.stories.js";
 import * as groundedAnswer from "../src/ask/grounded-answer.stories.js";
 import * as assistant from "../src/assistant-panel/assistant-panel.stories.js";
 import * as browserData from "../src/browser-data/browser-data.stories.js";
@@ -74,6 +75,7 @@ const stories: [string, ComponentType][] = [
   ...Object.entries(composeStories(installer)),
   ...Object.entries(composeStories(fileCommander)),
   ...Object.entries(composeStories(storageSettings)),
+  ...Object.entries(composeStories(app)),
 ];
 
 it.each(stories)("%s renders", (_, Story) => {

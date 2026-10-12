@@ -65,11 +65,18 @@ function Choice<T extends string>({
 /** Theme, text size and density for this browser, with a sample that follows them. */
 export function Appearance({
   value: initial = { theme: "system", textSize: "default", density: "comfortable" },
+  onChange,
 }: {
   value?: AppearanceValue;
+  /** Every change, as it is made (the App applies the theme at once). */
+  onChange?(value: AppearanceValue): void;
 }) {
   const [value, setValue] = useState(initial);
-  const set = (patch: Partial<AppearanceValue>) => setValue({ ...value, ...patch });
+  const set = (patch: Partial<AppearanceValue>) => {
+    const next = { ...value, ...patch };
+    setValue(next);
+    onChange?.(next);
+  };
   const systemDark =
     typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches;
   const dark = value.theme === "dark" || (value.theme === "system" && systemDark);

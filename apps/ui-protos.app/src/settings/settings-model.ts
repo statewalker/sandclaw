@@ -5,6 +5,7 @@ export type SectionId =
   | "me"
   | "appearance"
   | "notifications"
+  | "storages"
   | "connectors"
   | "agent-tools"
   | "browser"
@@ -49,6 +50,12 @@ export const sections: SectionInfo[] = [
     label: "Notifications",
     group: "you",
     keywords: ["alerts", "bell", "toasts", "sound"],
+  },
+  {
+    id: "storages",
+    label: "Storages",
+    group: "you",
+    keywords: ["storage", "mount", "s3", "folder", "opfs", "vault", "keys"],
   },
   {
     id: "connectors",
@@ -110,8 +117,8 @@ export function resolveSection(viewer: Viewer, requested?: string): SectionId {
   return (shown.find((s) => s.id === requested) ?? shown[0])?.id ?? "me";
 }
 
-export interface SearchHit {
-  section: SectionInfo;
+export interface SearchHit<T extends { label: string; keywords: string[] } = SectionInfo> {
+  section: T;
   /** The keyword that matched, when the label did not. */
   keyword?: string;
 }
@@ -125,11 +132,14 @@ function fold(text: string) {
  * Sections whose label or one of whose keywords has a word starting with the query
  * ("lock" finds Me's "lock", not Agent tools' "block"); all of them when empty.
  */
-export function searchSections(shown: SectionInfo[], query: string): SearchHit[] {
+export function searchSections<T extends { label: string; keywords: string[] }>(
+  shown: T[],
+  query: string,
+): SearchHit<T>[] {
   const q = fold(query.trim());
   if (!q) return shown.map((section) => ({ section }));
   const starts = (text: string) => ` ${fold(text)}`.includes(` ${q}`);
-  return shown.flatMap((section): SearchHit[] => {
+  return shown.flatMap((section): SearchHit<T>[] => {
     if (starts(section.label)) return [{ section }];
     const keyword = section.keywords.find(starts);
     return keyword ? [{ section, keyword }] : [];

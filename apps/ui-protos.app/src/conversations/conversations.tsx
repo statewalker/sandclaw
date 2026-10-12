@@ -493,6 +493,8 @@ export interface ConversationsProps {
   delay?: number;
   /** No chats yet: the first visit. */
   firstVisit?: boolean;
+  /** Fill the parent (a dock tab) instead of the story's 640 px card. */
+  fill?: boolean;
 }
 
 function useChats({ delay = 600, firstVisit }: ConversationsProps) {
@@ -506,7 +508,14 @@ function useChats({ delay = 600, firstVisit }: ConversationsProps) {
 export function ConversationsSidebar(props: ConversationsProps) {
   const { chats, current } = useChats(props);
   return (
-    <Card className="grid h-[640px] max-h-[90svh] w-full max-w-4xl grid-rows-[minmax(0,14rem)_minmax(0,1fr)] gap-0 overflow-hidden p-0 md:grid-cols-[16rem_minmax(0,1fr)] md:grid-rows-1">
+    <Card
+      className={cn(
+        "grid w-full grid-rows-[minmax(0,14rem)_minmax(0,1fr)] gap-0 overflow-hidden p-0 md:grid-cols-[16rem_minmax(0,1fr)] md:grid-rows-1",
+        props.fill
+          ? "h-full rounded-none border-0 shadow-none"
+          : "h-[640px] max-h-[90svh] max-w-4xl",
+      )}
+    >
       <aside aria-label="Conversations" className="min-h-0 border-b md:border-r md:border-b-0">
         <ChatList chats={chats} />
       </aside>
