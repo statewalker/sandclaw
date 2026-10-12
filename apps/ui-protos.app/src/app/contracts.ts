@@ -12,6 +12,7 @@ import { defineKeyedSlot, defineSlot } from "@statewalker/shared-slots";
 import type { ComponentType, ReactNode } from "react";
 import type { PanelCommand } from "../file-panels/file-panel.js";
 import type { SectionGroup } from "../settings/settings-model.js";
+import type { Citation } from "../viewers/files.js";
 import type { Zone } from "../workspace-layout/zones.js";
 
 export type Icon = ComponentType<{ className?: string }>;
@@ -101,6 +102,13 @@ export const SetTheme = silent<{ theme: AppTheme }>("app:set-theme");
 export const NewFilePanel = silent<void>("files:new-panel");
 /** A file panel command, run on the active file panel and its selection. */
 export const RunFileCommand = silent<{ command: PanelCommand }>("files:command");
+/**
+ * Opens a file of the user's folder — `path` as the views name it ("Notes/todo.md") — as a
+ * tab beside the active file panel (an open one comes forward); on a phone, full screen.
+ */
+export const OpenFile = silent<{ path: string; citation?: Citation }>("files:open");
+/** Shows a file's folder in the active docked file panel, with the file selected. */
+export const RevealFile = silent<{ path: string }>("files:reveal");
 export const ShowShortcuts = silent<void>("app:shortcuts");
 export const ShowAbout = silent<void>("app:about");
 export const Lock = silent<void>("mesh:lock");

@@ -246,6 +246,11 @@ export function AppShell({ commanderRef, initialMode = "desktop" }: AppShellProp
     return () => observer.disconnect();
   }, []);
 
+  // On a phone, an opened file shows full screen in Files, whatever view was shown.
+  useEffect(() => {
+    if (mode === "mobile" && commander.viewer) setPhoneView("files");
+  }, [mode, commander.viewer]);
+
   // A new dock, or desktop ↔ compact on the same dock (no remount): lay it out for the
   // mode. Not from `onReady`: the file panels go back on the dock through `useFilesInDock`,
   // which reaches a new dock only once `dockApi` has rendered.

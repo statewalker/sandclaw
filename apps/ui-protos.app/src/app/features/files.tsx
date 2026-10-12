@@ -16,11 +16,14 @@ import {
   menuItem,
   menuItemsSlot,
   NewFilePanel,
+  OpenFile,
   OpenSettings,
+  RevealFile,
   RunFileCommand,
   ShowPanel,
 } from "../contracts.js";
 import { all, type Feature, handle, provideAll, settingsTab } from "../runtime.js";
+import { worldPath } from "../world.js";
 
 /** The Files tree, the file commands on the active panel, and Settings › Storages. */
 export const files: Feature = {
@@ -135,6 +138,10 @@ export const files: Feature = {
           .panelProps(a.panel)
           .onCommand?.(command, { path: a.panel.path, selected: a.panel.selected });
       }),
+      handle(rt, OpenFile, ({ path, citation }) => {
+        void ctx.commander.current?.openFile(worldPath(path), undefined, citation);
+      }),
+      handle(rt, RevealFile, ({ path }) => ctx.commander.current?.reveal(worldPath(path))),
     );
   },
 };
