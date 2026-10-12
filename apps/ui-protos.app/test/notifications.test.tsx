@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { today } from "../src/mock.js";
 import {
   channelOf,
@@ -112,5 +112,25 @@ describe("Notifications", () => {
     expect(off.checked).toBe(true);
     const device = screen.getByRole("group", { name: "A device was added to my identity" });
     expect(within(device).getByLabelText("Off").matches(":disabled")).toBe(true);
+  });
+});
+
+describe("Notifications embedded in a top bar", () => {
+  it("on a narrow screen the dropdown stays inside it, below the bell", () => {
+    const width = window.innerWidth;
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    try {
+      render(<Notifications embedded notices={history} />);
+      const bell = screen.getByRole("button", { name: /^Notifications/ });
+      // The bell sits near the right edge, left of an avatar.
+      vi.spyOn(bell, "getBoundingClientRect").mockReturnValue(new DOMRect(300, 4, 36, 36));
+      fireEvent.click(bell);
+      const { left, top, width: w } = screen.getByRole("dialog", { name: "Notifications" }).style;
+      expect(Number.parseFloat(left)).toBe(8);
+      expect(Number.parseFloat(w)).toBe(390 - 16);
+      expect(Number.parseFloat(top)).toBe(44);
+    } finally {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
+    }
   });
 });
