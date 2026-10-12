@@ -1,0 +1,30 @@
+import { Meta, Story } from "@storybook/addon-docs/blocks";
+import * as Stories from "./app.stories.tsx";
+
+<Meta of={Stories} />
+
+# The app, signed in
+
+Every main view of Sandclaw in one window, for someone who has already joined a mesh: the
+menus reach every feature, the activity bar switches the side views, the file panels and
+documents share the center, and Settings covers everything configurable.
+
+## How it is put together
+
+- **Features** (Files, Todos, Sites, Indexing, Assistant, Tasks and notifications, Mesh) each
+  add their views, menu items, settings sections and top-bar items to **slots**, and handle
+  **commands**. The shell only renders the slots and handles the dock and Settings commands.
+- A menu item names a command, so the menubar, the phone's ☰, keyboard shortcuts and the avatar
+  menu all run the same thing.
+- Switch a feature off in the controls: its views, menu items and settings sections all go. Switch
+  the viewer to Hugo: the admin items go.
+
+## Screen sizes
+
+| Width | What it shows |
+| --- | --- |
+| 1024 px and wider | menus, activity bar, the dock: side views left, file panels and documents center, Assistant right, Tasks at the bottom |
+| 640–1023 px | menus, activity bar, the dock's center and Tasks; side views and the Assistant open as overlays |
+| below 640 px | ☰, one view at a time, a bottom bar: Files, Todos, Assistant, Tasks, More |
+
+<Story of={Stories.Desktop} inline={false} height="720px" />
