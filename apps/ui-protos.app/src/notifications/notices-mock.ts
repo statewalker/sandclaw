@@ -1,5 +1,5 @@
 import { today } from "../mock.js";
-import type { Notice, NoticeKind } from "./inbox.js";
+import type { Notice, NoticeKind, NoticeTarget } from "./inbox.js";
 
 // Notices for the stories. "Now" is `today` (10 Oct, 10:00 UTC).
 
@@ -12,7 +12,8 @@ const notice = (
   title: string,
   detail?: string,
   read = false,
-): Notice => ({ id, kind, at: minutesAgo(min), title, detail, read });
+  target?: NoticeTarget,
+): Notice => ({ id, kind, at: minutesAgo(min), title, detail, read, target });
 
 /** Claire's list: a busy morning on top of a read week. */
 export const history: Notice[] = [
@@ -22,6 +23,8 @@ export const history: Notice[] = [
     18,
     "“Update the Dupont offer” waits for you",
     "It asks to change Clients/Dupont — offer.docx",
+    false,
+    { kind: "file", path: "Clients/Dupont — offer.docx" },
   ),
   notice(
     "n_paul",
@@ -29,6 +32,8 @@ export const history: Notice[] = [
     3 * 60,
     "Paul joined with “Paul (accounting)”",
     "From Edge on Windows",
+    false,
+    { kind: "team" },
   ),
   notice(
     "n_unread",
@@ -36,6 +41,8 @@ export const history: Notice[] = [
     5 * 60,
     "3 files couldn't be read",
     "2 password-protected PDFs, 1 damaged spreadsheet",
+    false,
+    { kind: "settings", section: "indexing" },
   ),
   notice("n_idx", "indexing-done", 5 * 60 + 2, "Indexing finished", "412 files in Clients"),
   notice(
@@ -45,6 +52,7 @@ export const history: Notice[] = [
     "Site “Dupont project” built",
     "12 pages · private link",
     true,
+    { kind: "site" },
   ),
   notice(
     "n_phone",
@@ -53,6 +61,7 @@ export const history: Notice[] = [
     "Safari on iPhone was added to your identity",
     "Added from Firefox on Linux",
     true,
+    { kind: "settings", section: "me" },
   ),
   notice(
     "n_mail",
@@ -61,6 +70,7 @@ export const history: Notice[] = [
     "The email service stopped answering",
     "Back after 14 min",
     true,
+    { kind: "settings", section: "services" },
   ),
   notice(
     "n_fail",
@@ -91,6 +101,8 @@ export const arriving: Notice[] = [
     0,
     "Firefox on Mac was added to your identity",
     "Not you? Review your devices and remove it.",
+    false,
+    { kind: "settings", section: "me" },
   ),
 ];
 

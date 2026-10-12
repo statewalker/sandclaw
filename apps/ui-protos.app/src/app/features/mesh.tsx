@@ -1,6 +1,7 @@
 import {
   Avatar,
   AvatarFallback,
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -119,6 +120,33 @@ export const mesh: Feature = {
       );
     }
 
+    function Pill() {
+      const { commands } = useAppRuntime();
+      return (
+        <GroupPill state="connected" onClick={() => commands.call(ShowPanel, { id: "team" })} />
+      );
+    }
+
+    function TeamView() {
+      const { commands } = useAppRuntime();
+      return (
+        <PanelPage>
+          {admin && (
+            <div className="flex w-full justify-end pb-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => commands.call(OpenSettings, { section: "team" })}
+              >
+                Manage team…
+              </Button>
+            </div>
+          )}
+          <TeamOneList viewer={ctx.viewer} />
+        </PanelPage>
+      );
+    }
+
     return all(
       registerAll(rt.slots, appViewsSlot, [
         {
@@ -128,11 +156,7 @@ export const mesh: Feature = {
           zone: "left",
           activity: 50,
           mobile: "more",
-          render: () => (
-            <PanelPage>
-              <TeamOneList viewer={ctx.viewer} />
-            </PanelPage>
-          ),
+          render: () => <TeamView />,
         },
         {
           id: "my-identity",
@@ -162,7 +186,7 @@ export const mesh: Feature = {
           : []),
       ]),
       provideAll(rt.slots, headerItemsSlot, [
-        { id: "group", order: 10, Component: () => <GroupPill state="connected" /> },
+        { id: "group", order: 10, Component: Pill },
         { id: "avatar", order: 30, Component: AvatarMenu },
       ]),
       provideAll(rt.slots, menuItemsSlot, [

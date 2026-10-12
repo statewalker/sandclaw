@@ -31,13 +31,14 @@ const details: Record<LinkState, string> = {
 };
 
 /** "Atelier Morel · connected": the group's name and the link's state, details on hover. */
-export function GroupPill({ state }: { state: LinkState }) {
+export function GroupPill({ state, onClick }: { state: LinkState; onClick?: () => void }) {
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             type="button"
+            onClick={onClick}
             className="bg-secondary flex items-center gap-2 rounded-full px-3 py-1 text-xs"
           >
             <span className={cn("size-2 rounded-full", dot[state])} />

@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { App } from "../src/app/app.js";
-import { OpenFile, RevealFile, ShowPanel } from "../src/app/contracts.js";
+import { OpenFile, OpenSettings, RevealFile, ShowPanel } from "../src/app/contracts.js";
 import { createRuntime } from "../src/app/runtime.js";
 
 afterEach(cleanup);
@@ -182,5 +182,77 @@ describe("links from the views", () => {
       );
     });
     await waitFor(() => expect(tab("Dupont — notes.md")).toHaveLength(1));
+  });
+});
+
+describe("navigation links", () => {
+  const bell = () => screen.getByRole("button", { name: /^Notifications/ });
+
+  it("a notice about a file opens it", async () => {
+    renderApp();
+    fireEvent.click(bell());
+    fireEvent.click(await screen.findByRole("button", { name: /Update the Dupont offer/ }));
+    await waitFor(() => expect(tab("Dupont — offer.docx")).toHaveLength(1));
+  });
+
+  it("a notice about unreadable files opens Settings › What the assistant reads", async () => {
+    renderApp();
+    fireEvent.click(bell());
+    fireEvent.click(await screen.findByRole("button", { name: /couldn't be read/ }));
+    const nav = await screen.findByRole("navigation", { name: "Settings sections" });
+    expect(
+      within(nav)
+        .getByRole("button", { name: "What the assistant reads" })
+        .getAttribute("aria-current"),
+    ).toBe("page");
+  });
+
+  it("a notice that targets an admin section opens the first one for a member", async () => {
+    const rt = renderApp({ viewer: "member" });
+    act(() => {
+      rt.commands.call(OpenSettings, { section: "services" });
+    });
+    const nav = await screen.findByRole("navigation", { name: "Settings sections" });
+    expect(within(nav).getByRole("button", { name: "Me" }).getAttribute("aria-current")).toBe(
+      "page",
+    );
+  });
+
+  it("the group pill shows the Team view", async () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: /Atelier Morel/ }));
+    const bar = screen.getByRole("navigation", { name: "Activity bar" });
+    await waitFor(() =>
+      expect(within(bar).getByRole("button", { name: "Team" }).getAttribute("aria-pressed")).toBe(
+        "true",
+      ),
+    );
+  });
+
+  it("Manage team… opens Settings › Team for an admin; a member has no such button", async () => {
+    renderApp();
+    fireEvent.click(screen.getByRole("button", { name: /Atelier Morel/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Manage team…" }));
+    const nav = await screen.findByRole("navigation", { name: "Settings sections" });
+    expect(within(nav).getByRole("button", { name: "Team" }).getAttribute("aria-current")).toBe(
+      "page",
+    );
+    cleanup();
+    renderApp({ viewer: "member" });
+    fireEvent.click(screen.getByRole("button", { name: /Atelier Morel/ }));
+    await screen.findAllByText("Team");
+    expect(screen.queryByRole("button", { name: "Manage team…" })).toBeNull();
+  });
+
+  it("Edit table of contents opens the table-of-contents editor", async () => {
+    renderApp();
+    fireEvent.click(
+      within(screen.getByRole("navigation", { name: "Activity bar" })).getByRole("button", {
+        name: "Sites",
+      }),
+    );
+    const site = await screen.findByRole("listitem", { name: "Dupont renovation" });
+    fireEvent.click(within(site).getByRole("button", { name: /table of contents/i }));
+    await waitFor(() => expect(tab("Table of contents")).toHaveLength(1));
   });
 });

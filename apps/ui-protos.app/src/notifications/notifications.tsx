@@ -31,6 +31,7 @@ import {
   type NoticeGroup,
   type NoticeKind,
   type NoticeSettings,
+  type NoticeTarget,
   placesFor,
   trim,
   unreadCount,
@@ -59,6 +60,8 @@ export interface NotificationsProps {
   now?: Date;
   /** Only the bell and its dropdown, for an app's own top bar (no stand-in app area, no toasts). */
   embedded?: boolean;
+  /** Opening a notice that points somewhere goes there; without it, the stand-in area says where. */
+  onOpen?: (target: NoticeTarget) => void;
 }
 
 const icons: Record<NoticeKind, LucideIcon> = {
@@ -173,6 +176,7 @@ export function Notifications({
   link = "connected",
   now = today,
   embedded = false,
+  onOpen,
 }: NotificationsProps) {
   const forViewer = (n: Notice) => viewer === "admin" || !kinds[n.kind].adminOnly;
   const [settings, setSettings] = useState(initialSettings);
@@ -254,6 +258,11 @@ export function Notifications({
     setItems((all) => markRead(all, ids));
     setToasts((all) => all.filter((t) => !ids.includes(t.id)));
     setOpened(`${kinds[g.kind].action ?? "Open"}: ${g.title}`);
+    const target = g.notices.find((n) => n.target)?.target;
+    if (target && onOpen) {
+      onOpen(target);
+      close();
+    }
   };
 
   const list = (

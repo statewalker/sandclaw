@@ -1,11 +1,32 @@
 import { Card } from "@statewalker/ui.view.shadcn";
 import { ListChecks } from "lucide-react";
+import type { Role } from "../../mock.js";
+import type { NoticeTarget } from "../../notifications/inbox.js";
 import { history } from "../../notifications/notices-mock.js";
 import { NotificationSettings } from "../../notifications/notification-settings.js";
 import { Notifications } from "../../notifications/notifications.js";
 import { TasksStrip } from "../../tasks/tasks-strip.js";
-import { appViewsSlot, headerItemsSlot, menuItem, menuItemsSlot, ShowPanel } from "../contracts.js";
-import { all, type Feature, settingsTab } from "../runtime.js";
+import {
+  appViewsSlot,
+  headerItemsSlot,
+  menuItem,
+  menuItemsSlot,
+  OpenFile,
+  OpenSettings,
+  ShowPanel,
+} from "../contracts.js";
+import { all, type Feature, settingsTab, useAppRuntime } from "../runtime.js";
+
+/** The bell: opening a notice goes where it points. */
+function Bell({ viewer }: { viewer: Role }) {
+  const { commands } = useAppRuntime();
+  const go = (target: NoticeTarget) => {
+    if (target.kind === "file") commands.call(OpenFile, { path: target.path });
+    else if (target.kind === "settings") commands.call(OpenSettings, { section: target.section });
+    else commands.call(ShowPanel, { id: target.kind === "site" ? "sites" : "team" });
+  };
+  return <Notifications embedded viewer={viewer} notices={history} onOpen={go} />;
+}
 
 /** What runs and what happened: the Tasks strip at the bottom, the bell on top. */
 export const activity: Feature = {
@@ -24,7 +45,7 @@ export const activity: Feature = {
       rt.slots.provide(headerItemsSlot, {
         id: "bell",
         order: 20,
-        Component: () => <Notifications embedded viewer={ctx.viewer} notices={history} />,
+        Component: () => <Bell viewer={ctx.viewer} />,
       }),
       rt.slots.provide(
         menuItemsSlot,
