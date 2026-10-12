@@ -62,12 +62,20 @@ describe("App", () => {
   it("Edit › Rename acts on the active file panel's selection", async () => {
     renderApp();
     // A press in a panel makes it the active one; the click selects the row.
-    const row = await screen.findByRole("row", { name: /backup\.zip/ });
+    const row = await screen.findByRole("row", { name: /2026-Q3\.xlsx/ });
     fireEvent.mouseDown(row);
     fireEvent.click(row);
     fireEvent.keyDown(screen.getByRole("menuitem", { name: "Edit" }), { key: "Enter" });
     fireEvent.click(screen.getByRole("menuitem", { name: /^Rename/ }));
-    expect(await screen.findByRole("dialog", { name: "Rename backup.zip" })).toBeTruthy();
+    expect(await screen.findByRole("dialog", { name: "Rename 2026-Q3.xlsx" })).toBeTruthy();
+  });
+
+  it("the Files tree shows the Atelier Morel folder", async () => {
+    renderApp();
+    const tree = screen.getByRole("treegrid", { name: "Contents of /documents" });
+    for (const name of ["Clients", "Finance", "Notes", "Outputs"]) {
+      expect(await within(tree).findByRole("row", { name: new RegExp(name) })).toBeTruthy();
+    }
   });
 
   it("File › Lock covers the App until the password is typed", () => {
@@ -81,7 +89,7 @@ describe("App", () => {
 
   it("with Settings open, a menu shortcut does not reach the panel behind it", async () => {
     renderApp();
-    const row = await screen.findByRole("row", { name: /backup\.zip/ });
+    const row = await screen.findByRole("row", { name: /2026-Q3\.xlsx/ });
     fireEvent.mouseDown(row);
     fireEvent.click(row);
     fireEvent.keyDown(document.body, { key: ",", ctrlKey: true });

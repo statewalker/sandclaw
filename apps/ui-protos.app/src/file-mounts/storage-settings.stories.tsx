@@ -13,7 +13,7 @@ const BACKUPS: S3Form = {
   preset: "aws",
   endpoint: "https://s3.eu-central-1.amazonaws.com",
   region: "eu-central-1",
-  bucket: "acme-backups",
+  bucket: "atelier-morel-backups",
   prefix: "",
   pathStyle: false,
   readOnly: false,
@@ -26,7 +26,7 @@ const SITE_PHOTOS: S3Form = {
   preset: "r2",
   endpoint: "https://4f9a2c.r2.cloudflarestorage.com",
   region: "auto",
-  bucket: "acme-site-photos",
+  bucket: "atelier-morel-site-photos",
 };
 
 const meta = {
