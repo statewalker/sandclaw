@@ -57,6 +57,8 @@ export interface NotificationsProps {
   defaultOpen?: boolean;
   link?: LinkState;
   now?: Date;
+  /** Only the bell and its dropdown, for an app's own top bar (no stand-in app area, no toasts). */
+  embedded?: boolean;
 }
 
 const icons: Record<NoticeKind, LucideIcon> = {
@@ -151,6 +153,7 @@ export function Notifications({
   defaultOpen = false,
   link = "connected",
   now = today,
+  embedded = false,
 }: NotificationsProps) {
   const forViewer = (n: Notice) => viewer === "admin" || !kinds[n.kind].adminOnly;
   const [settings, setSettings] = useState(initialSettings);
@@ -277,32 +280,54 @@ export function Notifications({
     </>
   );
 
+  const bell = (
+    <Button
+      ref={bellRef}
+      size="icon"
+      variant={open ? "secondary" : "ghost"}
+      aria-label={badge ? `Notifications, ${badge} new` : "Notifications"}
+      aria-expanded={open}
+      aria-haspopup={variant === "bell" ? "dialog" : undefined}
+      onClick={toggle}
+      className="relative"
+    >
+      <Bell />
+      {badge > 0 && (
+        <span
+          aria-hidden
+          className="bg-destructive absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-medium text-white"
+        >
+          {badge > 9 ? "9+" : badge}
+        </span>
+      )}
+    </Button>
+  );
+
+  if (embedded) {
+    return (
+      <div className="relative">
+        {bell}
+        {open && (
+          <div
+            ref={popRef}
+            role="dialog"
+            aria-label="Notifications"
+            className="bg-popover absolute top-full right-0 z-30 mt-1 flex max-h-[480px] w-[min(24rem,calc(100vw-1rem))] flex-col rounded-md border shadow-lg"
+          >
+            {list}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     // A mock app area: toasts and the dropdown are placed inside it, not in the page.
     <div className="bg-background relative flex h-[600px] w-full max-w-4xl flex-col overflow-hidden rounded-lg border">
       <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
         <GroupPill state={link} />
         <span className="flex-1" />
-        <Button
-          ref={bellRef}
-          size="icon"
-          variant={open ? "secondary" : "ghost"}
-          aria-label={badge ? `Notifications, ${badge} new` : "Notifications"}
-          aria-expanded={open}
-          aria-haspopup={variant === "bell" ? "dialog" : undefined}
-          onClick={toggle}
-          className="relative"
-        >
-          <Bell />
-          {badge > 0 && (
-            <span
-              aria-hidden
-              className="bg-destructive absolute -top-0.5 -right-0.5 grid h-4 min-w-4 place-items-center rounded-full px-1 text-[10px] font-medium text-white"
-            >
-              {badge > 9 ? "9+" : badge}
-            </span>
-          )}
-        </Button>
+        {bell}
       </header>
       <div className="relative flex min-h-0 flex-1">
         <main className="text-muted-foreground grid flex-1 place-items-center p-4 text-center text-xs">

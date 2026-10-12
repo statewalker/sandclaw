@@ -54,7 +54,7 @@ import {
 const MISSING = "missing";
 
 /** The left bar's folder: the commander's panel that stays out of the dock, as a tree. */
-function FolderBar() {
+export function FolderBar() {
   const files = useContext(FilesInDock);
   const id = files?.commander.panels.find((p) => p.dock === false)?.id;
   return id ? <CommanderPanel id={id} /> : null;

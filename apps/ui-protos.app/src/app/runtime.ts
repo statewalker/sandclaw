@@ -9,8 +9,8 @@ import {
 import { type KeyedSlotDeclaration, type SlotDeclaration, Slots } from "@statewalker/shared-slots";
 import { createContext, useContext, useSyncExternalStore } from "react";
 import type { Commander } from "../file-panels/use-commander.js";
-import type { Viewer } from "../settings/settings-model.js";
-import type { AppTheme } from "./contracts.js";
+import { type SectionId, sections, type Viewer } from "../settings/settings-model.js";
+import { type AppTheme, type SettingsTab, settingsTabsSlot } from "./contracts.js";
 
 export interface AppRuntime {
   slots: Slots;
@@ -78,6 +78,18 @@ export function registerAll<T extends { id: string }>(
   values: T[],
 ): () => void {
   return all(...values.map((value) => slots.register(slot, value.id, value)));
+}
+
+/** A Settings section from the existing model (its label, group and keywords), rendering `render`. */
+export function settingsTab(
+  slots: Slots,
+  id: SectionId,
+  order: number,
+  render: SettingsTab["render"],
+): () => void {
+  const info = sections.find((s) => s.id === id);
+  if (!info) throw new Error(`No settings section "${id}"`);
+  return slots.register(settingsTabsSlot, id, { ...info, order, render });
 }
 
 export const AppRuntimeContext = createContext<AppRuntime | null>(null);
