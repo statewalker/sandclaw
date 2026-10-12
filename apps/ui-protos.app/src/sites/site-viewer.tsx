@@ -12,12 +12,20 @@ export interface SiteViewerProps {
   onEditToc?: (siteId: string) => void;
   /** Shown in the banner while pages are written or when some failed. */
   onShowPages?: () => void;
+  /** Opens a file cited in the site; without it, a notice says where it would open. */
+  onOpenFile?: (path: string) => void;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** The site's tab: our small toolbar, a banner when the site is not current, the site itself. */
-export function SiteViewer({ site, onRegenerate, onEditToc, onShowPages }: SiteViewerProps) {
+export function SiteViewer({
+  site,
+  onRegenerate,
+  onEditToc,
+  onShowPages,
+  onOpenFile,
+}: SiteViewerProps) {
   const html = useMemo(() => siteHtml(site), [site]);
   const frame = useRef<HTMLIFrameElement>(null);
   const [notice, setNotice] = useState("");
@@ -26,11 +34,13 @@ export function SiteViewer({ site, onRegenerate, onEditToc, onShowPages }: SiteV
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.source !== frame.current?.contentWindow) return;
-      if (e.data?.type === "sandclaw:open-file") setNotice(`Here ${e.data.path} would open.`);
+      if (e.data?.type !== "sandclaw:open-file") return;
+      if (onOpenFile) onOpenFile(e.data.path);
+      else setNotice(`Here ${e.data.path} would open.`);
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, []);
+  }, [onOpenFile]);
 
   const openWindow = () => {
     const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));

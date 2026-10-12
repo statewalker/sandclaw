@@ -1,15 +1,16 @@
 import { Button, cn } from "@statewalker/ui.view.shadcn";
 import { ArrowLeft, Ellipsis, Files } from "lucide-react";
-import { useState } from "react";
 import { CommanderPanel } from "../../file-panels/dock-files.js";
 import { type Commander, ViewerBody } from "../../file-panels/use-commander.js";
 import type { AppView, Icon } from "../contracts.js";
 
-/** Files on a phone: the docked file panels with a tab row; an opened file fills the screen. */
+/**
+ * Files on a phone: the docked file panels with a tab row, the active one shown;
+ * an opened file fills the screen.
+ */
 function PhoneFiles({ commander }: { commander: Commander }) {
   const docked = commander.panels.filter((p) => p.dock !== false);
-  const [id, setId] = useState(docked[0]?.id);
-  const panel = docked.find((p) => p.id === id) ?? docked[0];
+  const panel = commander.activeDocked();
   const { viewer, setViewer } = commander;
   if (viewer) {
     const name = viewer.path.split("/").at(-1) ?? viewer.path;
@@ -37,7 +38,7 @@ function PhoneFiles({ commander }: { commander: Commander }) {
               type="button"
               role="tab"
               aria-selected={p.id === panel?.id}
-              onClick={() => setId(p.id)}
+              onClick={() => commander.activate(p.id)}
               className={cn(
                 "rounded-md px-3 py-1 text-sm",
                 p.id === panel?.id ? "bg-secondary font-medium" : "text-muted-foreground",

@@ -76,7 +76,7 @@ function apply(items: Item[], ev: ScriptEvent): Item[] {
   }
 }
 
-function TaskCard({ task }: { task: TaskItem }) {
+function TaskCard({ task, onOpenFile }: { task: TaskItem; onOpenFile?: (path: string) => void }) {
   return (
     <div className="grid gap-2 rounded-lg border p-3">
       <div className="flex items-center gap-2 text-sm font-medium">
@@ -110,6 +110,7 @@ function TaskCard({ task }: { task: TaskItem }) {
             <button
               key={o.file}
               type="button"
+              onClick={() => onOpenFile?.(o.file)}
               className="bg-secondary hover:bg-accent flex items-center gap-1.5 rounded-md px-2 py-1 text-xs"
               title={o.change === "created" ? "New file — open it" : "Changed file — open it"}
             >
@@ -236,12 +237,15 @@ export interface AssistantPanelProps {
   placement?: RequestPlacement;
   /** Delay between script events, in ms. */
   stepMs?: number;
+  /** Opens an output file of a task. */
+  onOpenFile?: (path: string) => void;
 }
 
 export function AssistantPanel({
   scenario,
   placement = "inline",
   stepMs = 600,
+  onOpenFile,
 }: AssistantPanelProps) {
   const [queue, setQueue] = useState<ScriptEvent[]>(scenarios[scenario]);
   const [next, setNext] = useState(0);
@@ -305,7 +309,8 @@ export function AssistantPanel({
                 </div>
               );
             if (item.kind === "say") return <p key={key}>{item.text}</p>;
-            if (item.kind === "task") return <TaskCard key={key} task={item} />;
+            if (item.kind === "task")
+              return <TaskCard key={key} task={item} onOpenFile={onOpenFile} />;
             if (item.answer)
               return <RequestRecord key={key} request={item.request} answer={item.answer} />;
             return placement === "inline" ? (

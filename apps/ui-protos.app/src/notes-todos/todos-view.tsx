@@ -25,7 +25,14 @@ function fileName(path: string) {
   return path.split("/").at(-1)?.replace(/\.md$/, "") ?? path;
 }
 
-export function TodosView({ grouping = "by-file" }: { grouping?: TodoGrouping }) {
+export function TodosView({
+  grouping = "by-file",
+  onOpenFile,
+}: {
+  grouping?: TodoGrouping;
+  /** Opens a todo's file; without it, file names are plain labels. */
+  onOpenFile?: (path: string) => void;
+}) {
   const [files, setFiles] = useState(initialFiles);
   const [draft, setDraft] = useState("");
   const [showDone, setShowDone] = useState(false);
@@ -43,8 +50,22 @@ export function TodosView({ grouping = "by-file" }: { grouping?: TodoGrouping })
     setDraft("");
   };
 
+  const openLabel = (path: string, className: string, text: string) =>
+    onOpenFile && (
+      <button
+        type="button"
+        aria-label={`Open ${path}`}
+        title={path}
+        onClick={() => onOpenFile(path)}
+        className={cn(className, "text-left hover:underline")}
+      >
+        {text}
+      </button>
+    );
+
+  // With onOpenFile the file label is its own button, beside the tick button (not inside it).
   const row = (t: Todo, label: boolean) => (
-    <li key={`${t.path}:${t.line}`}>
+    <li key={`${t.path}:${t.line}`} className={cn(label && onOpenFile && "flex items-start")}>
       <button
         type="button"
         onClick={() => tick(t)}
@@ -57,11 +78,17 @@ export function TodosView({ grouping = "by-file" }: { grouping?: TodoGrouping })
         )}
         <span className={cn("flex-1", t.done && "text-muted-foreground line-through")}>
           {t.text}
-          {label && (
+          {label && !onOpenFile && (
             <span className="text-muted-foreground ml-1.5 text-xs">· {fileName(t.path)}</span>
           )}
         </span>
       </button>
+      {label &&
+        openLabel(
+          t.path,
+          "text-muted-foreground shrink-0 px-2 py-1 text-xs",
+          `· ${fileName(t.path)}`,
+        )}
     </li>
   );
 
@@ -87,9 +114,11 @@ export function TodosView({ grouping = "by-file" }: { grouping?: TodoGrouping })
           {grouping === "by-file" ? (
             groups.map((path) => (
               <div key={path}>
-                <div className="text-muted-foreground px-2 pt-1 text-xs" title={path}>
-                  {fileName(path)}
-                </div>
+                {openLabel(path, "text-muted-foreground px-2 pt-1 text-xs", fileName(path)) ?? (
+                  <div className="text-muted-foreground px-2 pt-1 text-xs" title={path}>
+                    {fileName(path)}
+                  </div>
+                )}
                 <ul>{open.filter((t) => t.path === path).map((t) => row(t, false))}</ul>
               </div>
             ))

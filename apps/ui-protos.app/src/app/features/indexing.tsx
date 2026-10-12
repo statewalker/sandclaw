@@ -1,9 +1,30 @@
 import { FileSearch, Search } from "lucide-react";
 import { IndexExplorer } from "../../explore/explore.js";
 import { IndexingPage, IndexingTree } from "../../indexing/indexing.js";
-import { appViewsSlot, menuItem, menuItemsSlot, ShowPanel } from "../contracts.js";
-import { all, type Feature, provideAll, registerAll, settingsTab } from "../runtime.js";
+import { appViewsSlot, menuItem, menuItemsSlot, RevealFile, ShowPanel } from "../contracts.js";
+import {
+  all,
+  type Feature,
+  provideAll,
+  registerAll,
+  settingsTab,
+  useAppRuntime,
+} from "../runtime.js";
 import { PanelPage } from "../shell/panel-page.js";
+
+function IndexingLinked() {
+  const { commands } = useAppRuntime();
+  return <IndexingTree onReveal={(path) => commands.call(RevealFile, { path })} />;
+}
+
+function ExploreLinked() {
+  const { commands } = useAppRuntime();
+  return (
+    <PanelPage>
+      <IndexExplorer onOpen={(path) => commands.call(RevealFile, { path })} />
+    </PanelPage>
+  );
+}
 
 export const indexing: Feature = {
   id: "indexing",
@@ -18,7 +39,7 @@ export const indexing: Feature = {
           zone: "left",
           activity: 40,
           mobile: "more",
-          render: () => <IndexingTree />,
+          render: () => <IndexingLinked />,
         },
         {
           id: "explore",
@@ -26,11 +47,7 @@ export const indexing: Feature = {
           Icon: Search,
           zone: "center",
           mobile: "more",
-          render: () => (
-            <PanelPage>
-              <IndexExplorer />
-            </PanelPage>
-          ),
+          render: () => <ExploreLinked />,
         },
       ]),
       provideAll(rt.slots, menuItemsSlot, [

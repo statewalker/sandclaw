@@ -1,7 +1,12 @@
 import { ListTodo } from "lucide-react";
 import { TodosView } from "../../notes-todos/todos-view.js";
-import { appViewsSlot, menuItem, menuItemsSlot, ShowPanel } from "../contracts.js";
-import { all, type Feature } from "../runtime.js";
+import { appViewsSlot, menuItem, menuItemsSlot, OpenFile, ShowPanel } from "../contracts.js";
+import { all, type Feature, useAppRuntime } from "../runtime.js";
+
+function TodosLinked() {
+  const { commands } = useAppRuntime();
+  return <TodosView onOpenFile={(path) => commands.call(OpenFile, { path })} />;
+}
 
 export const todos: Feature = {
   id: "todos",
@@ -15,7 +20,7 @@ export const todos: Feature = {
         zone: "left",
         activity: 20,
         mobile: "tab",
-        render: () => <TodosView />,
+        render: () => <TodosLinked />,
       }),
       rt.slots.provide(
         menuItemsSlot,

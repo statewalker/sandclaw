@@ -135,6 +135,13 @@ export const kinds: Record<NoticeKind, KindInfo> = {
 
 export const kindList = Object.keys(kinds) as NoticeKind[];
 
+/** Where opening a notice goes: a file, the Sites view, a Settings section, the Team view. */
+export type NoticeTarget =
+  | { kind: "file"; path: string }
+  | { kind: "site" }
+  | { kind: "settings"; section: string }
+  | { kind: "team" };
+
 export interface Notice {
   id: string;
   kind: NoticeKind;
@@ -144,6 +151,7 @@ export interface Notice {
   /** "3 files produced · in “Finance”" */
   detail?: string;
   read: boolean;
+  target?: NoticeTarget;
 }
 
 /** Only the kinds the person changed; the rest keep their default. */

@@ -54,6 +54,8 @@ export interface SitesProps {
   live?: boolean;
   /** The table-of-contents editor (E2) lives elsewhere. */
   onEditToc?: (siteId: string) => void;
+  /** Opens a file cited in an opened site. */
+  onOpenFile?: (path: string) => void;
   now?: Date;
 }
 
@@ -71,6 +73,7 @@ export function Sites({
   initialNew,
   live = false,
   onEditToc,
+  onOpenFile,
   now = today,
 }: SitesProps) {
   const [sites, setSites] = useState(initialSites);
@@ -136,6 +139,7 @@ export function Sites({
           onRegenerate={() => setConfirming(opened.id)}
           onEditToc={editToc}
           onShowPages={() => setView({ kind: "progress", siteId: opened.id })}
+          onOpenFile={onOpenFile}
         />
       </div>
     );

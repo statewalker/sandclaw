@@ -140,7 +140,7 @@ describe("AppShell on a desktop", () => {
     expect(groupOf(tab("Outline"))).toBe(groupOf(tab("Todos")));
     expect(screen.getByText("Chat view")).toBeTruthy();
     expect(screen.getByText("Jobs view")).toBeTruthy();
-    expect(groupOf(tab("clients"))).not.toBe(groupOf(tab("Outline")));
+    expect(groupOf(tab("Clients"))).not.toBe(groupOf(tab("Outline")));
     expect(screen.queryByText("Report view")).toBeNull();
   });
 
@@ -167,10 +167,10 @@ describe("AppShell on a desktop", () => {
     act(() => {
       rt.commands.call(ShowPanel, { id: "report" });
     });
-    expect([groupOf(tab("clients")), groupOf(tab("2025"))]).toContain(groupOf(tab("Report")));
+    expect([groupOf(tab("Clients")), groupOf(tab("Finance"))]).toContain(groupOf(tab("Report")));
     closeTab("Report");
-    closeTab("clients");
-    closeTab("2025");
+    closeTab("Clients");
+    closeTab("Finance");
     act(() => {
       rt.commands.call(ShowPanel, { id: "report" });
     });
@@ -251,10 +251,10 @@ describe("AppShell on a phone", () => {
 
   it("phone: a file opens full screen and Back returns to its panel", async () => {
     renderShell("mobile");
-    fireEvent.click(screen.getByRole("tab", { name: "2025" }));
-    fireEvent.doubleClick(await screen.findByRole("row", { name: /backup\.zip/ }));
-    expect(await screen.findByRole("region", { name: "Viewer: backup.zip" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Finance" }));
+    fireEvent.doubleClick(await screen.findByRole("row", { name: /2026-Q3\.xlsx/ }));
+    expect(await screen.findByRole("region", { name: "Viewer: 2026-Q3.xlsx" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(await screen.findByRole("row", { name: /backup\.zip/ })).toBeTruthy();
+    expect(await screen.findByRole("row", { name: /2026-Q3\.xlsx/ })).toBeTruthy();
   });
 });

@@ -66,6 +66,8 @@ export interface IndexingProps {
   offline?: boolean;
   /** Run the scripted reader (a few files a second). Off in tests. */
   live?: boolean;
+  /** A click on a file row (IndexingTree) shows the file in the folder. */
+  onReveal?: (path: string) => void;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -588,6 +590,7 @@ function TreeRows({
   toggle,
   menu,
   setMenu,
+  onReveal,
 }: {
   reading: Reading;
   entries: FolderEntry[];
@@ -597,6 +600,7 @@ function TreeRows({
   toggle: (path: string) => void;
   menu: string | null;
   setMenu: (path: string | null) => void;
+  onReveal?: (path: string) => void;
 }) {
   return entries.map((entry) => {
     const path = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -611,7 +615,7 @@ function TreeRows({
         <div className="group hover:bg-accent flex h-8 items-center rounded-md pr-1">
           <button
             type="button"
-            onClick={() => isFolder && toggle(path)}
+            onClick={() => (isFolder ? toggle(path) : onReveal?.(path))}
             // Right-click opens the same menu as the "…" button.
             onContextMenu={(e) => {
               e.preventDefault();
@@ -659,6 +663,7 @@ function TreeRows({
             toggle={toggle}
             menu={menu}
             setMenu={setMenu}
+            onReveal={onReveal}
           />
         )}
       </div>
@@ -716,6 +721,7 @@ export function IndexingTree(props: IndexingProps) {
             }}
             menu={menu}
             setMenu={setMenu}
+            onReveal={props.onReveal}
           />
         </div>
       </ScrollArea>

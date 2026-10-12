@@ -19,7 +19,7 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GroupPill, type LinkState } from "../group-status/group-status.js";
 import { type Role, today } from "../mock.js";
 import {
@@ -31,6 +31,7 @@ import {
   type NoticeGroup,
   type NoticeKind,
   type NoticeSettings,
+  type NoticeTarget,
   placesFor,
   trim,
   unreadCount,
@@ -59,6 +60,8 @@ export interface NotificationsProps {
   now?: Date;
   /** Only the bell and its dropdown, for an app's own top bar (no stand-in app area, no toasts). */
   embedded?: boolean;
+  /** Opening a notice that points somewhere goes there; without it, the stand-in area says where. */
+  onOpen?: (target: NoticeTarget) => void;
 }
 
 const icons: Record<NoticeKind, LucideIcon> = {
@@ -143,6 +146,25 @@ function NoticeRows({
   );
 }
 
+/** The embedded dropdown keeps this far inside the screen's edges. */
+const EDGE_MARGIN = 8;
+const DROPDOWN_WIDTH = 384;
+
+/**
+ * Where the embedded dropdown goes: just below the bell and right-aligned to it,
+ * but narrowed and shifted to stay inside the screen. On a phone the bell is not
+ * at the screen's right edge (the avatar follows it), so a dropdown anchored to
+ * the bell alone would leave a gap on the right and spill over the left.
+ */
+function dropdownPlace(bell: DOMRect): CSSProperties {
+  const width = Math.min(DROPDOWN_WIDTH, window.innerWidth - 2 * EDGE_MARGIN);
+  const left = Math.min(
+    Math.max(bell.right - width, EDGE_MARGIN),
+    window.innerWidth - EDGE_MARGIN - width,
+  );
+  return { left, top: bell.bottom + 4, width };
+}
+
 export function Notifications({
   variant = "bell",
   viewer = "admin",
@@ -154,6 +176,7 @@ export function Notifications({
   link = "connected",
   now = today,
   embedded = false,
+  onOpen,
 }: NotificationsProps) {
   const forViewer = (n: Notice) => viewer === "admin" || !kinds[n.kind].adminOnly;
   const [settings, setSettings] = useState(initialSettings);
@@ -177,6 +200,23 @@ export function Notifications({
   const [opened, setOpened] = useState("");
   const bellRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<CSSProperties>();
+
+  // The embedded dropdown follows the bell when the screen is resized or scrolled.
+  useLayoutEffect(() => {
+    if (!open || !embedded) return;
+    const update = () => {
+      const box = bellRef.current?.getBoundingClientRect();
+      if (box) setPlace(dropdownPlace(box));
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [open, embedded]);
 
   const badge = unreadCount(items, seenAt);
   const groups = groupRepeats(items);
@@ -218,6 +258,11 @@ export function Notifications({
     setItems((all) => markRead(all, ids));
     setToasts((all) => all.filter((t) => !ids.includes(t.id)));
     setOpened(`${kinds[g.kind].action ?? "Open"}: ${g.title}`);
+    const target = g.notices.find((n) => n.target)?.target;
+    if (target && onOpen) {
+      onOpen(target);
+      close();
+    }
   };
 
   const list = (
@@ -305,14 +350,15 @@ export function Notifications({
 
   if (embedded) {
     return (
-      <div className="relative">
+      <div>
         {bell}
         {open && (
           <div
             ref={popRef}
             role="dialog"
             aria-label="Notifications"
-            className="bg-popover absolute top-full right-0 z-30 mt-1 flex max-h-[480px] w-[min(24rem,calc(100vw-1rem))] flex-col rounded-md border shadow-lg"
+            style={place}
+            className="bg-popover fixed z-30 flex max-h-[min(480px,calc(100svh-4rem))] flex-col rounded-md border shadow-lg"
           >
             {list}
           </div>

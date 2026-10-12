@@ -35,13 +35,13 @@ export const DEMO_MOUNTS: StorageItem[] = [
         preset: "aws",
         endpoint: "https://s3.eu-central-1.amazonaws.com",
         region: "eu-central-1",
-        bucket: "acme-archive",
+        bucket: "atelier-morel-archive",
         prefix: "",
         pathStyle: "false",
       },
     },
     status: { state: "locked" },
-    where: "s3.eu-central-1.amazonaws.com · acme-archive/",
+    where: "s3.eu-central-1.amazonaws.com · atelier-morel-archive/",
   },
   {
     config: {
@@ -52,7 +52,7 @@ export const DEMO_MOUNTS: StorageItem[] = [
         preset: "r2",
         endpoint: "https://4f9a2c.r2.cloudflarestorage.com",
         region: "auto",
-        bucket: "acme-photos",
+        bucket: "atelier-morel-photos",
         prefix: "site-visits/",
         pathStyle: "false",
       },
@@ -66,7 +66,7 @@ export const DEMO_MOUNTS: StorageItem[] = [
         fix: { kind: "cors-rule", json: corsRule(ORIGIN) },
       },
     },
-    where: "4f9a2c.r2.cloudflarestorage.com · acme-photos/site-visits/",
+    where: "4f9a2c.r2.cloudflarestorage.com · atelier-morel-photos/site-visits/",
   },
   {
     config: {

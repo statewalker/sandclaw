@@ -2,13 +2,54 @@ import { Lightbulb, MessagesSquare, Sparkles } from "lucide-react";
 import { AgentTools } from "../../agent-tools/agent-tools.js";
 import { AiModels } from "../../ai-models/ai-models.js";
 import { dupontStart } from "../../ask/answers.js";
+import { OpenSourceContext } from "../../ask/grounded-answer.js";
 import { AssistantPanel } from "../../assistant-panel/assistant-panel.js";
 import { Connectors } from "../../connectors/connectors.js";
 import { ConversationsSidebar } from "../../conversations/conversations.js";
 import { AnswerWithHow } from "../../explore/how-answered.js";
-import { appViewsSlot, menuItem, menuItemsSlot, OpenSettings, ShowPanel } from "../contracts.js";
-import { all, type Feature, provideAll, registerAll, settingsTab } from "../runtime.js";
+import {
+  appViewsSlot,
+  menuItem,
+  menuItemsSlot,
+  OpenFile,
+  OpenSettings,
+  ShowPanel,
+} from "../contracts.js";
+import {
+  all,
+  type Feature,
+  provideAll,
+  registerAll,
+  settingsTab,
+  useAppRuntime,
+} from "../runtime.js";
 import { PanelPage } from "../shell/panel-page.js";
+
+function AssistantLinked() {
+  const { commands } = useAppRuntime();
+  return (
+    <AssistantPanel scenario="deck" onOpenFile={(path) => commands.call(OpenFile, { path })} />
+  );
+}
+
+/** "Open file" on a cited source opens it in the folder, the cited passage marked. */
+function HowAnsweredLinked() {
+  const { commands } = useAppRuntime();
+  return (
+    <OpenSourceContext.Provider
+      value={(s) =>
+        commands.call(OpenFile, {
+          path: s.path,
+          citation: { question: dupontStart.question, blockId: s.blockId },
+        })
+      }
+    >
+      <PanelPage>
+        <AnswerWithHow answer={dupontStart} />
+      </PanelPage>
+    </OpenSourceContext.Provider>
+  );
+}
 
 export const assistant: Feature = {
   id: "assistant",
@@ -22,7 +63,7 @@ export const assistant: Feature = {
           Icon: Sparkles,
           zone: "right",
           mobile: "tab",
-          render: () => <AssistantPanel scenario="deck" />,
+          render: () => <AssistantLinked />,
         },
         {
           id: "conversations",
@@ -37,11 +78,7 @@ export const assistant: Feature = {
           title: "How it was answered",
           Icon: Lightbulb,
           zone: "center",
-          render: () => (
-            <PanelPage>
-              <AnswerWithHow answer={dupontStart} />
-            </PanelPage>
-          ),
+          render: () => <HowAnsweredLinked />,
         },
       ]),
       provideAll(rt.slots, menuItemsSlot, [

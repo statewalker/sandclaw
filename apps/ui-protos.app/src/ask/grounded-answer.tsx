@@ -10,6 +10,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -26,7 +27,7 @@ import {
   Search,
   SearchX,
 } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import type { FlueConversationMessage, FlueConversationPart } from "../chat/flue.js";
 import { createMockFlueSession, type ScriptedAgent } from "../chat/flue-runtime.js";
 import { FlueThread } from "../chat/thread.js";
@@ -39,9 +40,13 @@ export type AnswerPhase = "searching" | "writing" | "done";
 const fileName = (path: string) => path.split("/").at(-1) ?? path;
 const folderOf = (path: string) => path.split("/").slice(0, -1).join("/") || "Your folder";
 
+/** Opens a cited source in the user's folder; without it, "Open file" only says where it would. */
+export const OpenSourceContext = createContext<((source: Source) => void) | null>(null);
+
 /** The cited document, scrolled to the passage, which is highlighted. */
 function SourcePreview({ source, children }: { source: Source; children: ReactNode }) {
   const [opened, setOpened] = useState(false);
+  const openSource = useContext(OpenSourceContext);
   return (
     <Dialog onOpenChange={() => setOpened(false)}>
       <DialogTrigger asChild>{children}</DialogTrigger>
@@ -61,9 +66,17 @@ function SourcePreview({ source, children }: { source: Source; children: ReactNo
               Here the file would open in your folder.
             </p>
           )}
-          <Button variant="outline" onClick={() => setOpened(true)}>
-            <ExternalLink /> Open file
-          </Button>
+          {openSource ? (
+            <DialogClose asChild>
+              <Button variant="outline" onClick={() => openSource(source)}>
+                <ExternalLink /> Open file
+              </Button>
+            </DialogClose>
+          ) : (
+            <Button variant="outline" onClick={() => setOpened(true)}>
+              <ExternalLink /> Open file
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

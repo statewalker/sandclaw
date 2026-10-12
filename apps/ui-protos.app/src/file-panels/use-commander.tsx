@@ -25,6 +25,8 @@ import { CompositeFilesApi } from "@statewalker/webrun-files-composite";
 import { X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatBytes } from "../browser-data/storage.js";
+import { type Citation, viewerFiles } from "../viewers/files.js";
+import { FileViewer } from "../viewers/viewers.js";
 import { newDemoStorages } from "./demo-storages.js";
 import { DeleteDialog, NewFolderDialog, RenameDialog } from "./file-dialogs.js";
 import type { FilePanelProps, PanelCommand, PanelHandle, PanelView } from "./file-panel.js";
@@ -81,6 +83,8 @@ export interface Viewer {
   text?: string;
   /** The panel the file was opened from. */
   from: string;
+  /** The passage a citation points at, marked in the viewer. */
+  citation?: Citation;
 }
 
 /** Where the dialog's preview shows a desktop drop beside the storages. */
@@ -185,8 +189,8 @@ export function useCommander(props: CommanderOptions) {
   const update = (id: string, change: Partial<PanelState>) =>
     setPanels((ps) => ps.map((p) => (p.id === id ? { ...p, ...change } : p)));
 
-  const addPanel = (path: string) => {
-    const panel = newPanel(path);
+  const addPanel = (path: string, selected: string[] = []) => {
+    const panel = newPanel(path, selected);
     setPanels((ps) => {
       const at = ps.findIndex((p) => p.id === activeId);
       return [...ps.slice(0, at + 1), panel, ...ps.slice(at + 1)];
@@ -325,14 +329,50 @@ export function useCommander(props: CommanderOptions) {
     { label: title(targetDir), path: targetDir },
   ];
 
-  const openFile = async (path: string, from: string) => {
+  /** The active docked panel: the most recent one in the dock, or the first docked one. */
+  const activeDocked = () =>
+    recent.map((r) => panels.find((p) => p.id === r)).find((p) => p && p.dock !== false) ??
+    panels.find((p) => p.dock !== false);
+
+  /** Opens a file beside `from` (by default the active docked panel), its `citation` marked. */
+  const openFile = async (path: string, from?: string, citation?: Citation) => {
     try {
       const stats = await files.stats(path);
+      if (stats?.kind !== "file") {
+        setNotice(`“${basename(path)}” is not in the folder.`);
+        return;
+      }
       const text = TEXT_TYPES.includes(extname(path)) ? await readText(files, path) : undefined;
-      setViewer({ path, size: stats?.kind === "file" ? stats.size : 0, text, from });
+      const source = from ?? activeDocked()?.id ?? "";
+      setViewer({ path, size: stats.size, text, from: source, citation });
     } catch (e) {
       setNotice(problemOf(e).message);
     }
+  };
+
+  // Counts the reveals: a presentation that shows one view at a time (the phone) follows it.
+  const [revealed, setRevealed] = useState(0);
+  /**
+   * Shows `path`'s folder in the active docked panel (a new one when none is docked),
+   * with `path` selected; a missing file only gets a notice.
+   */
+  const reveal = async (path: string) => {
+    try {
+      if ((await files.stats(path))?.kind !== "file") {
+        setNotice(`“${basename(path)}” is not in the folder.`);
+        return;
+      }
+    } catch (e) {
+      setNotice(problemOf(e).message);
+      return;
+    }
+    const target = activeDocked();
+    if (target) {
+      update(target.id, { path: dirname(path), selected: [path] });
+      activate(target.id);
+    } else addPanel(dirname(path), [path]);
+    setViewer(undefined);
+    setRevealed((n) => n + 1);
   };
 
   /** What a panel's `FilePanel` needs; the presentation adds `active`, `phone` and its frame. */
@@ -455,6 +495,10 @@ export function useCommander(props: CommanderOptions) {
     panelProps,
     viewer,
     setViewer,
+    openFile,
+    reveal,
+    revealed,
+    activeDocked,
     noticeBar,
     progressStrip,
     dialogs: (
@@ -466,8 +510,17 @@ export function useCommander(props: CommanderOptions) {
   };
 }
 
-/** A file's text, or a stand-in for formats the prototype doesn't render. */
+// Matches FOLDER_MOUNT in src/app/world.ts (file-panels does not import from the App).
+const DOCUMENTS = "/documents/";
+
+/** A known document of the user's folder in its viewer; else a file's text, or a stand-in. */
 export function ViewerBody({ viewer }: { viewer: Viewer }) {
+  const rest = viewer.path.startsWith(DOCUMENTS) ? viewer.path.slice(DOCUMENTS.length) : undefined;
+  // Keyed on the passage: the viewer keeps its citation, so a new one opens it afresh.
+  if (rest && viewerFiles[rest])
+    return (
+      <FileViewer key={viewer.citation?.blockId ?? ""} path={rest} citation={viewer.citation} />
+    );
   return viewer.text !== undefined ? (
     <pre className="min-h-0 flex-1 overflow-auto p-3 text-sm whitespace-pre-wrap break-words">
       {viewer.text}

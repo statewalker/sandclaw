@@ -46,6 +46,7 @@ import {
   useKeyedSlotValues,
   useSlotValues,
 } from "../runtime.js";
+import { FOLDER_MOUNT, newAppStorages } from "../world.js";
 import {
   byActivity,
   isShownLeft,
@@ -67,9 +68,9 @@ const coarsePointer = typeof matchMedia === "function" && matchMedia("(pointer: 
 const KNOWN = [{ id: VIEW, title: "", component: VIEW, targets: [] }, ...fileContributions];
 /** The file panels the App opens with: the Files tree (out of the dock) and two panels. */
 const START_PANELS = [
-  { path: "/documents", view: "tree" as const, dock: false as const },
-  "/documents/clients",
-  "/archive/2025",
+  { path: FOLDER_MOUNT, view: "tree" as const, dock: false as const },
+  `${FOLDER_MOUNT}/Clients`,
+  `${FOLDER_MOUNT}/Finance`,
 ];
 
 const ViewsContext = createContext<ReadonlyMap<string, AppView>>(new Map());
@@ -153,7 +154,8 @@ export function AppShell({ commanderRef, initialMode = "desktop" }: AppShellProp
   const overlays = useSlotValues(overlaysSlot);
   const tabs = [...useKeyedSlotValues(settingsTabsSlot).values()].sort((a, b) => a.order - b.order);
 
-  const commander = useCommander({ panels: START_PANELS });
+  const [storages] = useState(newAppStorages);
+  const commander = useCommander({ storages, panels: START_PANELS });
   commanderRef.current = commander;
 
   const root = useRef<HTMLDivElement | null>(null);
@@ -243,6 +245,15 @@ export function AppShell({ commanderRef, initialMode = "desktop" }: AppShellProp
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // On a phone, an opened file shows full screen in Files, whatever view was shown;
+  // a revealed file shows in its panel there.
+  useEffect(() => {
+    if (mode === "mobile" && commander.viewer) setPhoneView("files");
+  }, [mode, commander.viewer]);
+  useEffect(() => {
+    if (modeRef.current === "mobile" && commander.revealed) setPhoneView("files");
+  }, [commander.revealed]);
 
   // A new dock, or desktop ↔ compact on the same dock (no remount): lay it out for the
   // mode. Not from `onReady`: the file panels go back on the dock through `useFilesInDock`,

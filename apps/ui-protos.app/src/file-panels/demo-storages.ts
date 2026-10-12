@@ -45,13 +45,19 @@ const MOUNTS: Omit<DemoMount, "files">[] = [
 ];
 
 export function newDemoStorages(
-  opts: { slowMs?: number; failPaths?: string[]; unavailable?: Record<string, Problem> } = {},
+  opts: {
+    slowMs?: number;
+    failPaths?: string[];
+    unavailable?: Record<string, Problem>;
+    /** Replaces a mount's files; the App uses it for its own world. */
+    seed?: Partial<Record<string, Record<string, string | Uint8Array>>>;
+  } = {},
 ): { files: FilesApi; mounts: DemoMount[] } {
   // Nothing can be written beside the mounts: the root only lists them.
   const root = new CompositeFilesApi(readOnly(new MemFilesApi()));
   const mounts = MOUNTS.map((m) => {
     const problem = opts.unavailable?.[m.key];
-    let files: FilesApi = new MemFilesApi({ initialFiles: SEED[m.key] });
+    let files: FilesApi = new MemFilesApi({ initialFiles: opts.seed?.[m.key] ?? SEED[m.key] });
     if (m.type === "s3" && opts.slowMs) files = slowFiles(files, opts.slowMs);
     const fails = (opts.failPaths ?? [])
       .filter((p) => p.startsWith(`/${m.key}/`))
