@@ -66,7 +66,7 @@ function addPanel(
  * panel of its own, split to the right of the panel before it (on a phone, a
  * tab in its group); a closed panel leaves the commander; the active dock
  * panel is the commander's active panel; a panel's title follows its folder.
- * Opened files share one viewer group, to the right of the file panels.
+ * An opened file is a tab in the group of the panel it was opened from.
  * The user drags any of them elsewhere, like any dock panel.
  */
 export function useFilesInDock(
@@ -118,7 +118,7 @@ export function useFilesInDock(
 
   useEffect(sync, [api, commander.panels]);
 
-  // An opened file: its viewer tab, focused if it is already open.
+  // An opened file: a tab beside the panel that opened it, focused if it is already open.
   const { viewer, setViewer } = commander;
   useEffect(() => {
     if (!api || !viewer) return;
@@ -128,10 +128,7 @@ export function useFilesInDock(
     if (open) open.api.setActive();
     else {
       const title = viewer.path.split("/").at(-1) ?? viewer.path;
-      const viewerGroup = api.panels.find((p) => componentOf(p) === FILE_VIEWER);
-      const lastFilePanel = api.panels.filter((p) => componentOf(p) === FILE_PANEL).at(-1);
-      if (viewerGroup) addPanel(api, { id, title, component: FILE_VIEWER }, viewerGroup, "within");
-      else addPanel(api, { id, title, component: FILE_VIEWER }, lastFilePanel, direction);
+      addPanel(api, { id, title, component: FILE_VIEWER }, api.getPanel(viewer.from), "within");
       api.getPanel(id)?.api.setActive();
     }
     setViewer(undefined);

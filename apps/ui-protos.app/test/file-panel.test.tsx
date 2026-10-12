@@ -99,6 +99,19 @@ describe("FilePanel", () => {
     expect(onDropPaths).toHaveBeenCalledWith(["/archive/2026/readme.md"], "/documents/notes", true);
   });
 
+  it("leaves a drop it doesn't accept (a dock tab) to the elements around it", async () => {
+    const onDropPaths = vi.fn();
+    render(<Harness onDropPaths={onDropPaths} />);
+    const around = vi.fn();
+    document.addEventListener("drop", around);
+    const data = { types: ["text/plain"], getData: () => "" };
+    const handled = !fireEvent.drop(await screen.findByRole("grid"), { dataTransfer: data });
+    document.removeEventListener("drop", around);
+    expect(handled).toBe(false);
+    expect(around).toHaveBeenCalled();
+    expect(onDropPaths).not.toHaveBeenCalled();
+  });
+
   it("an open menu keeps its focused item when the parent re-renders", async () => {
     const { rerender } = render(<Harness start="/documents/clients/dupont" />);
     fireEvent.click(await screen.findByRole("button", { name: "Folders beside clients" }));

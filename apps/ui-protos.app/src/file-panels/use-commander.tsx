@@ -79,6 +79,8 @@ export interface Viewer {
   path: string;
   size: number;
   text?: string;
+  /** The panel the file was opened from. */
+  from: string;
 }
 
 /** Where the dialog's preview shows a desktop drop beside the storages. */
@@ -323,11 +325,11 @@ export function useCommander(props: CommanderOptions) {
     { label: title(targetDir), path: targetDir },
   ];
 
-  const openFile = async (path: string) => {
+  const openFile = async (path: string, from: string) => {
     try {
       const stats = await files.stats(path);
       const text = TEXT_TYPES.includes(extname(path)) ? await readText(files, path) : undefined;
-      setViewer({ path, size: stats?.kind === "file" ? stats.size : 0, text });
+      setViewer({ path, size: stats?.kind === "file" ? stats.size : 0, text, from });
     } catch (e) {
       setNotice(problemOf(e).message);
     }
@@ -343,7 +345,7 @@ export function useCommander(props: CommanderOptions) {
     selected: panel.selected,
     onSelect: (selected) => update(panel.id, { selected }),
     refreshKey,
-    onOpenFile: openFile,
+    onOpenFile: (path) => openFile(path, panel.id),
     onCommand: onCommand(panel.id),
     onDropPaths: (sources, targetDir, copy) =>
       setDialog({

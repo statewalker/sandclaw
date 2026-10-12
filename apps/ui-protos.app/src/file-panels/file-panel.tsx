@@ -381,9 +381,11 @@ export function FilePanel(props: FilePanelProps) {
     },
     onDragLeave: () => setDropTarget((t) => (t === target ? undefined : t)),
     onDrop: (e: DragEvent) => {
+      setDropTarget(undefined);
+      // Anything else (a dock tab) belongs to the elements around the panel.
+      if (!acceptsDrop(e)) return;
       e.preventDefault();
       e.stopPropagation();
-      setDropTarget(undefined);
       const types = Array.from(e.dataTransfer.types ?? []);
       if (types.includes(PATHS_TYPE)) {
         const paths = JSON.parse(e.dataTransfer.getData(PATHS_TYPE)) as string[];

@@ -18,8 +18,8 @@ export interface DockCommanderProps extends CommanderOptions {
 }
 
 /**
- * The commander on the workspace dock: the file panels side by side, opened
- * files as tabs in a viewer group beside them. Each is a dock panel the user
+ * The commander on the workspace dock: the file panels side by side, each
+ * opened file a tab in its panel's group. Each is a dock panel the user
  * drags elsewhere, splits off or stacks as a tab.
  */
 export function DockCommander(props: DockCommanderProps) {

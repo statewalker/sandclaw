@@ -48,17 +48,15 @@ describe("DockCommander", () => {
     expect(await readText(storages.files, "/archive/2026/todo.md")).toContain("# Todo");
   });
 
-  it("opened files are tabs of one viewer group, beside the panels", async () => {
-    render(<DockCommander panels={["/documents/notes"]} />);
+  it("an opened file is a tab in the group of the panel that opened it", async () => {
+    render(<DockCommander panels={["/documents/notes", "/archive/2026"]} />);
+    fireEvent.doubleClick(await within(panel("2026")).findByRole("row", { name: "readme.md" }));
+    await screen.findByRole("region", { name: "Viewer: readme.md" });
+    expect(groupOf(tab("readme.md"))).toBe(groupOf(tab("2026")));
     fireEvent.doubleClick(await within(panel("notes")).findByRole("row", { name: "todo.md" }));
     const viewer = await screen.findByRole("region", { name: "Viewer: todo.md" });
     expect(await within(viewer).findByText(/# Todo/)).toBeTruthy();
-    expect(groupOf(tab("todo.md"))).not.toBe(groupOf(tab("notes")));
-    fireEvent.doubleClick(
-      within(panel("notes")).getByRole("row", { name: "meeting-2026-10-02.md" }),
-    );
-    await screen.findByRole("region", { name: "Viewer: meeting-2026-10-02.md" });
-    expect(groupOf(tab("meeting-2026-10-02.md"))).toBe(groupOf(tab("todo.md")));
+    expect(groupOf(tab("todo.md"))).toBe(groupOf(tab("notes")));
   });
 
   it("closing a tab closes its panel for good", () => {
