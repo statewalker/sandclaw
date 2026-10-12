@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogDescription,
   DialogTitle,
-  DialogTrigger,
   Input,
 } from "@statewalker/ui.view.shadcn";
 import { ArrowLeft, ChevronRight, Search, Settings as SettingsIcon } from "lucide-react";
@@ -15,6 +14,7 @@ import { AgentTools } from "../agent-tools/agent-tools.js";
 import { AiModels } from "../ai-models/ai-models.js";
 import { BrowserData } from "../browser-data/browser-data.js";
 import { Connectors } from "../connectors/connectors.js";
+import { DemoStorageSettings } from "../file-mounts/demo-storage-settings.js";
 import { IndexingPage } from "../indexing/indexing.js";
 import { InvitationsLog } from "../invitations-log/invitations-log.js";
 import { MyIdentityPage } from "../my-identity/my-identity.js";
@@ -24,8 +24,8 @@ import { TeamOneList } from "../team/team.js";
 import { Appearance } from "./appearance.js";
 import {
   groupLabels,
-  resolveSection,
   type SearchHit,
+  type SectionGroup,
   type SectionId,
   searchSections,
   type Viewer,
@@ -52,6 +52,24 @@ export interface SettingsProps {
   phone?: boolean;
 }
 
+/** One section as the body shows it: its place in the list and what it renders. */
+export interface SettingsEntry {
+  id: string;
+  label: string;
+  group: SectionGroup;
+  keywords: string[];
+  /** `go` switches to another section (a link inside a section). */
+  render(go: (id: string) => void): ReactNode;
+}
+
+/** The viewer's sections, each rendering its existing screen. */
+export function defaultEntries(viewer: Viewer): SettingsEntry[] {
+  return visibleSections(viewer).map((s) => ({
+    ...s,
+    render: (go) => <SectionView id={s.id} viewer={viewer} go={go} />,
+  }));
+}
+
 /** The existing screens, embedded as they are. */
 function SectionView({
   id,
@@ -60,7 +78,7 @@ function SectionView({
 }: {
   id: SectionId;
   viewer: Viewer;
-  go: (id: SectionId) => void;
+  go: (id: string) => void;
 }) {
   switch (id) {
     case "me":
@@ -74,6 +92,8 @@ function SectionView({
           <NotificationSettings viewer={viewer} />
         </Card>
       );
+    case "storages":
+      return <DemoStorageSettings vault="unlocked" />;
     case "connectors":
       return <Connectors variant="list" />;
     case "agent-tools":
@@ -100,11 +120,11 @@ function SectionList({
   phone,
   onPick,
 }: {
-  hits: SearchHit[];
+  hits: SearchHit<SettingsEntry>[];
   query: string;
-  current: SectionId | null;
+  current: string | null;
   phone: boolean;
-  onPick: (id: SectionId) => void;
+  onPick: (id: string) => void;
 }) {
   if (hits.length === 0) {
     return <p className="text-muted-foreground p-3 text-sm">No settings match “{query.trim()}”</p>;
@@ -150,18 +170,34 @@ function SectionList({
 }
 
 /** Navigation, search and the open section; the same inside a page and a dialog. */
-function SettingsBody({
-  viewer,
+export function SettingsBody({
+  entries,
   section,
+  onSectionChange,
   query: initialQuery = "",
   phone = false,
   header,
-}: Omit<SettingsProps, "variant"> & { viewer: Viewer; header: ReactNode }) {
-  const [current, setCurrent] = useState<SectionId | null>(
-    phone && section === undefined ? null : resolveSection(viewer, section),
+}: {
+  entries: SettingsEntry[];
+  /** The section opened first; not among `entries`: the first one. On a phone, none opens the list. */
+  section?: string;
+  onSectionChange?(id: string): void;
+  query?: string;
+  phone?: boolean;
+  header: ReactNode;
+}) {
+  const [current, setCurrentState] = useState<string | null>(
+    phone && section === undefined
+      ? null
+      : ((entries.find((e) => e.id === section) ?? entries[0])?.id ?? null),
   );
+  const setCurrent = (id: string | null) => {
+    setCurrentState(id);
+    if (id) onSectionChange?.(id);
+  };
   const [query, setQuery] = useState(initialQuery);
-  const hits = searchSections(visibleSections(viewer), query);
+  const hits = searchSections(entries, query);
+  const open = entries.find((e) => e.id === current);
 
   const search = (
     <div className="relative">
@@ -195,7 +231,7 @@ function SettingsBody({
         </div>
       );
     }
-    const label = visibleSections(viewer).find((s) => s.id === current)?.label;
+    const label = open?.label;
     return (
       <div className="grid min-w-0 content-start gap-3 p-2">
         <div className="flex items-center gap-1">
@@ -204,9 +240,7 @@ function SettingsBody({
           </Button>
           <span className="text-muted-foreground truncate text-sm">Settings · {label}</span>
         </div>
-        <div className="grid min-w-0 justify-items-center">
-          <SectionView id={current} viewer={viewer} go={setCurrent} />
-        </div>
+        <div className="grid min-w-0 justify-items-center">{open?.render(setCurrent)}</div>
       </div>
     );
   }
@@ -219,7 +253,7 @@ function SettingsBody({
           {nav}
         </div>
         <main className="grid min-w-0 content-start justify-items-center p-4 md:overflow-y-auto">
-          {current && <SectionView id={current} viewer={viewer} go={setCurrent} />}
+          {open?.render(setCurrent)}
         </main>
       </div>
     </div>
@@ -239,34 +273,68 @@ function WorkspaceBehind({ children }: { children: ReactNode }) {
   );
 }
 
+/** Settings as a dialog over the App, which stays as it was underneath. */
+export function SettingsDialog({
+  open,
+  onOpenChange,
+  entries,
+  section,
+  onSectionChange,
+  phone = false,
+}: {
+  open: boolean;
+  onOpenChange(open: boolean): void;
+  entries: SettingsEntry[];
+  section?: string;
+  onSectionChange?(id: string): void;
+  phone?: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className={cn(
+          "grid grid-rows-[minmax(0,1fr)] gap-0 p-0",
+          phone
+            ? "h-svh w-screen max-w-none overflow-y-auto rounded-none sm:max-w-none"
+            : "h-[min(760px,90svh)] w-[calc(100%-2rem)] max-w-[1100px] overflow-hidden sm:max-w-[1100px]",
+        )}
+      >
+        <DialogTitle className="sr-only">Settings</DialogTitle>
+        <DialogDescription className="sr-only">
+          The workspace stays as it was behind this window.
+        </DialogDescription>
+        <SettingsBody
+          entries={entries}
+          section={section}
+          onSectionChange={onSectionChange}
+          phone={phone}
+          header={<h2 className="pr-8 text-lg font-semibold">Settings</h2>}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** The stand-in workspace's Settings dialog: open at first, reopened from the gear. */
+function DialogVariant(props: Omit<SettingsProps, "variant"> & { viewer: Viewer }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <WorkspaceBehind>
+      <Button size="sm" variant="ghost" aria-label="Settings" onClick={() => setOpen(true)}>
+        <SettingsIcon />
+      </Button>
+      <SettingsDialog
+        open={open}
+        onOpenChange={setOpen}
+        entries={defaultEntries(props.viewer)}
+        section={props.section}
+      />
+    </WorkspaceBehind>
+  );
+}
+
 export function Settings({ variant = "page", viewer = "admin", ...props }: SettingsProps) {
-  if (variant === "dialog" && !props.phone) {
-    return (
-      <WorkspaceBehind>
-        <Dialog defaultOpen>
-          <DialogTrigger asChild>
-            <Button size="sm" variant="ghost" aria-label="Settings">
-              <SettingsIcon />
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="grid h-[85svh] w-[calc(100%-2rem)] max-w-5xl grid-rows-[minmax(0,1fr)] gap-0 overflow-hidden p-0">
-            <SettingsBody
-              viewer={viewer}
-              {...props}
-              header={
-                <div className="grid gap-1 pr-8">
-                  <DialogTitle>Settings</DialogTitle>
-                  <DialogDescription>
-                    The workspace stays as it was behind this window.
-                  </DialogDescription>
-                </div>
-              }
-            />
-          </DialogContent>
-        </Dialog>
-      </WorkspaceBehind>
-    );
-  }
+  if (variant === "dialog" && !props.phone) return <DialogVariant viewer={viewer} {...props} />;
 
   return (
     <div
@@ -278,8 +346,10 @@ export function Settings({ variant = "page", viewer = "admin", ...props }: Setti
       )}
     >
       <SettingsBody
-        viewer={viewer}
-        {...props}
+        entries={defaultEntries(viewer)}
+        section={props.section}
+        query={props.query}
+        phone={props.phone}
         header={
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="ghost">

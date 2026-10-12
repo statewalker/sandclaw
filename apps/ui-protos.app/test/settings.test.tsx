@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { Settings } from "../src/settings/settings.js";
+import { defaultEntries, Settings, SettingsDialog } from "../src/settings/settings.js";
 import { resolveSection, searchSections, visibleSections } from "../src/settings/settings-model.js";
 
 afterEach(cleanup);
@@ -8,6 +8,7 @@ afterEach(cleanup);
 describe("sections", () => {
   it("a member sees only the “You” sections; an admin sees the group's too", () => {
     expect(visibleSections("member").every((s) => s.group === "you")).toBe(true);
+    expect(visibleSections("member").map((s) => s.id)).toContain("storages");
     expect(visibleSections("admin").map((s) => s.id)).toEqual(
       expect.arrayContaining(["team", "invitations", "services", "ai-models"]),
     );
@@ -51,5 +52,40 @@ describe("Settings", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.getByRole("navigation", { name: "Settings sections" })).toBeTruthy();
     expect(screen.queryByRole("radio", { name: "Dark" })).toBeNull();
+  });
+});
+
+describe("SettingsDialog", () => {
+  const noop = () => {};
+
+  it("opens at the section asked for and reports the reader's pick", () => {
+    const picked: string[] = [];
+    render(
+      <SettingsDialog
+        open
+        onOpenChange={noop}
+        entries={defaultEntries("admin")}
+        section="appearance"
+        onSectionChange={(id) => picked.push(id)}
+      />,
+    );
+    expect(screen.getByRole("radio", { name: "Dark" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Storages" }));
+    expect(picked).toEqual(["storages"]);
+  });
+
+  it("a section that is not among its entries opens the first one", () => {
+    render(
+      <SettingsDialog
+        open
+        onOpenChange={noop}
+        entries={defaultEntries("member")}
+        section="ai-models"
+      />,
+    );
+    const nav = screen.getByRole("navigation", { name: "Settings sections" });
+    expect(within(nav).getByRole("button", { name: "Me" }).getAttribute("aria-current")).toBe(
+      "page",
+    );
   });
 });
