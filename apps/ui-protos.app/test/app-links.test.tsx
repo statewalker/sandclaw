@@ -1,7 +1,7 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { App } from "../src/app/app.js";
-import { OpenFile, RevealFile } from "../src/app/contracts.js";
+import { OpenFile, RevealFile, ShowPanel } from "../src/app/contracts.js";
 import { createRuntime } from "../src/app/runtime.js";
 
 afterEach(cleanup);
@@ -110,5 +110,77 @@ describe("files:open and files:reveal", () => {
     expect(await screen.findByRole("region", { name: "Viewer: todo.md" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.queryByRole("region", { name: "Viewer: todo.md" })).toBeNull();
+  });
+});
+
+describe("links from the views", () => {
+  const activity = (name: string) =>
+    fireEvent.click(
+      within(screen.getByRole("navigation", { name: "Activity bar" })).getByRole("button", {
+        name,
+      }),
+    );
+
+  it("a todo's file opens beside the active file panel", async () => {
+    renderApp();
+    activity("Todos");
+    fireEvent.click(await screen.findByRole("button", { name: "Open Notes/todo.md" }));
+    expect(await screen.findAllByText("todo.md")).not.toHaveLength(0);
+    expect(tab("todo.md")).toHaveLength(1);
+  });
+
+  it("an assistant's output opens", async () => {
+    renderApp();
+    // The deck scenario writes its output after a few scripted steps.
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Outputs\/clients\.pptx/ }, { timeout: 8000 }),
+    );
+    await screen.findAllByText("clients.pptx");
+    expect(tab("clients.pptx")).toHaveLength(1);
+  }, 15000);
+
+  it("Open file on a cited source opens it with the passage marked", async () => {
+    const rt = renderApp();
+    act(() => {
+      rt.commands.call(ShowPanel, { id: "how-answered" });
+    });
+    // Any source card of the answer opens its preview, which has "Open file".
+    fireEvent.click(
+      (await screen.findAllByRole("button", { name: /Dupont — offer\.docx/ }))[0] as HTMLElement,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Open file" }));
+    expect(await screen.findByText(/Cited in/)).toBeTruthy();
+  });
+
+  it("a file in the indexing tree shows in the active file panel", async () => {
+    renderApp();
+    activity("Indexing");
+    // Clients is unfolded from the start; click a file in it.
+    fireEvent.click(await screen.findByRole("button", { name: /^Leroy — brief\.pdf/ }));
+    expect(
+      (await screen.findAllByRole("row", { name: /Leroy — brief\.pdf/ })).some(
+        (r) => r.getAttribute("aria-selected") === "true",
+      ),
+    ).toBe(true);
+  });
+
+  it("a cited file in a site opens", async () => {
+    renderApp();
+    activity("Sites");
+    // Open the site so SiteViewer is mounted; its page posts this message when a source link is clicked.
+    const site = await screen.findByRole("listitem", { name: "Dupont renovation" });
+    fireEvent.click(within(site).getByRole("button", { name: "Open" }));
+    const frame = (await screen.findAllByTitle("Dupont renovation")).find(
+      (el) => el.tagName === "IFRAME",
+    ) as HTMLIFrameElement;
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "sandclaw:open-file", path: "Clients/Dupont — notes.md" },
+          source: frame.contentWindow,
+        }),
+      );
+    });
+    await waitFor(() => expect(tab("Dupont — notes.md")).toHaveLength(1));
   });
 });
