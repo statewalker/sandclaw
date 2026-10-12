@@ -189,8 +189,8 @@ export function useCommander(props: CommanderOptions) {
   const update = (id: string, change: Partial<PanelState>) =>
     setPanels((ps) => ps.map((p) => (p.id === id ? { ...p, ...change } : p)));
 
-  const addPanel = (path: string) => {
-    const panel = newPanel(path);
+  const addPanel = (path: string, selected: string[] = []) => {
+    const panel = newPanel(path, selected);
     setPanels((ps) => {
       const at = ps.findIndex((p) => p.id === activeId);
       return [...ps.slice(0, at + 1), panel, ...ps.slice(at + 1)];
@@ -352,12 +352,26 @@ export function useCommander(props: CommanderOptions) {
 
   // Counts the reveals: a presentation that shows one view at a time (the phone) follows it.
   const [revealed, setRevealed] = useState(0);
-  /** Shows `path`'s folder in the active docked panel, with `path` selected. */
-  const reveal = (path: string) => {
+  /**
+   * Shows `path`'s folder in the active docked panel (a new one when none is docked),
+   * with `path` selected; a missing file only gets a notice.
+   */
+  const reveal = async (path: string) => {
+    try {
+      if ((await files.stats(path))?.kind !== "file") {
+        setNotice(`“${basename(path)}” is not in the folder.`);
+        return;
+      }
+    } catch (e) {
+      setNotice(problemOf(e).message);
+      return;
+    }
     const target = activeDocked();
-    if (!target) return;
-    update(target.id, { path: dirname(path), selected: [path] });
-    activate(target.id);
+    if (target) {
+      update(target.id, { path: dirname(path), selected: [path] });
+      activate(target.id);
+    } else addPanel(dirname(path), [path]);
+    setViewer(undefined);
     setRevealed((n) => n + 1);
   };
 
@@ -496,6 +510,7 @@ export function useCommander(props: CommanderOptions) {
   };
 }
 
+// Matches FOLDER_MOUNT in src/app/world.ts (file-panels does not import from the App).
 const DOCUMENTS = "/documents/";
 
 /** A known document of the user's folder in its viewer; else a file's text, or a stand-in. */

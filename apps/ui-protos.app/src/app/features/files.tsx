@@ -141,7 +141,9 @@ export const files: Feature = {
       handle(rt, OpenFile, ({ path, citation }) => {
         void ctx.commander.current?.openFile(worldPath(path), undefined, citation);
       }),
-      handle(rt, RevealFile, ({ path }) => ctx.commander.current?.reveal(worldPath(path))),
+      handle(rt, RevealFile, ({ path }) => {
+        void ctx.commander.current?.reveal(worldPath(path));
+      }),
     );
   },
 };

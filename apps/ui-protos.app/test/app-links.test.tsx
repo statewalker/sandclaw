@@ -97,6 +97,37 @@ describe("files:open and files:reveal", () => {
     expect(row.getAttribute("aria-selected")).toBe("true");
   });
 
+  it("revealing a file that is not in the folder says so and leaves the panel alone", async () => {
+    const rt = renderApp();
+    await screen.findByRole("row", { name: /2026-Q3\.xlsx/ });
+    act(() => {
+      rt.commands.call(RevealFile, { path: "Clients/Nobody — nothing.pdf" });
+    });
+    expect(await screen.findByText("“Nobody — nothing.pdf” is not in the folder.")).toBeTruthy();
+    expect(tab("Clients")).toHaveLength(1);
+    expect(tab("Finance")).toHaveLength(1);
+    expect(screen.getByRole("row", { name: /2026-Q3\.xlsx/ })).toBeTruthy();
+  });
+
+  it("on a phone, revealing a file while a viewer is open shows the file in Files", async () => {
+    const rt = renderApp({ initialMode: "mobile" });
+    act(() => {
+      rt.commands.call(OpenFile, { path: "Notes/todo.md" });
+    });
+    expect(await screen.findByRole("region", { name: "Viewer: todo.md" })).toBeTruthy();
+    fireEvent.click(
+      within(screen.getByRole("navigation", { name: "Views" })).getByRole("button", {
+        name: "Todos",
+      }),
+    );
+    act(() => {
+      rt.commands.call(RevealFile, { path: "Finance/2026-Q3.xlsx" });
+    });
+    const row = await screen.findByRole("row", { name: /2026-Q3\.xlsx/ });
+    expect(row.getAttribute("aria-selected")).toBe("true");
+    expect(screen.queryByRole("region", { name: "Viewer: todo.md" })).toBeNull();
+  });
+
   it("on a phone, opening a file switches to Files and shows it full screen", async () => {
     const rt = renderApp({ initialMode: "mobile" });
     fireEvent.click(

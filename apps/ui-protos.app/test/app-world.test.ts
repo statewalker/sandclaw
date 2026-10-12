@@ -15,5 +15,8 @@ describe("the App's world", () => {
       kind: "file",
     });
     expect(await files.stats(worldPath("Outputs/clients.pptx"))).toMatchObject({ kind: "file" });
+    // The files the Indexing view shows are in the world too.
+    for (const path of ["Photos/IMG_2041.jpg", "Clients/projects/Dupont — quote.pdf"])
+      expect(await files.stats(worldPath(path))).toMatchObject({ kind: "file" });
   });
 });
