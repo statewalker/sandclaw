@@ -31,7 +31,9 @@ bucket in a viewer, all in one browser tab.
 |---|---|---|
 | **1. UI prototypes** | Storybook prototypes of every screen, running on in-memory storages: panels, breadcrumb, transfers, mounts settings, S3 connection test, vault. Design notes with variants and open questions. | `apps/ui-protos.app`, next to the other prototypes |
 | 2. Core packages | `file-mounts.core`, `file-panels.core`: the React-free logic, tested against `MemFilesApi` and an S3 test server (RustFS in Docker). | `packages/` |
-| 3. Views and app | `file-mounts.view.shadcn`, `file-panels.view.shadcn` as workbench fragments; `apps/files.app`; the `app-shell` option. | `packages/`, `apps/` |
+| 3a. Profiles and vault | The vault moves to IndexedDB and holds a profile's mounts, main storage and preferences; several profiles; passkey unlock (WebAuthn PRF) beside the password; archive copies in a project's system folder. | `packages/file-mounts.core` |
+| 3b. Views | `file-mounts.view.shadcn` (storage settings, profiles, unlock, passkeys) and `file-panels.view.shadcn` (the commander on the shell's dock) as workbench fragments; the Storybook prototypes render them. | `packages/`, `apps/ui-protos.app` |
+| 3c. App | The `app-shell` `provisionWorkspace` option; `apps/files.app`: the main storage as the project, `files:open`, panel states saved with the project. | `packages/app-shell`, `apps/` |
 | 4. Search | Full-text index over the mounts and a search box in the panel. | separate design |
 
 Phase 1 logic is written so it moves into the phase 2 packages with little change: the pure
@@ -63,7 +65,13 @@ app that mounts storages, with or without panels.
 **app-shell change.** `bootShell` hard-codes `initWorkspaceBridge` (one folder picked with
 `showDirectoryPicker`) as the workspace provisioning. It gains an optional `provisionWorkspace`
 option, defaulting to the bridge, so the Files app passes the mount table's provisioning instead.
-`bootLogic` already takes it as a parameter.
+`bootLogic` already takes it as a parameter. With a custom provisioner the shell leaves out the
+bridge's folder picker and the System menu's workspace switch; the provisioner marks the workspace
+ready itself.
+
+**Opening files.** The Files app handles `files:open` itself: a folder navigates the active panel,
+a file goes to the viewers (`files:visualize`). It does not load `explorer.core`'s handler, so the
+command never has two listeners.
 
 **Relation to the existing explorer.** `@statewalker/explorer.core` (statewalker-kernel) is a
 one-folder explorer panel with list, tree and search models and `file-explorer:*` prompts. The
@@ -136,9 +144,10 @@ timeout; a failed mount stays in the table with its status. Changed from it: a f
 mount is **not** an empty folder: reading it raises a `MountUnavailable` error carrying the
 status, so a panel shows the reason and Retry instead of an empty list.
 
-**Persistence.** Mount configs are a JSON file in a system folder of browser storage (OPFS):
-`/.files/mounts.json`. Local-folder handles are kept in IndexedDB, one key per mount. When OPFS is
-unavailable, the app runs with in-memory settings and says so.
+**Persistence.** Mount configs are part of the profile's vault (see *Profiles, the vault and the
+main storage*), in IndexedDB, encrypted. Local-folder handles are kept in IndexedDB, one key per
+mount. A project keeps an archive copy of them in its system folder (`.settings/mounts.json`),
+without secrets.
 
 ### Mount types
 
@@ -200,31 +209,72 @@ between CORS and an unreachable host, so the test sends an unsigned `fetch(endpo
 The test runs on the form's *Test connection* button and before every save. A save with a failed
 test is possible only through an explicit *Save anyway* (for a bucket that is offline now).
 
-## Secrets: the vault
+## Profiles, the vault and the main storage
 
-Ported from `theia-secret-vault/src/common/secret-vault.ts`: a random AES-GCM-256 data key
-encrypts `secrets.json`; the data key is wrapped by a key derived from a password (PBKDF2-SHA256,
-600 000 iterations). Both files live in `/.files/` of browser storage. *Remember on this browser*
-keeps the non-extractable derived key in IndexedDB for a silent unlock. Writes are serialised
-across tabs with the Web Locks API.
+Two kinds of data, kept apart:
+
+- **The person's own data** (keys, mounts, which storage is main, global preferences) lives in a
+  **profile vault** in this browser's IndexedDB, encrypted. It never goes into a project, except
+  as an archive copy without secrets.
+- **A project's data** (the dock layout, panel states, project settings) lives in the project's
+  **system folder**, `.settings/` (later `.sandclaw/`) at the root of the **main storage**. The
+  main storage *is* the project: the app opens one project at a time.
+
+### Profiles
+
+A profile ("Work", "Personal") is one vault. The start screen lists the profiles by name (the
+names are the only data kept in clear) and unlocks one: with its password, or with one of its
+passkeys. The first start creates the first profile and its password, and offers to add a
+passkey. *Remember on this browser* keeps the profile's data key, non-extractable, in IndexedDB
+so the next start unlocks silently; *Forget this browser* drops it. Removing a profile deletes its
+vault and remembered key; a lost password with no passkey left cannot be recovered, and the
+removal is the only way out, as the confirmation says.
+
+### The vault
+
+Ported from `theia-secret-vault/src/common/secret-vault.ts`, now one IndexedDB record per
+profile. A random AES-GCM-256 **data key** encrypts the profile's data; the data key is wrapped
+once by the **password** key (PBKDF2-SHA256, 600 000 iterations) and once per **passkey**. Writes
+are serialised across tabs with the Web Locks API, one lock per profile.
 
 ```ts
-export interface SecretStore {
-  readonly state: "absent" | "locked" | "unlocked";
-  create(password: string, remember: boolean): Promise<void>;
-  unlock(password: string, remember: boolean): Promise<boolean>;   // false: wrong password
-  lock(): void;
-  get(account: string): Promise<string | undefined>;               // throws SecretsLocked
-  set(account: string, value: string | undefined): Promise<void>;
-  changePassword(oldPassword: string, newPassword: string): Promise<boolean>;
-  forget(): Promise<void>;     // drop the remembered key
-  reset(): Promise<void>;      // delete every secret; mounts stay, waiting for keys
-  onUpdate(listener: () => void): () => void;
+export interface ProfileData {
+  secrets: Record<string, string>;        // "<mount key>/<field>"
+  mounts: MountConfig[];
+  main?: string;                          // the key of the main mount
+  preferences: Record<string, unknown>;   // global preferences (theme, later MCP servers, meshes…)
 }
 ```
 
-Accounts are `<mount key>/<field>`. The first S3 mount asks to create the password. At start-up,
-S3 mounts are `locked` until unlock; other mounts mount normally.
+**Passkeys (WebAuthn PRF).** A passkey whose authenticator supports the `prf` extension returns
+the same 32-byte secret for this site and a fixed input. HKDF-SHA256 turns it into the key that
+wraps the data key. The passkey's user name is the profile's name and its user handle the profile
+id, so *Unlock with a passkey* on the start screen lets the browser offer every profile's passkey
+and opens the profile the chosen one belongs to. PRF support differs by browser and
+authenticator (Chromium with security keys and phones, Safari 18+ with Apple Passwords, Windows
+Hello only on recent builds, Firefox unclear), so the app asks the browser
+(`getClientCapabilities`) and offers passkeys only where they work. The password stays: a deleted
+passkey must not lock the person out. Messages: "This browser can't use passkeys to unlock;
+use the password." · "This passkey isn't linked to a profile on this browser." · "The passkey
+didn't answer; nothing changed."
+
+### The main storage
+
+One mount of the profile is **main**: browser storage (OPFS) or a local folder (Chromium only).
+S3 cannot be main, since it is locked until the vault opens and the project must open first. The
+first profile gets a "Browser storage" mount marked main; without OPFS it is a memory mount and
+the app says settings won't be kept. A local folder as main needs a click after a reload, so the
+app opens with "Open *folder*" (the click gives access back) and "Use browser storage instead".
+*Use as main* in Settings → Storage switches the project; settings are not copied, each project
+keeps its own. The main storage cannot be unmounted or removed until another one is main.
+
+### Archive copies in the project
+
+Every change to the profile's mounts or preferences also writes a copy into the open project's
+system folder: `.settings/mounts.json` (mount configs, never secrets) and
+`.settings/preferences.json`. The vault always wins; the copies are an archive. *Import from
+this project* reads them back into the profile (to restore preferences on a new browser); imported
+mounts that need keys wait, locked, for them.
 
 ## Panels
 
@@ -253,7 +303,8 @@ export interface Crumb { name: string; path: string; isMount: boolean }
 - `breadcrumb()` of `/archive/clients/dupont` is `archive › clients › dupont`. `siblings` of a
   crumb lists the folders in its parent; for the first crumb it lists the mounts.
 - A folder that disappears sends the panel to its nearest existing ancestor with a notice.
-- Panel state (path, sort) is saved with the dock layout.
+- Panel state (path, sort, list or tree view) is saved in the project's
+  `.settings/file-panels.json`, keyed by the dock panel id (the dock layout keeps only the id).
 - Opening: a folder navigates in the panel; a file dispatches `files:open`.
 
 ## Transfers and operations
@@ -387,7 +438,8 @@ persisted in `/.files/index/`. The panel's filter box gains a *Search in this fo
 - **Add**: choose Local folder, Browser storage or S3 (an unavailable type is greyed with the
   reason). The S3 form has the fields above, *Test connection* with a tick or a cross per check,
   the problem in plain words, Details, and for CORS the rule to copy.
-- **Vault**: create password (first S3 mount), unlock at start-up (with *Remember on this
+- **Profile**: change password, add or remove a passkey, forget this browser, import from this
+  project, remove the profile; *Use as main* on a browser-storage or local-folder row.
   browser*), change password, forget this browser, reset.
 
 ## Errors, in the words the person sees
@@ -419,8 +471,14 @@ Tests sit at public seams only.
   composite, and an S3 integration suite against RustFS in Docker (skipped when Docker is
   absent): real `testConnection` outcomes for bad keys, missing bucket, denied write, CORS.
   The vault: create, unlock, wrong password, change password, reset.
-- **Phase 3**: headless composition tests (`bootHeadless` with memory mounts): open a panel,
-  `files:open` routes to a viewer, the mount table is the workspace's files.
+- **Phase 3a**: the profiles and the vault against fake-indexeddb and real WebCrypto, with a
+  test authenticator that computes PRF like a real one (HMAC-SHA256 with its own secret): create,
+  unlock by password and by passkey, wrong password, a passkey of no profile, change password,
+  remember / forget, remove, two tabs writing, archive and import.
+- **Phase 3b**: the view packages' components with @testing-library/react; every story renders.
+- **Phase 3c**: headless composition tests (`bootHeadless` with memory mounts): open a panel,
+  `files:open` routes to a viewer, the mount table is the workspace's files, the dock layout and
+  panel states land in the main storage's `.settings/`.
 
 ## Dependencies to add to the catalog
 
