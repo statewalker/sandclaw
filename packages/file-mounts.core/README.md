@@ -26,7 +26,7 @@ things follow from that:
 
 ```ts
 import {
-  FilesMountTable, IdbStore, Profiles, localFolderMountType,
+  FilesMountTable, IdbStore, Profiles, firstProfileData, localFolderMountType,
   memoryMountType, opfsMountType, s3MountType,
 } from "@statewalker/file-mounts.core";
 
@@ -35,7 +35,7 @@ const profiles = new Profiles({ records });
 const [first] = await profiles.load();
 const vault = first
   ? await profiles.open(first.id) // unlocked when remembered; else vault.unlock(password, remember)
-  : await profiles.create("Personal", password, true);
+  : await profiles.create("Personal", password, true, firstProfileData(opfsMountType().isAvailable().ok));
 
 const table = new FilesMountTable({
   types: [
@@ -70,6 +70,18 @@ permission prompt.
 until the next `apply` that recreates them, or a reload. Likewise, keys changed in the vault for a
 config that did not change are not picked up by `apply` (the mount is kept as is); `reconnect(key)`
 creates it again with the new keys.
+
+The main mount's project keeps archive copies of the profile. After each `vault.update(...)` that
+changes mounts or preferences, write them; *Import from this project* merges them back:
+
+```ts
+import { archiveProfile, importProfile, mergeImported } from "@statewalker/file-mounts.core";
+
+await archiveProfile(mainFiles, await vault.read()); // mainFiles: the main mount's FilesApi
+
+const archive = await importProfile(mainFiles); // show archive.problem when set
+await vault.update((d) => mergeImported(d, archive));
+```
 
 Passkeys unlock a profile beside its password (WebAuthn PRF). A `PasskeyProblem`'s `message` is what to show the person:
 
@@ -240,9 +252,24 @@ they are still reading the prompt. Every other type is timed out even inside a c
 host that never answers would otherwise hold the queue, and every later `apply` and `reconnect`,
 forever.
 
+### The main storage is the project, and keeps an archive of the profile
+
+`canBeMain(config)` is true for `opfs`, `local-folder` and `memory`, and false for `s3`. The main
+storage is the open project and must open before anything else; an S3 storage is locked until the
+vault opens, so it cannot be the one that opens first. `firstProfileData(opfs)` is what a new profile
+starts with: one "Browser storage" mount as main, or a memory mount where OPFS is missing.
+
+`archiveProfile` writes `/.settings/mounts.json` and `/.settings/preferences.json` into the project.
+Secrets never go there: the mounts file holds configs only, and the keys stay in the vault. The vault
+always wins: `importProfile` reads the copies only on an explicit import, and `mergeImported` keeps
+the profile's own mounts and preference values, adding only the mounts with unknown keys and the
+preferences it lacks. A damaged copy brings in what can be read, and `problem` says what was left
+out, for example `1 saved storage could not be read and was left out. The archived preferences are
+damaged; they were left out.`
+
 ### A save over a damaged mounts.json first keeps a backup of it
 
-`loadMountConfigs` returns the mounts in `/.files/mounts.json`. A file that is not valid JSON or not a
+`mounts.json` is the project's archive copy of the mounts. `loadMountConfigs` returns the mounts in `/.settings/mounts.json`. A file that is not valid JSON or not a
 list loads as no mounts, with `problem: "The storage settings file is damaged; it is kept as is until you save."`.
 Entries that cannot be read are left out with a problem count, for example
 `2 saved storages could not be read and were left out.` Loading never rewrites the file.
@@ -250,7 +277,7 @@ Entries that cannot be read are left out with a problem count, for example
 The next `saveMountConfigs` writes only the mounts it is given, so the entries left out would be
 gone. Before writing, it reads the file again; if it does not load cleanly (by the same rules), its
 exact text is first copied to `mounts.damaged-<timestamp>.json` in the same folder (for example
-`/.files/mounts.damaged-2026-10-11T09-30-00-000Z.json`). Nothing removes these backups; a file there
+`/.settings/mounts.damaged-2026-10-11T09-30-00-000Z.json`). Nothing removes these backups; a file there
 means a save replaced settings that could not be read, and the lost entries can be recovered from it
 by hand.
 

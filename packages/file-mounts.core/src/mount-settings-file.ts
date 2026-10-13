@@ -2,7 +2,7 @@ import type { FilesApi } from "@statewalker/webrun-files";
 import { dirname, joinPath, readText, writeText } from "@statewalker/webrun-files";
 import { type MountConfig, type MountTypeId, validateKey } from "./mount-config.js";
 
-export const MOUNTS_FILE = "/.files/mounts.json";
+export const MOUNTS_FILE = "/.settings/mounts.json";
 const TYPES: MountTypeId[] = ["local-folder", "opfs", "s3", "memory"];
 
 function asConfig(raw: unknown, taken: string[]): MountConfig | undefined {

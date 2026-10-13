@@ -12,7 +12,7 @@ describe("mounts.json", () => {
     ];
     await saveMountConfigs(files, configs);
     expect(await loadMountConfigs(files)).toEqual({ configs });
-    expect(MOUNTS_FILE).toBe("/.files/mounts.json");
+    expect(MOUNTS_FILE).toBe("/.settings/mounts.json");
   });
 
   it("a damaged file loads as no mounts with a problem, and is left untouched", async () => {
@@ -40,11 +40,11 @@ describe("mounts.json", () => {
     await saveMountConfigs(files, configs);
     expect(await loadMountConfigs(files)).toEqual({ configs });
     const backups = [];
-    for await (const e of files.list("/.files")) {
+    for await (const e of files.list("/.settings")) {
       if (e.name.startsWith("mounts.damaged-")) backups.push(e.path);
     }
     expect(backups).toHaveLength(1);
-    expect(backups[0]).toMatch(/^\/\.files\/mounts\.damaged-.+\.json$/);
+    expect(backups[0]).toMatch(/^\/\.settings\/mounts\.damaged-.+\.json$/);
     expect(await readText(files, backups[0] ?? "")).toBe(damaged);
   });
 
@@ -53,7 +53,7 @@ describe("mounts.json", () => {
     await saveMountConfigs(files, []);
     await saveMountConfigs(files, [{ key: "a", name: "A", type: "memory", config: {} }]);
     const names = [];
-    for await (const e of files.list("/.files")) names.push(e.name);
+    for await (const e of files.list("/.settings")) names.push(e.name);
     expect(names).toEqual(["mounts.json"]);
   });
 
