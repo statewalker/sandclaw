@@ -4,8 +4,9 @@
 
 Storages mounted side by side as one `FilesApi`: a folder of the computer, the browser's private
 storage, an S3 bucket, or memory. Each storage appears at `/<key>` under a read-only root that lists
-them. The package also holds the encrypted vault for the S3 keys, the `mounts.json` settings file, and
-a five-step S3 connection test that says what is wrong with a bucket instead of "failed to fetch".
+them. The package also holds the profiles, each with an encrypted vault for its S3 keys and mounts
+(`/.settings/mounts.json` in a project is only the project's archive copy of the mounts), and a
+five-step S3 connection test that says what is wrong with a bucket instead of "failed to fetch".
 It is React-free; a view layer reads the table's `list()` and `onUpdate`.
 
 ## Why it exists
@@ -20,20 +21,22 @@ things follow from that:
 - **S3 is called straight from the browser.** The bucket needs a CORS rule naming the page's address,
   and the browser reports a missing rule exactly like a dead host. The connection test tells them apart
   and shows the rule to paste.
-- **The keys must not sit in plain text.** They live in an AES-GCM encrypted file, unlocked by a password.
+- **The person's keys and storages must not sit in plain text.** Each profile's data lives in one encrypted IndexedDB record, unlocked by a password (or a passkey).
 
 ## How to use
 
 ```ts
-import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import {
-  FilesMountTable, IdbStore, SecretVault, loadMountConfigs, localFolderMountType,
-  memoryMountType, opfsMountType, s3MountType, saveMountConfigs,
+  FilesMountTable, IdbStore, Profiles, firstProfileData, localFolderMountType,
+  memoryMountType, opfsMountType, s3MountType,
 } from "@statewalker/file-mounts.core";
 
-const settingsFiles = new MemFilesApi(); // where /.files/mounts.json and the vault files live
-const vault = new SecretVault({ files: settingsFiles, dir: "/.files", keys: new IdbStore("vault-keys") });
-await vault.load(); // "absent" | "locked" | "unlocked"
+const records = new IdbStore<unknown>("statewalker-files");
+const profiles = new Profiles({ records });
+const [first] = await profiles.load();
+const vault = first
+  ? await profiles.open(first.id) // unlocked when remembered; else vault.unlock(password, remember)
+  : await profiles.create("Personal", password, true, firstProfileData(opfsMountType().isAvailable().ok));
 
 const table = new FilesMountTable({
   types: [
@@ -44,12 +47,11 @@ const table = new FilesMountTable({
   ],
   secrets: vault,
 });
-const { configs, problem } = await loadMountConfigs(settingsFiles);
-await table.apply(configs); // creates the mounts, in parallel
+await table.apply((await vault.read()).mounts); // creates the mounts, in parallel
 table.files; // one FilesApi: /<key>/... for every mount
 ```
 
-After the person unlocks the vault, call `table.apply(configs)` again: mounts that were `locked` are
+After the person unlocks the vault, call `table.apply((await vault.read()).mounts)` again: mounts that were `locked` are
 created, mounts that are already `mounted` are kept. `apply` returns the `FileChange[]` of the mount
 roots it added, replaced or removed; nothing else announces them, so pass the list to the change hub,
 or open panels keep showing "Locked" until they are navigated again:
@@ -58,17 +60,39 @@ or open panels keep showing "Locked" until they are navigated again:
 import { newFileChanges } from "@statewalker/file-mounts.core";
 
 const changes = newFileChanges(); // the hub panels subscribe to
-if (await vault.unlock(password, remember)) changes.emit(await table.apply(configs));
+if (await vault.unlock(password, remember)) changes.emit(await table.apply((await vault.read()).mounts));
 ```
 
 `table.reconnect(key)` returns only the status: after it, emit an `updated` change for `/<key>`.
-Inside a click, `table.apply(configs, { interactive: true })` or `table.reconnect(key)` may show a
+Inside a click, `table.apply(mounts, { interactive: true })` or `table.reconnect(key)` may show a
 permission prompt.
 
 `vault.lock()` does not unmount S3 storages that are already mounted: their client holds the keys
 until the next `apply` that recreates them, or a reload. Likewise, keys changed in the vault for a
 config that did not change are not picked up by `apply` (the mount is kept as is); `reconnect(key)`
 creates it again with the new keys.
+
+The main mount's project keeps archive copies of the profile. After each `vault.update(...)` that
+changes mounts or preferences, write them; *Import from this project* merges them back:
+
+```ts
+import { archiveProfile, importProfile, mergeImported } from "@statewalker/file-mounts.core";
+
+await archiveProfile(mainFiles, await vault.read()); // mainFiles: the main mount's FilesApi
+
+const archive = await importProfile(mainFiles); // show archive.problem when set
+await vault.update((d) => mergeImported(d, archive));
+```
+
+Passkeys unlock a profile beside its password (WebAuthn PRF). A `PasskeyProblem`'s `message` is what to show the person:
+
+```ts
+import { webAuthnPasskeys } from "@statewalker/file-mounts.core";
+
+const passkeys = webAuthnPasskeys({ rpName: "Files" });
+if (await passkeys.available()) await profiles.addPasskey(vault, password, passkeys);
+const unlocked = await profiles.unlockWithPasskey(passkeys, remember); // finds the profile itself
+```
 
 ## What each mount type needs
 
@@ -163,7 +187,7 @@ try {
 Store a secret and change the password:
 
 ```ts
-await vault.create("correct horse", true); // remember: silent unlock after a reload
+const vault = await profiles.create("Work", "correct horse", true); // remember: silent unlock after a reload
 await vault.set("archive/accessKeyId", "AKIA...");
 await vault.changePassword("correct horse", "battery staple"); // false when the old one is wrong
 ```
@@ -172,25 +196,49 @@ await vault.changePassword("correct horse", "battery staple"); // false when the
 
 ### How the vault protects the keys
 
-A random AES-GCM-256 data key encrypts `secrets.json`. A key derived from the password with
-PBKDF2-SHA256 wraps the data key into `vault.key.json`. A password change re-wraps the one data key and
-leaves `secrets.json` alone. Accounts are named `<mount key>/<field>`. The vault id is bound into both
-ciphertexts as additional data, so a `secrets.json` from another vault does not decrypt.
+Each profile has one record, `vault:<id>`, in a single `KeyValueStore` (IndexedDB). It holds a sealed
+`ProfileData` (secrets, mounts, the main storage, preferences) and the wrapped data key. A random
+AES-GCM-256 data key seals the data; a key derived from the password with PBKDF2-SHA256 wraps the data
+key. A password change re-wraps the one data key and leaves the sealed data alone. Accounts are named
+`<mount key>/<field>`. The profile id is bound into both ciphertexts as additional data, so a record
+copied under another profile does not decrypt. Kept in clear are the profile list (`profiles`: ids
+and names) and, in each vault record, the passkey credential ids and creation times and the KDF
+parameters (salt, iterations). None of these is a secret.
 
 The default is 600 000 PBKDF2 iterations: the current OWASP guidance for SHA-256, and a fraction of a
-second on a laptop. Fewer would make a stolen file cheaper to guess against; more makes every unlock
+second on a laptop. Fewer would make a stolen record cheaper to guess against; more makes every unlock
 slow on a phone. Tests pass `iterations: 1000`.
 
-*Remember* stores the derived key, non-extractable, in a `KeyValueStore` (IndexedDB), so the next
-load unlocks silently. The data key is never stored. Writes take a Web Lock, and each write re-reads
-the file, so two tabs setting different accounts keep both.
+*Remember* stores the **data key**, non-extractable, at `remembered:<id>`, so the next open unlocks
+silently. It is the data key and not the password-derived key because it survives a password change
+and works after any kind of unlock; and whoever can read this browser's IndexedDB could use a
+remembered password key just as well. Writes take a Web Lock per profile and each write re-reads the
+record, so two tabs changing different things keep both.
 
-A wrong password never changes anything: `unlock` returns `false` and the state stays `locked`.
-`unlock` checks the password against `vault.key.json` as it is on disk at that moment, so after
-another tab changed the password, the new one unlocks this tab too, without a reload.
-A lost password cannot be recovered. `reset()` deletes the two vault files and the remembered key;
-the stored files in the mounts are never touched, only the ability to open S3 storages until the keys
-are entered again.
+A wrong password never changes anything: `unlock` and `changePassword` return `false` and the state
+stays as it was. Both check the password against the record as it is now, so after another tab changed
+the password, the new one works in this tab too, without a reload.
+
+A lost password cannot be recovered. `profiles.remove(id)` deletes the vault and its remembered key; the
+files in the storages are not touched, but the mounts and keys must be entered again. Using a removed
+profile's vault fails with `This profile was removed.`
+
+### A passkey unlocks the vault through PRF, and the password stays
+
+The authenticator returns the same 32-byte PRF secret for this site and the fixed input
+`statewalker-files vault v1`, after verifying the person. HKDF-SHA256 with a random salt per wrap turns
+that secret into the key that wraps the data key, next to the password wrap. The passkey's user handle
+is the profile id and its user name the profile's name, so one *Unlock with a passkey* finds the
+profile. The password is checked before the passkey prompt, so a wrong one leaves no orphan passkey.
+
+Support differs: Chromium with security keys and phones, Safari 18+ with Apple Passwords, Windows Hello
+only on recent builds, Firefox unclear. `available()` asks `getClientCapabilities`. An authenticator
+that registers a passkey without PRF leaves that passkey in its own list though it unlocks nothing;
+adding then fails with "This browser can't use passkeys to unlock; use the password." Removing a passkey
+from the profile does not delete it from the authenticator, which keeps offering it and gets "This
+passkey isn't linked to a profile on this browser." There is no server, so the challenge is random and
+nothing is verified beyond the PRF secret. Keep the password: a deleted passkey would otherwise lock
+the person out.
 
 ### How the table keeps working when one storage does not
 
@@ -206,9 +254,24 @@ they are still reading the prompt. Every other type is timed out even inside a c
 host that never answers would otherwise hold the queue, and every later `apply` and `reconnect`,
 forever.
 
+### The main storage is the project, and keeps an archive of the profile
+
+`canBeMain(config)` is true for `opfs`, `local-folder` and `memory`, and false for `s3`. The main
+storage is the open project and must open before anything else; an S3 storage is locked until the
+vault opens, so it cannot be the one that opens first. `firstProfileData(opfs)` is what a new profile
+starts with: one "Browser storage" mount as main, or a memory mount where OPFS is missing.
+
+`archiveProfile` writes `/.settings/mounts.json` and `/.settings/preferences.json` into the project.
+Secrets never go there: the mounts file holds configs only, and the keys stay in the vault. The vault
+always wins: `importProfile` reads the copies only on an explicit import, and `mergeImported` keeps
+the profile's own mounts and preference values, adding only the mounts with unknown keys and the
+preferences it lacks. A damaged copy brings in what can be read, and `problem` says what was left
+out, for example `1 saved storage could not be read and was left out. The archived preferences are
+damaged; they were left out.`
+
 ### A save over a damaged mounts.json first keeps a backup of it
 
-`loadMountConfigs` returns the mounts in `/.files/mounts.json`. A file that is not valid JSON or not a
+`mounts.json` is the project's archive copy of the mounts. `loadMountConfigs` returns the mounts in `/.settings/mounts.json`. A file that is not valid JSON or not a
 list loads as no mounts, with `problem: "The storage settings file is damaged; it is kept as is until you save."`.
 Entries that cannot be read are left out with a problem count, for example
 `2 saved storages could not be read and were left out.` Loading never rewrites the file.
@@ -216,7 +279,7 @@ Entries that cannot be read are left out with a problem count, for example
 The next `saveMountConfigs` writes only the mounts it is given, so the entries left out would be
 gone. Before writing, it reads the file again; if it does not load cleanly (by the same rules), its
 exact text is first copied to `mounts.damaged-<timestamp>.json` in the same folder (for example
-`/.files/mounts.damaged-2026-10-11T09-30-00-000Z.json`). Nothing removes these backups; a file there
+`/.settings/mounts.damaged-2026-10-11T09-30-00-000Z.json`). Nothing removes these backups; a file there
 means a save replaced settings that could not be read, and the lost entries can be recovered from it
 by hand.
 

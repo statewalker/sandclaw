@@ -186,8 +186,6 @@ export class FilesMountTable extends BaseClass implements MountTable {
     const ctx = {
       interactive,
       secret: async (field: string) => {
-        // No vault: there is nothing to unlock, only keys to enter.
-        if (this.secrets.state === "absent") return undefined;
         if (this.secrets.state !== "unlocked") throw new SecretsLocked();
         return this.secrets.get(`${config.key}/${field}`);
       },

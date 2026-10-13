@@ -7,7 +7,7 @@ import {
   type MountType,
   MountUnavailable,
   newFileChanges,
-  SecretVault,
+  Profiles,
 } from "@statewalker/file-mounts.core";
 import { writeText } from "@statewalker/webrun-files";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
@@ -16,15 +16,8 @@ import { PanelModel } from "../src/index.js";
 
 describe("unlock to listing", () => {
   it("a locked storage shows its problem; after unlock and apply the panel lists it", async () => {
-    const appFiles = new MemFilesApi();
-    const vault = new SecretVault({
-      files: appFiles,
-      dir: "/.files",
-      keys: new MemoryStore<CryptoKey>(),
-      iterations: 1000,
-    });
-    await vault.load();
-    await vault.create("pw", false);
+    const profiles = new Profiles({ records: new MemoryStore<unknown>(), iterations: 1000 });
+    const vault = await profiles.create("Me", "pw", false);
     await vault.set("archive/accessKeyId", "AKIA");
     vault.lock();
 
