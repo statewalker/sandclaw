@@ -29,9 +29,10 @@ export interface LlmCallCost {
 
 const ZERO: LlmCallCost = { inputUsd: 0, outputUsd: 0, totalUsd: 0 };
 
-/** Cost of a call's token usage at the model's list price (zeros for an unknown model). */
+/** Cost of a call's token usage at the model's list price (zeros for an unknown model).
+ * A vendor-prefixed OpenRouter id (`openai/gpt-4.1`) is priced as its bare model id. */
 export function costOf(model: string, usage: LlmCallUsage): LlmCallCost {
-  const price = MODEL_PRICES[model];
+  const price = MODEL_PRICES[model] ?? MODEL_PRICES[model.slice(model.indexOf("/") + 1)];
   if (!price) return ZERO;
   const inputUsd = (usage.inputTokens / 1_000_000) * price.input;
   const outputUsd = (usage.outputTokens / 1_000_000) * price.output;

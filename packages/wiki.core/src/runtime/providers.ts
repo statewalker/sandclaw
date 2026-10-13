@@ -22,7 +22,7 @@ function required(env: Record<string, string | undefined>, key: string): string 
 /**
  * Resolve the LLM provider + model configuration from environment variables — the
  * composition-root boundary (adapters read no env). Selects a provider via
- * `WIKI_PROVIDER` (`openai` | `google`, default `openai`); model/embedding ids and
+ * `WIKI_PROVIDER` (`openai` | `google` | `openrouter`, default `openai`); model/embedding ids and
  * dimensionality are overridable via `WIKI_MODEL` / `WIKI_MODEL_FAST` / `WIKI_MODEL_STRONG`
  * / `WIKI_EMBED_MODEL` / `WIKI_EMBED_DIM`. `WIKI_MODEL_FAST` is the weak model the
  * section-relevance filter (`queryFast`) uses (falls back to `WIKI_MODEL` when unset — a
@@ -50,6 +50,27 @@ export function resolveProvidersFromEnv(
       },
       embedModel: env.WIKI_EMBED_MODEL ?? "text-embedding-004",
       dimensionality: Number(env.WIKI_EMBED_DIM ?? "768"),
+    };
+  }
+  if (providerId === "openrouter") {
+    // OpenRouter speaks the OpenAI wire format; `.chat` because it serves Chat
+    // Completions, not the Responses API the default `openai(name)` targets.
+    const openrouter = createOpenAI({
+      apiKey: required(env, "OPENROUTER_API_KEY"),
+      baseURL: "https://openrouter.ai/api/v1",
+    });
+    return {
+      provider: {
+        languageModel: (name) => openrouter.chat(name),
+        textEmbeddingModel: (name) => openrouter.embeddingModel(name),
+      },
+      models: {
+        default: env.WIKI_MODEL ?? "openai/gpt-4.1-mini",
+        ...(env.WIKI_MODEL_FAST ? { queryFast: env.WIKI_MODEL_FAST } : {}),
+        queryStrong: env.WIKI_MODEL_STRONG ?? "openai/gpt-4.1",
+      },
+      embedModel: env.WIKI_EMBED_MODEL ?? "openai/text-embedding-3-small",
+      dimensionality: Number(env.WIKI_EMBED_DIM ?? "1536"),
     };
   }
   const openai = createOpenAI({ apiKey: required(env, "OPENAI_API_KEY") });

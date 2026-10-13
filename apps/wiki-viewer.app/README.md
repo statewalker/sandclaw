@@ -26,7 +26,7 @@ A *project* is a directory under the data root that has a `.project/` system fol
 ## How to run it
 
 1. From the repository root, install and build: `pnpm install && pnpm run build`.
-2. Create the env file: `cp apps/wiki-viewer.app/.env.example apps/wiki-viewer.app/.env`. Set `REPORT_DATA_ROOT` to the absolute path of the directory that holds your wiki projects, and set `OPENAI_API_KEY` (or `WIKI_PROVIDER=google` and `GOOGLE_GENERATIVE_AI_API_KEY`).
+2. Create the env file: `cp apps/wiki-viewer.app/.env.example apps/wiki-viewer.app/.env`. Set `REPORT_DATA_ROOT` to the absolute path of the directory that holds your wiki projects, and set `OPENAI_API_KEY` (or `WIKI_PROVIDER=google` and `GOOGLE_GENERATIVE_AI_API_KEY`, or `WIKI_PROVIDER=openrouter` and `OPENROUTER_API_KEY`).
 3. Start the dev server: `pnpm --filter @statewalker/wiki-viewer-app dev`, then open http://localhost:5173 (Vite's default port). `/` redirects to `/projects`.
 4. For a production build: `pnpm --filter @statewalker/wiki-viewer-app build`, then `pnpm --filter @statewalker/wiki-viewer-app start` (runs `node ./dist/index.js`).
 
@@ -42,7 +42,7 @@ A *project* is a directory under the data root that has a `.project/` system fol
 ## What will surprise you
 
 - **Empty project list.** `REPORT_DATA_ROOT` is unset or wrong. Without it, `dataRoot()` falls back to `../../../../data` relative to the process directory, which is outside this repository (the shipped `.env.example` uses the same relative value). Set an absolute path. Directories without `.project/` are not listed.
-- **`wiki provider not configured — set OPENAI_API_KEY (or WIKI_PROVIDER=google + GOOGLE_GENERATIVE_AI_API_KEY)`** comes back as the query error when no key is set. Browsing still works.
+- **`wiki provider not configured — set OPENAI_API_KEY (or WIKI_PROVIDER=google + GOOGLE_GENERATIVE_AI_API_KEY, or WIKI_PROVIDER=openrouter + OPENROUTER_API_KEY)`** comes back as the query error when no key is set. Browsing still works.
 - **`WikiLlmConfiguration not loaded; call load() first`** can come back from a live query. The per-project model config lives in `<project>/.project/nature.wiki.json` and must be loaded before `WikiQuery` runs; the server calls `WikiQuery.ask` without loading it.
 - **`unknown project '<name>'`** (404) from `/api/query` or `/api/answers` when the project directory does not exist under the data root. Pages for an unknown project return 404.
 - **No reports.** Nothing in this app creates reports. They appear only after something calls `WikiSnapshotsAdapter.runReport(...)` for the project.
@@ -64,8 +64,8 @@ A *project* is a directory under the data root that has a `.project/` system fol
 | Variable | Meaning |
 | --- | --- |
 | `REPORT_DATA_ROOT` | Directory holding the wiki projects; the `rootDir` of the server's `NodeFilesApi`. |
-| `WIKI_PROVIDER` | `openai` (default) or `google`. |
-| `OPENAI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` | Key for the selected provider. |
+| `WIKI_PROVIDER` | `openai` (default), `google` or `openrouter`. |
+| `OPENAI_API_KEY` / `GOOGLE_GENERATIVE_AI_API_KEY` / `OPENROUTER_API_KEY` | Key for the selected provider. |
 | `WIKI_MODEL`, `WIKI_MODEL_FAST`, `WIKI_MODEL_STRONG`, `WIKI_EMBED_MODEL`, `WIKI_EMBED_DIM` | Model overrides read by `resolveProvidersFromEnv`. |
 
 ### Routes

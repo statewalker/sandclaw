@@ -201,11 +201,12 @@ pnpm --filter @statewalker/wiki.core start /my/vault restart notes Embedder  # r
 pnpm --filter @statewalker/wiki.core start /my/vault invalidate notes Embedder  # reset a stage + downstream
 ```
 
-Flags: `--format <none|json|yaml>` (data channel; default `json`), `--log-level <fatal|error|warn|info|debug|trace>`. For `search`: `--mode <fts|vector|hybrid>`, `--detail <short|normal|full>`, `--top-k <n>` (default 20), `--vector <q>`, and repeated `--fts <q>`. The structured result goes to stdout; progress, status, and per-model/per-stage cost stats go to stderr. Providers and models come from the environment via `resolveProvidersFromEnv`: `WIKI_PROVIDER` = `openai` (default, needs `OPENAI_API_KEY`) or `google` (needs `GOOGLE_GENERATIVE_AI_API_KEY`), plus `WIKI_MODEL`, `WIKI_MODEL_FAST`, `WIKI_MODEL_STRONG`, `WIKI_EMBED_MODEL`, `WIKI_EMBED_DIM`. On the first `scan` these seed the project's `.project/nature.wiki.json`; later runs read that file.
+Flags: `--format <none|json|yaml>` (data channel; default `json`), `--log-level <fatal|error|warn|info|debug|trace>`. For `search`: `--mode <fts|vector|hybrid>`, `--detail <short|normal|full>`, `--top-k <n>` (default 20), `--vector <q>`, and repeated `--fts <q>`. The structured result goes to stdout; progress, status, and per-model/per-stage cost stats go to stderr. Providers and models come from the environment via `resolveProvidersFromEnv`: `WIKI_PROVIDER` = `openai` (default, needs `OPENAI_API_KEY`) `google` (needs `GOOGLE_GENERATIVE_AI_API_KEY`), or `openrouter` (needs `OPENROUTER_API_KEY`; defaults to OpenRouter's `openai/gpt-4.1-mini`, `openai/gpt-4.1` and `openai/text-embedding-3-small`, called through Chat Completions because OpenRouter does not serve OpenAI's Responses API), plus `WIKI_MODEL`, `WIKI_MODEL_FAST`, `WIKI_MODEL_STRONG`, `WIKI_EMBED_MODEL`, `WIKI_EMBED_DIM`. On the first `scan` these seed the project's `.project/nature.wiki.json`; later runs read that file.
 
-Two things that trip people up:
+Three things that trip people up:
 
-- Every command, even `status`, resolves providers first. Without a key it exits with `missing required env var OPENAI_API_KEY` (or `GOOGLE_GENERATIVE_AI_API_KEY` with `WIKI_PROVIDER=google`).
+- Every command, even `status`, resolves providers first. Without a key it exits with `missing required env var OPENAI_API_KEY` (or `GOOGLE_GENERATIVE_AI_API_KEY` with `WIKI_PROVIDER=google`, `OPENROUTER_API_KEY` with `WIKI_PROVIDER=openrouter`).
+- A key that is set but wrong does not stop the scan: each document logs `summarize failed; skipping document` (OpenRouter words a bad key as `Missing Authentication header`) and is marked handled, so a plain re-scan after fixing the key does nothing. Re-run with `scan <project> force`.
 - `pnpm --filter` runs the script inside `packages/wiki.core`, so a relative `<root>` resolves from there. Pass an absolute path. A missing project prints `project not found: <project>` (only `scan` creates it).
 
 ## Internals

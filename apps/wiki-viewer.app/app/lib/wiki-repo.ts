@@ -31,7 +31,7 @@ function providers(): ReturnType<typeof resolveProvidersFromEnv> {
   } catch {
     const unconfigured = (): never => {
       throw new Error(
-        "wiki provider not configured — set OPENAI_API_KEY (or WIKI_PROVIDER=google + GOOGLE_GENERATIVE_AI_API_KEY)",
+        "wiki provider not configured — set OPENAI_API_KEY (or WIKI_PROVIDER=google + GOOGLE_GENERATIVE_AI_API_KEY, or WIKI_PROVIDER=openrouter + OPENROUTER_API_KEY)",
       );
     };
     return {
