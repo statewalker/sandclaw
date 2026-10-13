@@ -116,8 +116,7 @@ export class SecretVault extends BaseClass implements SecretStore {
 
   /** Checks the password against the record as it is now, so another tab's change counts. */
   async unlock(password: string, remember: boolean): Promise<boolean> {
-    const record = await this.record();
-    if (!record) return false;
+    const record = await this.requireRecord();
     return this.unlockWith(
       record.password,
       () => passwordKeyFor(record.password, password),

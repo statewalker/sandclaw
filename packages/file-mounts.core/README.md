@@ -4,8 +4,9 @@
 
 Storages mounted side by side as one `FilesApi`: a folder of the computer, the browser's private
 storage, an S3 bucket, or memory. Each storage appears at `/<key>` under a read-only root that lists
-them. The package also holds the profiles, each with an encrypted vault for its S3 keys and mounts, the `mounts.json` settings file, and
-a five-step S3 connection test that says what is wrong with a bucket instead of "failed to fetch".
+them. The package also holds the profiles, each with an encrypted vault for its S3 keys and mounts
+(`/.settings/mounts.json` in a project is only the project's archive copy of the mounts), and a
+five-step S3 connection test that says what is wrong with a bucket instead of "failed to fetch".
 It is React-free; a view layer reads the table's `list()` and `onUpdate`.
 
 ## Why it exists
@@ -200,8 +201,9 @@ Each profile has one record, `vault:<id>`, in a single `KeyValueStore` (IndexedD
 AES-GCM-256 data key seals the data; a key derived from the password with PBKDF2-SHA256 wraps the data
 key. A password change re-wraps the one data key and leaves the sealed data alone. Accounts are named
 `<mount key>/<field>`. The profile id is bound into both ciphertexts as additional data, so a record
-copied under another profile does not decrypt. Only the profile list (`profiles`: ids and names) is
-kept in clear.
+copied under another profile does not decrypt. Kept in clear are the profile list (`profiles`: ids
+and names) and, in each vault record, the passkey credential ids and creation times and the KDF
+parameters (salt, iterations). None of these is a secret.
 
 The default is 600 000 PBKDF2 iterations: the current OWASP guidance for SHA-256, and a fraction of a
 second on a laptop. Fewer would make a stolen record cheaper to guess against; more makes every unlock

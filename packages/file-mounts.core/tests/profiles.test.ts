@@ -148,6 +148,14 @@ describe("Profiles and their vaults", () => {
     expect((await newProfiles(records).open(home.profile)).state).toBe("unlocked");
   });
 
+  it("unlock on a profile removed in another tab says it was removed, not a wrong password", async () => {
+    const records = new MemoryStore<unknown>();
+    const created = await newProfiles(records).create("Work", "pw", false);
+    const stale = await newProfiles(records).open(created.profile);
+    await newProfiles(records).remove(created.profile);
+    await expect(stale.unlock("pw", false)).rejects.toThrow("This profile was removed.");
+  });
+
   it("remove racing a write in another tab leaves no vault record behind", async () => {
     const records = new MemoryStore<unknown>();
     const a = await newProfiles(records).create("Work", "pw", true);
