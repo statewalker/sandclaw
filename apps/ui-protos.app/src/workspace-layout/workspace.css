@@ -35,3 +35,30 @@
 .dockview-theme-sandclaw .sc-zone-hover:hover .dv-tabs-and-actions-container {
   height: var(--dv-tabs-and-actions-container-height);
 }
+
+/* The list of tabs that don't fit: a popover styled like the menus (border, shadow, menu rows). */
+.dockview-theme-sandclaw .dv-tabs-overflow-container {
+  min-width: 12rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background-color: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+.dockview-theme-sandclaw .dv-tabs-overflow-container .dv-tab {
+  height: auto;
+  padding: 0.375rem 0.5rem;
+  border-bottom: none;
+  border-radius: calc(var(--radius) - 4px);
+  background-color: transparent;
+  color: var(--popover-foreground);
+  font-size: 0.875rem;
+  cursor: default;
+}
+.dockview-theme-sandclaw .dv-tabs-overflow-container .dv-tab:hover {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
