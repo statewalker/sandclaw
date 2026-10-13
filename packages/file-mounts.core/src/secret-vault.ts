@@ -16,6 +16,7 @@ import {
   unseal,
   unwrap,
   type VaultRecord,
+  vaultLockName,
   type Wrapped,
 } from "./vault-records.js";
 
@@ -219,7 +220,7 @@ export class SecretVault extends BaseClass implements SecretStore {
   }
 
   protected exclusive<T>(action: () => Promise<T>): Promise<T> {
-    return exclusive(`statewalker-files-vault:${this.profile}`, action);
+    return exclusive(vaultLockName(this.profile), action);
   }
 
   private setState(state: VaultState): VaultState {

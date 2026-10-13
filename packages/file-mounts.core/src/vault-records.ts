@@ -24,6 +24,8 @@ export interface VaultRecord {
 
 export const PROFILES_KEY = "profiles";
 export const recordKey = (profile: string) => `vault:${profile}`;
+/** The lock every writer of one profile's vault takes, `remove` included. */
+export const vaultLockName = (profile: string) => `statewalker-files-vault:${profile}`;
 export const rememberedKey = (profile: string) => `remembered:${profile}`;
 
 export const utf8 = (text: string) => new TextEncoder().encode(text);

@@ -3,7 +3,13 @@
 import { BaseClass } from "@statewalker/shared-baseclass";
 import type { KeyValueStore } from "./key-value-store.js";
 import { type ProfileData, SecretVault } from "./secret-vault.js";
-import { exclusive, PROFILES_KEY, recordKey, rememberedKey } from "./vault-records.js";
+import {
+  exclusive,
+  PROFILES_KEY,
+  recordKey,
+  rememberedKey,
+  vaultLockName,
+} from "./vault-records.js";
 
 export interface ProfileInfo {
   id: string;
@@ -95,11 +101,14 @@ export class Profiles extends BaseClass {
 
   /** Deletes the profile's vault and remembered key. Nothing in the storages is touched. */
   remove(id: string): Promise<void> {
-    return exclusive(LOCK, async () => {
-      await this.records.delete(recordKey(id));
-      await this.records.delete(rememberedKey(id));
-      await this.save((await this.stored()).filter((p) => p.id !== id));
-    });
+    // The vault's lock too, so a write in flight cannot put the record back after the delete.
+    return exclusive(LOCK, () =>
+      exclusive(vaultLockName(id), async () => {
+        await this.records.delete(recordKey(id));
+        await this.records.delete(rememberedKey(id));
+        await this.save((await this.stored()).filter((p) => p.id !== id));
+      }),
+    );
   }
 
   protected async stored(): Promise<ProfileInfo[]> {

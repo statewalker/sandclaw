@@ -148,6 +148,24 @@ describe("Profiles and their vaults", () => {
     expect((await newProfiles(records).open(home.profile)).state).toBe("unlocked");
   });
 
+  it("remove racing a write in another tab leaves no vault record behind", async () => {
+    const records = new MemoryStore<unknown>();
+    const a = await newProfiles(records).create("Work", "pw", true);
+    const other = newProfiles(records);
+    await other.load();
+    const writing = a
+      .update((data) => ({ ...data, main: "browser" }))
+      .then(
+        () => "written",
+        (e: Error) => e.message,
+      );
+    await other.remove(a.profile);
+    await writing;
+    expect(await records.get(`vault:${a.profile}`)).toBeUndefined();
+    expect(await records.get(`remembered:${a.profile}`)).toBeUndefined();
+    expect(await newProfiles(records).load()).toEqual([]);
+  });
+
   it("profiles and remembered keys survive in IndexedDB", async () => {
     const vault = await newProfiles(new IdbStore("profiles-test")).create("Work", "pw", true);
     await vault.set("a/k", "v");
