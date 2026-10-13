@@ -3,11 +3,13 @@ import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import { describe, expect, it } from "vitest";
 import {
   FilesMountTable,
+  MemoryStore,
   type MountConfig,
   type MountType,
   MountUnavailable,
   memoryMountType,
   NeedsUserGesture,
+  Profiles,
   problemOf,
   s3MountType,
 } from "../src/index.js";
@@ -230,9 +232,12 @@ describe("FilesMountTable", () => {
     expect(await names(table, "/")).toEqual(["docs"]);
   });
 
-  it("with no vault at all, an S3 storage asks for its keys rather than an unlock", async () => {
-    const absent = { state: "absent" as const, get: async () => undefined };
-    const table = new FilesMountTable({ types: [s3MountType()], secrets: absent });
+  it("with no keys entered, an S3 storage asks for its keys rather than an unlock", async () => {
+    const vault = await new Profiles({
+      records: new MemoryStore<unknown>(),
+      iterations: 1000,
+    }).create("Me", "pw", false);
+    const table = new FilesMountTable({ types: [s3MountType()], secrets: vault });
     await table.apply([
       {
         key: "archive",
