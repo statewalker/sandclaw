@@ -8,6 +8,7 @@ export * from "./mount-settings-file.js";
 export * from "./mount-table.js";
 export * from "./mount-type.js";
 export * from "./opfs-mount-type.js";
+export * from "./passkeys.js";
 export * from "./problem.js";
 export * from "./profiles.js";
 export * from "./s3.js";

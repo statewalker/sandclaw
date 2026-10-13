@@ -71,6 +71,16 @@ until the next `apply` that recreates them, or a reload. Likewise, keys changed 
 config that did not change are not picked up by `apply` (the mount is kept as is); `reconnect(key)`
 creates it again with the new keys.
 
+Passkeys unlock a profile beside its password (WebAuthn PRF). A `PasskeyProblem`'s `message` is what to show the person:
+
+```ts
+import { webAuthnPasskeys } from "@statewalker/file-mounts.core";
+
+const passkeys = webAuthnPasskeys({ rpName: "Files" });
+if (await passkeys.available()) await profiles.addPasskey(vault, password, passkeys);
+const unlocked = await profiles.unlockWithPasskey(passkeys, remember); // finds the profile itself
+```
+
 ## What each mount type needs
 
 | Type | Needs | Notes |
@@ -198,6 +208,23 @@ the password, the new one works in this tab too, without a reload.
 A lost password cannot be recovered. `profiles.remove(id)` deletes the vault and its remembered key; the
 files in the storages are not touched, but the mounts and keys must be entered again. Using a removed
 profile's vault fails with `This profile was removed.`
+
+### A passkey unlocks the vault through PRF, and the password stays
+
+The authenticator returns the same 32-byte PRF secret for this site and the fixed input
+`statewalker-files vault v1`, after verifying the person. HKDF-SHA256 with a random salt per wrap turns
+that secret into the key that wraps the data key, next to the password wrap. The passkey's user handle
+is the profile id and its user name the profile's name, so one *Unlock with a passkey* finds the
+profile. The password is checked before the passkey prompt, so a wrong one leaves no orphan passkey.
+
+Support differs: Chromium with security keys and phones, Safari 18+ with Apple Passwords, Windows Hello
+only on recent builds, Firefox unclear. `available()` asks `getClientCapabilities`. An authenticator
+that registers a passkey without PRF leaves that passkey in its own list though it unlocks nothing;
+adding then fails with "This browser can't use passkeys to unlock; use the password." Removing a passkey
+from the profile does not delete it from the authenticator, which keeps offering it and gets "This
+passkey isn't linked to a profile on this browser." There is no server, so the challenge is random and
+nothing is verified beyond the PRF secret. Keep the password: a deleted passkey would otherwise lock
+the person out.
 
 ### How the table keeps working when one storage does not
 

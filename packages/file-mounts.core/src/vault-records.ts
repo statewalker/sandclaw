@@ -152,3 +152,37 @@ export function exclusive<T>(name: string, action: () => Promise<T>): Promise<T>
   );
   return result;
 }
+
+/** The key a passkey wrap is made with: HKDF over the authenticator's PRF secret. */
+export async function passkeyKey(secret: Uint8Array, salt: Uint8Array): Promise<CryptoKey> {
+  const base = await crypto.subtle.importKey("raw", new Uint8Array(secret), "HKDF", false, [
+    "deriveKey",
+  ]);
+  return crypto.subtle.deriveKey(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: new Uint8Array(salt),
+      info: utf8("statewalker-files vault passkey"),
+    },
+    base,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["wrapKey", "unwrapKey"],
+  );
+}
+
+export async function newPasskeyWrap(
+  dataKey: CryptoKey,
+  id: string,
+  credentialId: string,
+  secret: Uint8Array,
+): Promise<PasskeyWrap> {
+  const salt = random(16);
+  return {
+    credentialId,
+    salt: toBase64(salt),
+    createdAt: new Date().toISOString(),
+    ...(await wrap(dataKey, await passkeyKey(secret, salt), id)),
+  };
+}

@@ -2,6 +2,7 @@
 // and one vault each.
 import { BaseClass } from "@statewalker/shared-baseclass";
 import type { KeyValueStore } from "./key-value-store.js";
+import { PASSKEY_MESSAGES, type PasskeyAuthenticator, PasskeyProblem } from "./passkeys.js";
 import { type ProfileData, SecretVault } from "./secret-vault.js";
 import {
   exclusive,
@@ -109,6 +110,39 @@ export class Profiles extends BaseClass {
         await this.save((await this.stored()).filter((p) => p.id !== id));
       }),
     );
+  }
+
+  /** Adds a passkey named after the profile. False: wrong password. Throws PasskeyProblem. */
+  async addPasskey(
+    vault: SecretVault,
+    password: string,
+    authenticator: PasskeyAuthenticator,
+  ): Promise<boolean> {
+    if (!(await authenticator.available())) {
+      throw new PasskeyProblem(PASSKEY_MESSAGES.unsupported);
+    }
+    const name = (await this.stored()).find((p) => p.id === vault.profile)?.name ?? "";
+    return vault.addPasskey(password, () => authenticator.create({ id: vault.profile, name }));
+  }
+
+  /** The browser offers every profile's passkey; the chosen one's profile opens, unlocked. */
+  async unlockWithPasskey(
+    authenticator: PasskeyAuthenticator,
+    remember: boolean,
+  ): Promise<SecretVault> {
+    const answer = await authenticator.get();
+    if (!(await this.stored()).some((p) => p.id === answer.userId)) {
+      throw new PasskeyProblem(PASSKEY_MESSAGES.unknown);
+    }
+    const vault = new SecretVault({
+      records: this.records,
+      profile: answer.userId,
+      iterations: this.iterations,
+    });
+    if (!(await vault.unlockWithPasskey(answer.credentialId, answer.secret, remember))) {
+      throw new PasskeyProblem(PASSKEY_MESSAGES.unknown);
+    }
+    return vault;
   }
 
   protected async stored(): Promise<ProfileInfo[]> {

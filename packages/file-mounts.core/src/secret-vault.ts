@@ -7,8 +7,12 @@ import type { KeyValueStore } from "./key-value-store.js";
 import type { MountConfig } from "./mount-config.js";
 import {
   exclusive,
+  fromBase64,
   newDataKey,
+  newPasskeyWrap,
   newPasswordWrap,
+  type PasskeyWrap,
+  passkeyKey,
   passwordKeyFor,
   recordKey,
   rememberedKey,
@@ -180,6 +184,66 @@ export class SecretVault extends BaseClass implements SecretStore {
       await this.records.set(recordKey(this.profile), { ...record, password });
       return true;
     });
+  }
+
+  /**
+   * Adds a passkey. The password is checked first, so a wrong one never reaches the browser's
+   * passkey prompt; `register` runs that prompt. False: wrong password.
+   */
+  async addPasskey(
+    password: string,
+    register: () => Promise<{ credentialId: string; secret: Uint8Array }>,
+  ): Promise<boolean> {
+    const record = await this.requireRecord();
+    let dataKey: CryptoKey;
+    try {
+      dataKey = await unwrap(
+        record.password,
+        await passwordKeyFor(record.password, password),
+        this.profile,
+        true,
+      );
+    } catch {
+      return false;
+    }
+    const { credentialId, secret } = await register();
+    const passkey = await newPasskeyWrap(dataKey, this.profile, credentialId, secret);
+    await this.exclusive(async () => {
+      const now = await this.requireRecord();
+      const passkeys = [...now.passkeys.filter((p) => p.credentialId !== credentialId), passkey];
+      await this.records.set(recordKey(this.profile), { ...now, passkeys });
+    });
+    this.notify();
+    return true;
+  }
+
+  async removePasskey(credentialId: string): Promise<void> {
+    this.requireKey();
+    await this.exclusive(async () => {
+      const record = await this.requireRecord();
+      const passkeys = record.passkeys.filter((p) => p.credentialId !== credentialId);
+      await this.records.set(recordKey(this.profile), { ...record, passkeys });
+    });
+    this.notify();
+  }
+
+  /** The passkeys that unlock this profile; readable while locked. */
+  async passkeys(): Promise<{ credentialId: string; createdAt: string }[]> {
+    return ((await this.record())?.passkeys ?? []).map((p: PasskeyWrap) => ({
+      credentialId: p.credentialId,
+      createdAt: p.createdAt,
+    }));
+  }
+
+  /** False: the passkey is not one of this profile's (any more). */
+  async unlockWithPasskey(
+    credentialId: string,
+    secret: Uint8Array,
+    remember: boolean,
+  ): Promise<boolean> {
+    const passkey = (await this.record())?.passkeys.find((p) => p.credentialId === credentialId);
+    if (!passkey) return false;
+    return this.unlockWith(passkey, () => passkeyKey(secret, fromBase64(passkey.salt)), remember);
   }
 
   /** Drops the remembered key: the next start asks again. */
