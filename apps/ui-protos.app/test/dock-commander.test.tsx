@@ -23,6 +23,11 @@ describe("DockCommander", () => {
     expect(await within(panel("2026")).findByRole("row", { name: "readme.md" })).toBeTruthy();
   });
 
+  it("takes the app's theme, not dockview's dark default", () => {
+    const { container } = render(<DockCommander panels={["/documents/notes"]} />);
+    expect(container.querySelector(".dockview-theme-abyss")).toBeNull();
+  });
+
   it("on a phone, the panels are tabs of one group", () => {
     render(<DockCommander phone panels={["/documents/notes", "/archive/2026"]} />);
     expect(groupOf(tab("notes"))).toBe(groupOf(tab("2026")));

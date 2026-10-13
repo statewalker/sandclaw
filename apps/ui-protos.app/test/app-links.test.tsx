@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/app/app.js";
 import { OpenFile, OpenSettings, RevealFile, ShowPanel } from "../src/app/contracts.js";
 import { createRuntime } from "../src/app/runtime.js";
@@ -161,14 +161,21 @@ describe("links from the views", () => {
   });
 
   it("an assistant's output opens", async () => {
-    renderApp();
-    // The deck scenario writes its output after a few scripted steps.
-    fireEvent.click(
-      await screen.findByRole("button", { name: /Outputs\/clients\.pptx/ }, { timeout: 8000 }),
-    );
+    // The deck scenario writes its output after a few scripted steps; fake timers play them.
+    vi.useFakeTimers();
+    try {
+      renderApp();
+      // Step by step: each step's timer is set after the previous step renders.
+      for (let i = 0; i < 40 && !screen.queryByRole("button", { name: /Outputs\/clients/ }); i++) {
+        await act(() => vi.advanceTimersByTimeAsync(600));
+      }
+      fireEvent.click(screen.getByRole("button", { name: /Outputs\/clients\.pptx/ }));
+    } finally {
+      vi.useRealTimers();
+    }
     await screen.findAllByText("clients.pptx");
     expect(tab("clients.pptx")).toHaveLength(1);
-  }, 15000);
+  });
 
   it("Open file on a cited source opens it with the passage marked", async () => {
     const rt = renderApp();

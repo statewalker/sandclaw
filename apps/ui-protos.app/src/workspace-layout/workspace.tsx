@@ -28,6 +28,7 @@ import {
 import { useCommander } from "../file-panels/use-commander.js";
 import { GroupPill } from "../group-status/group-status.js";
 import { TodosView } from "../notes-todos/todos-view.js";
+import { DOCK_THEME } from "./dock-theme.js";
 import {
   DocumentPanel,
   MissingPanel,
@@ -420,6 +421,7 @@ export function Workspace({
         {usesDock(mode) ? (
           <SidePanelOverlays panels={overlays} renderPanel={renderPanel}>
             <DockviewReact
+              theme={DOCK_THEME}
               className="dockview-theme-light dockview-theme-sandclaw absolute inset-0"
               components={components}
               tabComponents={fileTabComponents}

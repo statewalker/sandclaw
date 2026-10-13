@@ -4,6 +4,7 @@ import { Button } from "@statewalker/ui.view.shadcn";
 import { type DockviewApi, DockviewReact } from "dockview-react";
 import { Plus } from "lucide-react";
 import { useState } from "react";
+import { DOCK_THEME } from "../workspace-layout/dock-theme.js";
 import {
   FilesInDock,
   fileDockComponents,
@@ -46,6 +47,7 @@ export function DockCommander(props: DockCommanderProps) {
         {commander.noticeBar}
         <div className="relative min-h-0 flex-1">
           <DockviewReact
+            theme={DOCK_THEME}
             className="dockview-theme-light dockview-theme-sandclaw absolute inset-0"
             components={fileDockComponents}
             tabComponents={fileTabComponents}

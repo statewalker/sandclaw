@@ -19,6 +19,7 @@ import {
 } from "../../file-panels/dock-files.js";
 import { type Commander, useCommander } from "../../file-panels/use-commander.js";
 import { SettingsDialog } from "../../settings/settings.js";
+import { DOCK_THEME } from "../../workspace-layout/dock-theme.js";
 import { MissingPanel } from "../../workspace-layout/panels.js";
 import { type Mode, modeFor, usesDock } from "../../workspace-layout/responsive.js";
 import { keepSideSizes, loadSavedLayout, syncZones } from "../../workspace-layout/zones.js";
@@ -414,6 +415,7 @@ export function AppShell({ commanderRef, initialMode = "desktop" }: AppShellProp
                 />
                 <div className="relative min-h-0 min-w-0 flex-1">
                   <DockviewReact
+                    theme={DOCK_THEME}
                     className="dockview-theme-light dockview-theme-sandclaw absolute inset-0 isolate"
                     components={components}
                     tabComponents={fileTabComponents}

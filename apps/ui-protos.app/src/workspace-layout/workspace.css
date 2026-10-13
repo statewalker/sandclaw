@@ -1,7 +1,7 @@
 /*
  * Binds dockview's chrome to the shadcn theme tokens, so the dock follows the
  * light/dark switch and reads as part of the app rather than an IDE.
- * Applied with `dockview-theme-light dockview-theme-sandclaw` on the dock root.
+ * Applied as the docks' `theme` (`DOCK_THEME`, `dock-theme.ts`) and on the dock root.
  */
 .dockview-theme-sandclaw {
   --dv-background-color: var(--background);
