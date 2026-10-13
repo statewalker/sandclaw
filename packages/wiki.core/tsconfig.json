@@ -25,6 +25,6 @@
     "sourceMap": true,
     "noEmit": true
   },
-  "include": ["./src", "./tests", "./bin"],
+  "include": ["./src", "./tests", "./bin", "./eval"],
   "exclude": ["node_modules", "dist"]
 }
