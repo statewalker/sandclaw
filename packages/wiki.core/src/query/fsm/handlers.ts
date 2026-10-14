@@ -51,6 +51,7 @@ import {
   topicSelectInputSchema,
   topicSelectSchema,
 } from "./schemas.js";
+import { SELECT_TOP_N, selectSections } from "./select.js";
 import { topicDescent } from "./topic-descent.js";
 
 /** Perimeter-expansion axes for the `narrow` re-entry, in priority order (D4). */
@@ -476,36 +477,20 @@ export const RetrieveTrigger: QueryHandler = async function* (ctx) {
   yield "retrieved";
 };
 
-/** Cap on the rank-based pre-filter: keep at most this many top-scored single-front-end sections. */
-const SELECT_TOP_N = 20;
-
 /**
- * Mechanical, rank-based relevance pre-filter that narrows the retrieved candidates BEFORE the
- * expensive raw-content rolling summarization — WITHOUT an LLM summary filter.
- *
- * Sections surfaced by BOTH front-ends (hybrid search AND the topic ladder, `score >= 2`) are
- * kept unconditionally: their dual agreement is a strong signal. The single-front-end remainder is
- * ranked by its hybrid-search RRF score and the top {@link SELECT_TOP_N} kept. Ranking on the
- * search score (NOT a model re-reading the summary) is what keeps the answer section: full-text
- * search indexes the RAW content, so a section whose summary omits the queried entity/figure still
- * scores — whereas a summary-based LLM filter drops exactly those. Survivors replace
- * `ctx.candidates`. Always yields `selected` (a zero-survivor iteration is a zero-coverage input
- * to `Score`'s controller, not a terminal `empty` — D10).
+ * The rank-based pre-filter ({@link selectSections}) over the retrieved candidates. Survivors
+ * replace `ctx.candidates`. Always yields `selected` (a zero-survivor iteration is a zero-coverage
+ * input to `Score`'s controller, not a terminal `empty` — D10).
  */
 export const SelectSectionsTrigger: QueryHandler = async function* (ctx) {
   const { project } = ctx;
   const before = ctx.candidates.length;
-  const trusted = ctx.candidates.filter((c) => c.score >= 2);
-  const ranked = ctx.candidates
-    .filter((c) => c.score < 2)
-    .sort((a, b) => b.searchScore - a.searchScore)
-    .slice(0, SELECT_TOP_N);
-  const survivors = [...trusted, ...ranked];
+  const survivors = selectSections(ctx.candidates, { topN: SELECT_TOP_N });
   ctx.setCandidates(survivors);
   loggerOf(project, "QueryFsm").info("selected sections", {
     candidates: before,
-    trusted: trusted.length,
-    rankedKept: ranked.length,
+    trusted: survivors.filter((c) => c.score >= 2).length,
+    rankedKept: survivors.filter((c) => c.score < 2).length,
     kept: survivors.length,
     keptSections: survivors.map((c) => sectionId(c.section.uri, c.section.sectionKey)),
   });
