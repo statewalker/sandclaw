@@ -36,6 +36,21 @@ const VARIANTS: { name: string; select: Select }[] = [
   { name: "baseline", select: (cs) => selectSections(cs, { topN: SELECT_TOP_N }) },
   { name: "rrf@30", select: (cs) => selectSections(cs, { topN: 30 }) },
   { name: "rrf@40", select: (cs) => selectSections(cs, { topN: 40 }) },
+  {
+    name: "cov-boost@20",
+    select: (cs, terms, rawOf) =>
+      selectSections(cs, { topN: 20, coverage: { terms, textOf: rawOf } }),
+  },
+  {
+    name: "cov-boost@30",
+    select: (cs, terms, rawOf) =>
+      selectSections(cs, { topN: 30, coverage: { terms, textOf: rawOf } }),
+  },
+  {
+    name: "cov-boost@40",
+    select: (cs, terms, rawOf) =>
+      selectSections(cs, { topN: 40, coverage: { terms, textOf: rawOf } }),
+  },
 ];
 
 interface Recorded {
