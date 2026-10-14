@@ -2,14 +2,15 @@ import type { Candidate } from "./query-context.js";
 
 /**
  * Cap on the rank-based pre-filter: keep at most this many top-scored single-front-end sections.
- * 40, not 20: replaying the evaluation set's recorded intents, the top 20 of ~100 hybrid-search
- * candidates keeps 71 % of the gold sections the search found, the top 40 keeps 86 %. The extra
- * 20 sections cost about $0.013 per lean query in rolling-summarize calls; the abductive path
- * applies the cut on each of its iterations, so an escalated query pays it up to once per
- * iteration. Ranking by query-term coverage of the raw text as well gained about one point more
- * and was not kept.
+ * 20, although 40 keeps more evidence: on the evaluation set the top 40 of ~100 hybrid-search
+ * candidates retains 86 % of the gold sections search found against 71 % for the top 20, yet end
+ * to end the answers did not improve (key facts 70 % either way). Needle, specific-fact and
+ * temporal answers lost 4–5 points, correct "not in the documents" answers fell from 67 % to
+ * 47 %, cost rose by half, latency doubled, and four answers failed with "Invalid JSON response".
+ * The extra sections dilute the facts the compose step reads; raise the cut only together with
+ * a stronger aggregation step.
  */
-export const SELECT_TOP_N = 40;
+export const SELECT_TOP_N = 20;
 
 export interface SelectOptions {
   topN: number;
