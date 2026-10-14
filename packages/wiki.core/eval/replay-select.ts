@@ -23,34 +23,15 @@ import {
   wikiConfigOf,
 } from "../src/index.js";
 import type { Candidate, Subject } from "../src/query/fsm/query-context.js";
-import {
-  evidenceFor,
-  hybridSearch,
-  rawSectionText,
-  sectionId,
-} from "../src/query/fsm/retrieval.js";
+import { evidenceFor, hybridSearch, sectionId } from "../src/query/fsm/retrieval.js";
 import { SELECT_TOP_N, selectSections } from "../src/query/fsm/select.js";
 
-type Select = (cs: Candidate[], terms: string[], rawOf: (c: Candidate) => string) => Candidate[];
+// `baseline` is the 13 October selection (top 20); the replay agreement is measured against it.
+type Select = (cs: Candidate[]) => Candidate[];
 const VARIANTS: { name: string; select: Select }[] = [
-  { name: "baseline", select: (cs) => selectSections(cs, { topN: SELECT_TOP_N }) },
+  { name: "baseline", select: (cs) => selectSections(cs, { topN: 20 }) },
+  { name: "current", select: (cs) => selectSections(cs, { topN: SELECT_TOP_N }) },
   { name: "rrf@30", select: (cs) => selectSections(cs, { topN: 30 }) },
-  { name: "rrf@40", select: (cs) => selectSections(cs, { topN: 40 }) },
-  {
-    name: "cov-boost@20",
-    select: (cs, terms, rawOf) =>
-      selectSections(cs, { topN: 20, coverage: { terms, textOf: rawOf } }),
-  },
-  {
-    name: "cov-boost@30",
-    select: (cs, terms, rawOf) =>
-      selectSections(cs, { topN: 30, coverage: { terms, textOf: rawOf } }),
-  },
-  {
-    name: "cov-boost@40",
-    select: (cs, terms, rawOf) =>
-      selectSections(cs, { topN: 40, coverage: { terms, textOf: rawOf } }),
-  },
 ];
 
 interface Recorded {
@@ -128,21 +109,17 @@ for (const f of files) {
     }
   }
   const candidates: Candidate[] = [];
-  const raws = new Map<Candidate, string>();
   for (const e of best.values()) {
     const section = await evidenceFor(project, e.uri, e.sectionKey);
     if (!section) continue;
-    const c: Candidate = { section, score: 1, searchScore: e.searchScore };
-    candidates.push(c);
-    raws.set(c, await rawSectionText(project, e.uri, e.sectionKey));
+    candidates.push({ section, score: 1, searchScore: e.searchScore });
   }
-  const terms = [...new Set(subjects.flatMap((s) => s.ftsQueries))];
   const idOf = (c: Candidate) => sectionId(c.section.uri, c.section.sectionKey);
   const pool = new Set(candidates.map(idOf));
   const goldInPool = [...g.ids].filter((id) => pool.has(id)).length;
 
   for (const v of VARIANTS) {
-    const kept = v.select(candidates, terms, (c) => raws.get(c) ?? "").map(idOf);
+    const kept = v.select(candidates).map(idOf);
     const keptSet = new Set(kept);
     rows.push({
       id: rec.id,
