@@ -20,9 +20,10 @@ export interface RawMeta {
  * Stored on the summary/meta/embeddings artifacts and checked alongside
  * `sourceHash` so a schema change regenerates artifacts even when the source
  * bytes are unchanged. v1 = legacy RDF-graph era; v2 = merged summary + details +
- * tables layer; v3 = homogeneous SummaryNode tree (no details; tables deferred).
+ * tables layer; v3 = homogeneous SummaryNode tree (no details; tables deferred); v4 = leaves tile
+ * the document (every raw line in exactly one leaf).
  */
-export const KNOWLEDGE_SCHEMA_VERSION = 3;
+export const KNOWLEDGE_SCHEMA_VERSION = 4;
 
 /**
  * A structured table of repetitive facts within a section (a source table, or an

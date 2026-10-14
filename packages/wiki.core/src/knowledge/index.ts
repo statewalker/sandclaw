@@ -89,6 +89,7 @@ export {
   TABLES_SIGNAL,
   tableExtractorBuilder,
 } from "./table-extractor.js";
+export { cutsToRanges, type Placed, type TilingStats, tileSummary } from "./tiling.js";
 export {
   TOPIC_CLEANUP_BUILDER_ID,
   topicCleanupBuilder,

@@ -3,7 +3,9 @@ import { ProjectBuilder, Workspace } from "@statewalker/workspace.core";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   contentBuilder,
+  type DocumentSummary,
   type DocumentSummaryOutput,
+  KNOWLEDGE_SCHEMA_VERSION,
   type LlmApi,
   ResourceTextContentCache,
   registerContentExtraction,
@@ -13,6 +15,7 @@ import {
   summaryLeaves,
   WikiPageSummary,
 } from "../../src/index.js";
+import { expectPartition } from "../util/partition.js";
 import { registerStubLlm } from "../util/stub-llm.js";
 
 const SUMMARY_OUTPUT: DocumentSummaryOutput = {
@@ -126,5 +129,72 @@ describe("summarizeBuilder", () => {
 
     // `summarized` was emitted for the page.
     expect(summarizedUris).toEqual(["a.md"]);
+  });
+
+  /** Write a v3 summary with a leading gap, an overlap and a trailing gap over the cached text. */
+  async function seedV3Summary() {
+    const project = await getProject();
+    const resource = await project.getProjectResource("a.md");
+    if (!resource) throw new Error("no resource");
+    const { hash } = await resource.requireAdapter(ResourceTextContentCache).refresh();
+    const v3: DocumentSummary = {
+      key: "about-acme",
+      title: "About Acme",
+      summary: "Acme.",
+      startLine: 1,
+      endLine: 3,
+      children: [
+        { key: "overview", title: "Overview", summary: "o", startLine: 1, endLine: 2 },
+        { key: "history", title: "History", summary: "h", startLine: 2, endLine: 3 },
+      ],
+      uri: "a.md",
+      generated: "2026-01-01T00:00:00.000Z",
+      sourceHash: hash,
+      schemaVersion: 3,
+    };
+    await resource.requireAdapter(WikiPageSummary).write(v3);
+    return { project, resource };
+  }
+
+  async function runSummarizer(project: Awaited<ReturnType<typeof getProject>>, force = false) {
+    const builder = project.requireAdapter(ProjectBuilder);
+    builder.registerBuilder(contentBuilder());
+    builder.registerBuilder(summarizeBuilder({ force }));
+    for await (const _ of builder.run()) {
+      // drain
+    }
+  }
+
+  it("upgrades a v3 summary of an unchanged source to v4 with no LLM call", async () => {
+    const { project, resource } = await seedV3Summary();
+    capturedInput = undefined;
+    await runSummarizer(project);
+
+    expect(capturedInput).toBeUndefined(); // the stub was never called
+    const summary = await resource.requireAdapter(WikiPageSummary).get();
+    expect(summary?.schemaVersion).toBe(KNOWLEDGE_SCHEMA_VERSION);
+    expect(KNOWLEDGE_SCHEMA_VERSION).toBe(4);
+    // The fixture text has 4 lines: "# Acme", "", "Acme makes widgets.", "Founded 1999."
+    const leaves = summary ? summaryLeaves(summary) : [];
+    expect(leaves.map((l) => [l.key, l.startLine, l.endLine])).toEqual([
+      ["overview", 0, 2],
+      ["history", 3, 3],
+    ]);
+    expectPartition(leaves, 0, 3);
+    expect(summary?.title).toBe("About Acme"); // the stored summary was repaired, not replaced
+  });
+
+  it("re-summarizes a v3 summary under --force instead of upgrading it", async () => {
+    const { project, resource } = await seedV3Summary();
+    capturedInput = undefined;
+    await runSummarizer(project, true);
+
+    expect(capturedInput).toBeDefined();
+    const summary = await resource.requireAdapter(WikiPageSummary).get();
+    expect(summary?.schemaVersion).toBe(4);
+    expect((summary ? summaryLeaves(summary) : []).map((s) => s.summary)).toEqual([
+      "Acme overview.",
+      "Founded 1999.",
+    ]);
   });
 });

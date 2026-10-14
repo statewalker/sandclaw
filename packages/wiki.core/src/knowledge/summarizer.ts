@@ -31,7 +31,7 @@ import {
   documentSummarySchema,
   summarizerInputSchema,
 } from "./schemas.js";
-import { cutsToRanges } from "./tiling.js";
+import { cutsToRanges, tileSummary } from "./tiling.js";
 import { type DocumentSummary, KNOWLEDGE_SCHEMA_VERSION, type SummaryNode } from "./types.js";
 
 /** Signal emitted for each page whose L2 summary (Sections) is available/changed. */
@@ -48,6 +48,9 @@ const SECTION_BLOCK_CHARS = 24_000;
 
 /** Section titles of the outline sent with each block (the most recent ones), bounding its size. */
 const OUTLINE_TITLES = 50;
+
+/** The schema whose summaries are tiled mechanically on upgrade instead of re-summarized. */
+const UNTILED_SCHEMA_VERSION = 3;
 
 /** Kebab-case slug from a title (ASCII alphanumeric + '-'); falls back when empty. */
 function slugify(s: string): string {
@@ -348,13 +351,22 @@ export function summarizeBuilder(opts: { force?: boolean } = {}): RegisteredBuil
               .requireAdapter(ResourceTextContentCache)
               .refresh({ force: opts.force });
             const existing = await resource.requireAdapter(WikiPageSummary).get();
-            const fresh =
-              !!existing &&
-              existing.sourceHash === hash &&
-              existing.schemaVersion === KNOWLEDGE_SCHEMA_VERSION;
+            const sameSource = !!existing && existing.sourceHash === hash;
+            const fresh = sameSource && existing?.schemaVersion === KNOWLEDGE_SCHEMA_VERSION;
+            const untiled = sameSource && existing?.schemaVersion === UNTILED_SCHEMA_VERSION;
             let produced = false;
-            // Skip the (costly) summarization when the source is unchanged.
-            if (text && (opts.force || !fresh)) {
+            if (text && existing && untiled && !opts.force) {
+              // Same source, previous schema: repair the stored tree mechanically, no LLM call.
+              const { root, stats } = tileSummary(existing, text.split("\n").length);
+              await resource.requireAdapter(WikiPageSummary).write({
+                ...root,
+                generated: new Date().toISOString(),
+                schemaVersion: KNOWLEDGE_SCHEMA_VERSION,
+              });
+              log.info("tiled summary upgraded", { uri: u.uri, ...stats });
+              produced = true;
+            } else if (text && (opts.force || !fresh)) {
+              // Summarize only when the source (or the schema) changed, or when forced.
               const draftAdapter = resource.requireAdapter(WikiPageSummaryDraft);
               // Resume from a prior interrupted run when its checkpoint matches the current source.
               const draft = await draftAdapter.get();
@@ -373,7 +385,7 @@ export function summarizeBuilder(opts: { force?: boolean } = {}): RegisteredBuil
                     }
                   : {}),
               });
-              const { title, baseSummary, sections } = await sectionizeDocument(
+              const { title, baseSummary, sections, stats } = await sectionizeDocument(
                 tracedLlm,
                 cfg,
                 system,
@@ -391,6 +403,7 @@ export function summarizeBuilder(opts: { force?: boolean } = {}): RegisteredBuil
                     }),
                 },
               );
+              log.info("sectioned", { uri: u.uri, sections: sections.length, ...stats });
               const root = await buildTree(
                 tracedLlm,
                 cfg,
