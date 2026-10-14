@@ -16,6 +16,8 @@ export interface StageModelNames {
   query?: string;
   queryFast?: string;
   queryStrong?: string;
+  /** The selection rerank (`select-sections`), when `selectRerank` is on. */
+  querySelect?: string;
 }
 
 /** A wiki text-generation stage (any `StageModelNames` key except `default`). */
@@ -36,6 +38,9 @@ export interface WikiConfigData {
   models: StageModelNames;
   /** Query routing mode (defaults to `lean-first`). */
   queryMode?: QueryMode;
+  /** Let an LLM choose, from the top of the search ranking, the sections kept by the selection cut
+   * (defaults to off). */
+  selectRerank?: boolean;
   /** Embedding model reference URI (also part of the per-doc embeddings filename + index
    * config). Omitted for a **text-only** wiki: no vectors are produced and search/query
    * fall back to full-text only. */
@@ -124,6 +129,11 @@ export class WikiLlmConfiguration extends ProjectAdapter {
   /** Query routing mode, defaulting to `lean-first`. */
   get queryMode(): QueryMode {
     return this.data.queryMode ?? "lean-first";
+  }
+
+  /** Whether the selection rerank runs, defaulting to off. */
+  get selectRerank(): boolean {
+    return this.data.selectRerank ?? false;
   }
 
   get embedModel(): string | undefined {

@@ -197,3 +197,11 @@ BEST-PARTIAL PATH: when \`unmetConstraints\` is non-empty, the loop exhausted wi
 satisfying those hard constraints. Compose the best grounded answer the facts DO support, but you MUST
 NOT assert any unmet constraint as satisfied, and you MUST set \`sufficient\` false with \`missing\`
 naming those unmet constraint(s). Every claim must still be cited from the supplied facts.`;
+
+export const SELECT_PROMPT = `You select the document sections a reader must read to answer a question.
+Each candidate has an index, its document, section title, summary, and the start of its raw text.
+Return in \`selected\` the indices of the sections most likely to contain the facts a complete answer
+needs, most useful first, at most 20. Prefer sections whose document matches the entity and the
+date or period the question asks about. When the question asks about a change, a comparison or a
+possible conflict, include every document that may hold a differing value for the asked quantity.
+Skip sections about other entities or periods unless the question needs them.`;

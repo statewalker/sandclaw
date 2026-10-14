@@ -227,6 +227,27 @@ export const scoreSchema = z
   })
   .describe("Advisory narrow-vs-contradicted classification feeding a deterministic loop-back.");
 
+// ── SelectSections ───────────────────────────────────────────────────────────
+export const selectInputSchema = z.object({
+  question: z.string(),
+  candidates: z.array(
+    z.object({
+      index: z.number(),
+      document: z.string(),
+      title: z.string(),
+      summary: z.string(),
+      /** The start of the section's raw text (the summary may omit the asked figure). */
+      text: z.string(),
+    }),
+  ),
+});
+
+export const selectSchema = z.object({
+  selected: z
+    .array(z.number())
+    .describe("Candidate indices most likely to hold the answer's facts, most useful first."),
+});
+
 // ── Respond ──────────────────────────────────────────────────────────────────
 export const composeInputSchema = z.object({
   question: z.string(),

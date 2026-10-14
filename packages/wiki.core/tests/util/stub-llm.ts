@@ -16,6 +16,7 @@ function stubConfig(opts: {
   dimensionality?: number;
   corpusPurpose?: string;
   queryMode?: QueryMode;
+  selectRerank?: boolean;
 }): WikiConfigData {
   return {
     models: opts.models ?? { default: "stub-model" },
@@ -23,6 +24,7 @@ function stubConfig(opts: {
     dimensionality: opts.dimensionality ?? 2,
     corpusPurpose: opts.corpusPurpose,
     queryMode: opts.queryMode,
+    selectRerank: opts.selectRerank,
   };
 }
 
@@ -37,6 +39,8 @@ export interface StubLlmOptions {
   corpusPurpose?: string;
   /** Query routing mode (defaults to the production `lean-first` when omitted). */
   queryMode?: QueryMode;
+  /** Enables the selection rerank (`select-sections`); off when omitted. */
+  selectRerank?: boolean;
 }
 
 /** Build a stub `LlmApi` from a `generateObject` fn + an optional embed fixture. */

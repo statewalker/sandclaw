@@ -153,9 +153,7 @@ const judgementSchema = z.object({
     .describe("The answer says (some of) the requested information is not in the documents."),
   wrongEntity: z
     .boolean()
-    .describe(
-      "The answer presents a fact about a different entity, date or period as the answer.",
-    ),
+    .describe("The answer presents a fact about a different entity, date or period as the answer."),
   divergenceSurfaced: z
     .boolean()
     .describe(

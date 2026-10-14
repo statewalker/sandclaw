@@ -13,6 +13,7 @@ import {
   INTENT_DETECTION_PROMPT,
   ROLLING_SUMMARIZE_PROMPT,
   SCORE_PROMPT,
+  SELECT_PROMPT,
   TOPIC_SELECT_PROMPT,
 } from "./prompts.js";
 import {
@@ -48,10 +49,12 @@ import {
   rollingSummarizeSchema,
   scoreInputSchema,
   scoreSchema,
+  selectInputSchema,
+  selectSchema,
   topicSelectInputSchema,
   topicSelectSchema,
 } from "./schemas.js";
-import { SELECT_TOP_N, selectSections } from "./select.js";
+import { RERANK_POOL, rankBySearch, SELECT_TOP_N, selectSections } from "./select.js";
 import { topicDescent } from "./topic-descent.js";
 
 /** Perimeter-expansion axes for the `narrow` re-entry, in priority order (D4). */
@@ -478,17 +481,54 @@ export const RetrieveTrigger: QueryHandler = async function* (ctx) {
 };
 
 /**
- * The rank-based pre-filter ({@link selectSections}) over the retrieved candidates. Survivors
- * replace `ctx.candidates`. Always yields `selected` (a zero-survivor iteration is a zero-coverage
- * input to `Score`'s controller, not a terminal `empty` — D10).
+ * The rank-based pre-filter ({@link selectSections}) over the retrieved candidates. When the project
+ * enables `selectRerank`, an LLM first picks, from the top {@link RERANK_POOL} by search score, the
+ * sections most likely to hold the answer; the picks lead the cut and search order fills the rest.
+ * A failed rerank call keeps the plain search order. Survivors replace `ctx.candidates`. Always
+ * yields `selected` (a zero-survivor iteration is a zero-coverage input to `Score`'s controller,
+ * not a terminal `empty` — D10).
  */
 export const SelectSectionsTrigger: QueryHandler = async function* (ctx) {
-  const { project } = ctx;
+  const { project, request: req, progress } = ctx;
+  const cfg = wikiConfigOf(project);
+  const log = loggerOf(project, "QueryFsm");
   const before = ctx.candidates.length;
-  const survivors = selectSections(ctx.candidates, { topN: SELECT_TOP_N });
+  let picks: number[] | undefined;
+  const pool = rankBySearch(ctx.candidates).slice(0, RERANK_POOL);
+  if (cfg.selectRerank && pool.length > 0) {
+    try {
+      const candidates = await Promise.all(
+        pool.map(async (c, index) => ({
+          index,
+          document: c.section.uri,
+          title: c.section.title,
+          summary: c.section.summary,
+          text: (await rawSectionText(project, c.section.uri, c.section.sectionKey))
+            .replace(/\s+/g, " ")
+            .slice(0, 300),
+        })),
+      );
+      const { output } = await timedGenerate(llmOf(project), log, progress, {
+        name: "select-sections",
+        description: "Choose the retrieved sections most likely to hold the answer's facts.",
+        model: cfg.modelFor("querySelect"),
+        system: SELECT_PROMPT,
+        // In the abductive loop, judge against what this iteration searched for.
+        input: { question: ctx.hypothesis?.claim ?? req.question, candidates },
+        inputSchema: selectInputSchema,
+        outputSchema: selectSchema,
+        strict: true,
+      });
+      picks = output.selected;
+    } catch (error) {
+      log.warn("select-sections failed; keeping search order", { error: String(error) });
+    }
+  }
+  const survivors = selectSections(ctx.candidates, { topN: SELECT_TOP_N, picks });
   ctx.setCandidates(survivors);
-  loggerOf(project, "QueryFsm").info("selected sections", {
+  log.info("selected sections", {
     candidates: before,
+    picked: picks?.length ?? 0,
     trusted: survivors.filter((c) => c.score >= 2).length,
     rankedKept: survivors.filter((c) => c.score < 2).length,
     kept: survivors.length,

@@ -8,6 +8,9 @@ import type { Candidate } from "./query-context.js";
  */
 export const SELECT_TOP_N = 20;
 
+/** How many top-ranked candidates the selection rerank chooses from. */
+export const RERANK_POOL = 60;
+
 export interface SelectOptions {
   topN: number;
   /** Indices into the single-front-end candidates ranked by search score, most useful first.

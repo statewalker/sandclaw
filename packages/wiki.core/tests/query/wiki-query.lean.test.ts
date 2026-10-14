@@ -97,6 +97,15 @@ let fullMissing: string | null;
 let calls: Record<string, number>;
 /** The model ref each `compose-answer` call used, in order (queryFast = lean, queryStrong = full). */
 let composeModels: string[];
+/** Whether the project config enables the selection rerank (`select-sections`). */
+let selectRerank: boolean | undefined;
+/** When true, the `select-sections` call fails. */
+let selectThrows: boolean;
+/** The inputs each `select-sections` call received. */
+let selectInputs: {
+  question: string;
+  candidates: { index: number; title: string; text: string }[];
+}[];
 
 const generateObject: LlmApi["generateObject"] = async (spec) => {
   const usage = { inputTokens: 0, outputTokens: 0 };
@@ -134,6 +143,10 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
         summaries: refs.map((r) => ({ sectionRef: r, summary: "fact" })),
       });
     }
+    case "select-sections":
+      if (selectThrows) throw new Error("rerank unavailable");
+      selectInputs.push(spec.input as (typeof selectInputs)[number]);
+      return out({ selected: [1, 0] });
     case "compose-answer": {
       composeModels.push(spec.model);
       const claims = (
@@ -185,6 +198,7 @@ async function buildProject() {
     dimensionality: DIM,
     models: MODELS,
     queryMode,
+    selectRerank,
   });
   registerSearch(repository, {
     embed: async (_project, text) => embed(text),
@@ -221,6 +235,38 @@ describe("WikiQuery — lean-first path", () => {
     fullMissing = null;
     calls = {};
     composeModels = [];
+    selectRerank = undefined;
+    selectThrows = false;
+    selectInputs = [];
+  });
+
+  it("does not call the selection rerank unless the project enables it", async () => {
+    const project = await buildProject();
+    await project.requireAdapter(WikiQuery).ask("Who founded Acme?").complete();
+    expect(calls["select-sections"]).toBeUndefined();
+  });
+
+  it("asks the selection rerank once, with the question and every candidate's title and text", async () => {
+    selectRerank = true;
+    const project = await buildProject();
+    const answer = await project.requireAdapter(WikiQuery).ask("Who founded Acme?").complete();
+
+    expect(calls["select-sections"]).toBe(1);
+    const input = selectInputs[0];
+    expect(input?.question).toBe("Who founded Acme?");
+    expect(input?.candidates.map((c) => c.title).sort()).toEqual(["Founders", "Intro"]);
+    expect(input?.candidates.every((c) => c.text.length > 0)).toBe(true);
+    expect(answer.citations.length).toBeGreaterThan(0);
+  });
+
+  it("keeps the search order and still answers when the selection rerank fails", async () => {
+    selectRerank = true;
+    selectThrows = true;
+    const project = await buildProject();
+    const answer = await project.requireAdapter(WikiQuery).ask("Who founded Acme?").complete();
+
+    expect(calls["select-sections"]).toBe(1);
+    expect(answer.citations.length).toBeGreaterThan(0);
   });
 
   it("answers a lookup query in one lean pass: no hypothesize, no topic descent, cheap compose", async () => {
