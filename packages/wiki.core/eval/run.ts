@@ -6,7 +6,7 @@
  * (hybrid search hits, selected sections, kept sections, routing).
  *
  * usage: tsx eval/run.ts <workspace-root> <project> <questions.json> <out-dir>
- *          [--mode lean-first|full-only] [--shard i/n] [--ids a,b,c]
+ *          [--mode lean-first|full-only] [--shard i/n] [--ids a,b,c] [--rerank <model>]
  *
  * One JSON per question in <out-dir>/answers/<id>.json; existing files are skipped, so
  * an interrupted run resumes. Providers come from the environment (WIKI_PROVIDER, keys).
@@ -51,10 +51,11 @@ const flag = (name: string) => {
 const mode = (flag("--mode") ?? "lean-first") as "lean-first" | "full-only";
 const shard = flag("--shard");
 const ids = flag("--ids")?.split(",");
+const rerank = flag("--rerank");
 const [root, projectKey, questionsPath, outDir] = args;
 if (!root || !projectKey || !questionsPath || !outDir) {
   console.error(
-    "usage: run.ts <workspace-root> <project> <questions.json> <out-dir> [--mode m] [--shard i/n] [--ids a,b]",
+    "usage: run.ts <workspace-root> <project> <questions.json> <out-dir> [--mode m] [--shard i/n] [--ids a,b] [--rerank model]",
   );
   process.exit(2);
 }
@@ -124,8 +125,13 @@ registerWiki(workspace, { provider: resolveProvidersFromEnv(process.env).provide
 const project = await workspace.getProject(projectKey, false);
 if (!project) throw new Error(`project not found: ${projectKey}`);
 const cfg = await wikiConfigOf(project).load();
-// The run's routing mode overrides the project file in memory only.
-(cfg as unknown as { cfg: Record<string, unknown> }).cfg = { ...cfg.data, queryMode: mode };
+// The run's routing mode (and, with --rerank, the selection rerank and its model) override the
+// project file in memory only.
+(cfg as unknown as { cfg: Record<string, unknown> }).cfg = {
+  ...cfg.data,
+  queryMode: mode,
+  ...(rerank ? { selectRerank: true, models: { ...cfg.data.models, querySelect: rerank } } : {}),
+};
 
 let items = JSON.parse(await readFile(questionsPath, "utf8")) as Item[];
 if (ids) items = items.filter((it) => ids.includes(it.id));
