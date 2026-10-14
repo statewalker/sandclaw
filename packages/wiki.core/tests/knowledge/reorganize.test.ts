@@ -25,7 +25,6 @@ const SUMMARY: DocumentSummaryOutput = {
       key: "s",
       title: "S",
       startLine: 0,
-      endLine: 0,
       summary: "founders",
     },
   ],

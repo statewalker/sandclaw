@@ -63,7 +63,6 @@ function summaryFor(uri: string): DocumentSummaryOutput {
         key: "body",
         title: isTranscript ? "Call body" : "Report body",
         startLine: 0,
-        endLine: 0,
         // The summary deliberately OMITS the scope token (an LLM summary filter would drop the
         // answer); the gate reads the raw line, not this summary.
         summary: "Acme cost discussion.",

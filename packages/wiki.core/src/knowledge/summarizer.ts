@@ -31,6 +31,7 @@ import {
   documentSummarySchema,
   summarizerInputSchema,
 } from "./schemas.js";
+import { cutsToRanges } from "./tiling.js";
 import { type DocumentSummary, KNOWLEDGE_SCHEMA_VERSION, type SummaryNode } from "./types.js";
 
 /** Signal emitted for each page whose L2 summary (Sections) is available/changed. */
@@ -44,6 +45,9 @@ const SUMMARIZE_BATCH_SIZE = 8;
 
 /** Max characters of raw text fed to one sectioning block (context-window proxy). */
 const SECTION_BLOCK_CHARS = 24_000;
+
+/** Section titles of the outline sent with each block (the most recent ones), bounding its size. */
+const OUTLINE_TITLES = 50;
 
 /** Kebab-case slug from a title (ASCII alphanumeric + '-'); falls back when empty. */
 function slugify(s: string): string {
@@ -76,11 +80,13 @@ export interface SectionizeCheckpoint {
 
 /**
  * Section a document by walking it in context-window-sized blocks of numbered lines. For a
- * non-final block the last (possibly cut) section is dropped and the next block restarts at its
- * start (the last kept section's end), with that section's summary supplied as rolling context;
- * a lone-section block is kept to guarantee progress. Returns the document title (from the first
- * block), the first block's document-level summary (a base for the document tree), and the
- * assembled flat sections covering the whole document.
+ * non-final block the last (possibly cut) section is dropped and the next block restarts at the
+ * dropped section's start, with the last kept section's summary and the outline of kept section
+ * titles supplied as rolling context; a lone-section block is kept to guarantee progress. The model
+ * returns only each section's start line; ranges are derived from those cut points
+ * ({@link cutsToRanges}), so the sections partition the document with no gap or overlap. Returns
+ * the document title (from the first block), the first block's document-level summary (a base for
+ * the document tree), the assembled flat sections, and counts of empty blocks and dropped cuts.
  *
  * `opts.resume` continues a prior interrupted walk from its checkpoint (its sections + nextStart).
  * `opts.onBlock` is awaited after EACH block with the current checkpoint, so the caller can persist
@@ -97,7 +103,12 @@ export async function sectionizeDocument(
     resume?: SectionizeCheckpoint;
     onBlock?: (checkpoint: SectionizeCheckpoint) => Promise<void>;
   } = {},
-): Promise<{ title: string; baseSummary: string; sections: SummaryNode[] }> {
+): Promise<{
+  title: string;
+  baseSummary: string;
+  sections: SummaryNode[];
+  stats: { emptyBlocks: number; droppedCuts: number };
+}> {
   const lines = text.split("\n");
   const total = lines.length;
   const sections: SummaryNode[] = opts.resume ? [...opts.resume.sections] : [];
@@ -105,6 +116,7 @@ export async function sectionizeDocument(
   let baseSummary = opts.resume?.baseSummary ?? "";
   let start = opts.resume?.nextStart ?? 0;
   let previousSection: string | undefined = sections.at(-1)?.summary;
+  const stats = { emptyBlocks: 0, droppedCuts: 0 };
 
   while (start < total) {
     // Grow a block from `start` until the char budget is spent (always ≥1 line).
@@ -129,16 +141,36 @@ export async function sectionizeDocument(
         "Section a block of a document — title, a document-level summary, and ordered section entries each with a kebab-case key and a 0-indexed [startLine, endLine] range over the block's absolute line numbers.",
       model: cfg.modelFor("summarize"),
       system,
-      input: { uri, rawLines, previousSection },
+      input: {
+        uri,
+        rawLines,
+        previousSection,
+        outline: sections.slice(-OUTLINE_TITLES).map((s) => s.title),
+      },
       inputSchema: summarizerInputSchema,
       outputSchema: documentSummarySchema,
     });
     if (!title) title = output.title;
     if (!baseSummary) baseSummary = output.summary;
-    if (output.sections.length === 0) break; // nothing to place — stop the walk
+    // Ranges are derived from the model's cut points, so the block is tiled by construction.
+    let placed: SummaryNode[] = cutsToRanges(output.sections, start, end - 1);
+    stats.droppedCuts += output.sections.length - placed.length;
+    if (placed.length === 0) {
+      // Nothing placed: the block becomes one section, so the walk never stops early.
+      stats.emptyBlocks++;
+      placed = [
+        {
+          key: slugify(title || uri),
+          title: title || uri,
+          summary: "",
+          startLine: start,
+          endLine: end - 1,
+        },
+      ];
+    }
 
     if (isFinal) {
-      sections.push(...output.sections);
+      sections.push(...placed);
       await opts.onBlock?.({
         title: title || uri,
         baseSummary,
@@ -147,14 +179,13 @@ export async function sectionizeDocument(
       });
       break;
     }
-    // Drop the last (possibly mid-section-cut) section unless it is the only one.
-    const keep = output.sections.length > 1 ? output.sections.slice(0, -1) : output.sections;
+    // Drop the last (possibly mid-section-cut) section unless it is the only one; the next block
+    // starts where it started, so it is re-read whole.
+    const keep = placed.length > 1 ? placed.slice(0, -1) : placed;
     sections.push(...keep);
-    const last = keep[keep.length - 1];
-    if (!last) break;
+    const last = keep[keep.length - 1] as SummaryNode;
     previousSection = last.summary;
-    // Restart at the dropped section's start; never go backwards or stall (force past the block).
-    start = last.endLine + 1 > start ? last.endLine + 1 : end;
+    start = last.endLine + 1;
     // Checkpoint after the block so an interrupted run resumes here instead of from the top.
     await opts.onBlock?.({
       title: title || uri,
@@ -164,7 +195,7 @@ export async function sectionizeDocument(
     });
   }
 
-  return { title: title || uri, baseSummary, sections: dedupeKeys(sections) };
+  return { title: title || uri, baseSummary, sections: dedupeKeys(sections), stats };
 }
 
 /** The raw line range [min start .. max end] spanning a set of nodes. */

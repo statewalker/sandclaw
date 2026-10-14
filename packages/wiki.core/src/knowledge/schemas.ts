@@ -43,12 +43,9 @@ export const sectionSummarySchema = z
       .number()
       .int()
       .nonnegative()
-      .describe("0-indexed inclusive line number in the raw text where this section begins."),
-    endLine: z
-      .number()
-      .int()
-      .nonnegative()
-      .describe("0-indexed inclusive line number in the raw text where this section ends."),
+      .describe(
+        "0-indexed line number in the raw text where this section begins. The section runs until the next section begins (the last one to the end of the block).",
+      ),
     summary: z
       .string()
       .describe(
@@ -118,6 +115,11 @@ export const summarizerInputSchema = z
       .optional()
       .describe(
         "Summary of the last section already finalized before this block (rolling context); absent for the first block.",
+      ),
+    outline: z
+      .array(z.string())
+      .describe(
+        "Titles of the sections already placed before this block, in document order (the most recent last); empty for the first block.",
       ),
   })
   .describe(

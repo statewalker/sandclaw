@@ -37,14 +37,12 @@ const SUMMARY: DocumentSummaryOutput = {
       key: "intro",
       title: "Intro",
       startLine: 0,
-      endLine: 0,
       summary: "Acme is a company.",
     },
     {
       key: "details",
       title: "Details",
       startLine: 1,
-      endLine: 1,
       summary: "More about Acme.",
     },
   ],
@@ -167,7 +165,7 @@ describe.each(["mem", "node"] as const)("registerWiki end-to-end (%s FilesApi)",
       embedModel: "fixture",
       dimensionality: DIM,
     });
-    await writeFile(filesApi, "proj/a.md", "Acme is a company.");
+    await writeFile(filesApi, "proj/a.md", "Acme is a company.\nMore about Acme.");
 
     const builder = wireWikiProject(project);
     for await (const _ of builder.run()) {
@@ -214,7 +212,7 @@ describe("registerWiki text-only (no embedding model)", () => {
     await wikiConfigOf(project).write({
       models: { default: "fixture-model" },
     } as WikiConfigData);
-    await writeFile(filesApi, "proj/a.md", "Acme is a company.");
+    await writeFile(filesApi, "proj/a.md", "Acme is a company.\nMore about Acme.");
 
     const builder = wireWikiProject(project);
     for await (const _ of builder.run()) {

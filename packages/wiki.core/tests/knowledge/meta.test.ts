@@ -23,7 +23,6 @@ const SUMMARY: DocumentSummaryOutput = {
       key: "overview",
       title: "Overview",
       startLine: 0,
-      endLine: 1,
       summary: "What Acme does.",
     },
   ],

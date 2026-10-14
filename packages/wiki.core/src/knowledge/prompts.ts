@@ -27,8 +27,12 @@ SECTIONING:
 2. Each section MUST carry a kebab-case 'key' (ASCII alphanumeric + dashes) derived
    from its title; on re-ingest prefer reusing a prior key for a semantically
    equivalent section rather than renaming cosmetically.
-3. Each section MUST carry a [startLine .. endLine] range over the raw text it covers
-   (0-indexed, inclusive; ranges may overlap slightly when raw lacks clean breaks).
+3. Each section MUST carry a 'startLine': the 0-indexed line of the raw text where it
+   begins. A section runs until the next section begins; the last one runs to the end
+   of the block. Every line belongs to exactly one section — do not leave lines out.
+   The block may start in the middle of a section: the first section then continues
+   the last title of the 'outline' (the sections already placed, in order); keep new
+   sections and keys consistent with that outline.
 4. The document 'title' is the source's natural title (explicit title from raw, else a
    concise descriptive one). The document 'summary' is a 1–3 sentence abstract — the
    concatenation of section themes, not an independent claim.

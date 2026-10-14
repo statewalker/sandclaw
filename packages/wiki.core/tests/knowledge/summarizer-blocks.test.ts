@@ -5,6 +5,7 @@ import {
   type SectionizeCheckpoint,
   sectionizeDocument,
 } from "../../src/knowledge/summarizer.js";
+import { expectPartition } from "../util/partition.js";
 
 const usage = { inputTokens: 0, outputTokens: 0 };
 const cfg = (documentChapterFanout: number) =>
@@ -283,5 +284,92 @@ describe("buildTree — homogeneous summary node tree", () => {
     };
     walk(root);
     expect(leaves).toEqual([0, 1, 2, 3, 4]);
+  });
+});
+
+describe("sectionizeDocument — cut points tile the document", () => {
+  const text = Array.from({ length: 30 }, (_, i) => `line ${i}`).join("\n"); // 30 lines
+
+  /** A stub returning messy cuts: one before the block, a duplicate, one past the block. */
+  function messyLlm(): { llm: LlmApi; inputs: { outline: string[]; first: number }[] } {
+    const inputs: { outline: string[]; first: number }[] = [];
+    const llm = {
+      generateObject: async (spec: { input: unknown }) => {
+        const input = spec.input as { rawLines: [number, string][]; outline: string[] };
+        const s = input.rawLines[0]?.[0] ?? 0;
+        inputs.push({ outline: input.outline, first: s });
+        const sections = [
+          { key: `a-${s}`, title: `A${s}`, startLine: s - 5, summary: "a" },
+          { key: `b-${s}`, title: `B${s}`, startLine: s + 2, summary: "b" },
+          { key: `dup-${s}`, title: `D${s}`, startLine: s + 2, summary: "dup" },
+          { key: `c-${s}`, title: `C${s}`, startLine: s + 4, summary: "c" },
+          { key: `z-${s}`, title: `Z${s}`, startLine: s + 500, summary: "z" },
+        ];
+        return { output: { title: "Doc", summary: "base", sections } as never, usage };
+      },
+    } as unknown as LlmApi;
+    return { llm, inputs };
+  }
+
+  it("partitions every line across blocks despite messy cuts", async () => {
+    const { llm } = messyLlm();
+    const { sections, stats } = await sectionizeDocument(llm, cfg(8), "sys", "a.md", text, 64);
+    expectPartition(sections, 0, 29);
+    expect(stats.droppedCuts).toBeGreaterThan(0); // the duplicate cut in every block
+  });
+
+  it("sends the outline of the sections kept so far with each block", async () => {
+    const { llm, inputs } = messyLlm();
+    await sectionizeDocument(llm, cfg(8), "sys", "a.md", text, 64);
+    expect(inputs.length).toBeGreaterThan(1);
+    expect(inputs[0]?.outline).toEqual([]);
+    expect(inputs[1]?.outline.length).toBeGreaterThan(0);
+    expect(inputs[1]?.outline[0]).toBe("A0");
+  });
+
+  it("caps the outline at the last 50 titles", async () => {
+    const long = Array.from({ length: 400 }, (_, i) => `${i}`).join("\n");
+    const { llm, inputs } = messyLlm();
+    await sectionizeDocument(llm, cfg(8), "sys", "a.md", long, 40);
+    expect(Math.max(...inputs.map((i) => i.outline.length))).toBe(50);
+  });
+
+  it("covers a block for which the model returns no sections", async () => {
+    let call = 0;
+    const llm = {
+      generateObject: async (spec: { input: unknown }) => {
+        const s = (spec.input as { rawLines: [number, string][] }).rawLines[0]?.[0] ?? 0;
+        call++;
+        const sections =
+          call === 2
+            ? []
+            : [
+                { key: `a-${s}`, title: `A${s}`, startLine: s, summary: "a" },
+                { key: `b-${s}`, title: `B${s}`, startLine: s + 3, summary: "b" },
+              ];
+        return { output: { title: "Doc", summary: "base", sections } as never, usage };
+      },
+    } as unknown as LlmApi;
+    const { sections, stats } = await sectionizeDocument(llm, cfg(8), "sys", "a.md", text, 64);
+    expectPartition(sections, 0, 29);
+    expect(stats.emptyBlocks).toBe(1);
+  });
+
+  it("rebuilds the outline from a resumed checkpoint and stays contiguous", async () => {
+    const first = messyLlm();
+    const checkpoints: SectionizeCheckpoint[] = [];
+    await sectionizeDocument(first.llm, cfg(8), "sys", "a.md", text, 64, {
+      onBlock: async (cp) => {
+        checkpoints.push({ ...cp, sections: [...cp.sections] });
+      },
+    });
+    const mid = checkpoints[0];
+    if (!mid) throw new Error("no checkpoint");
+    const second = messyLlm();
+    const { sections } = await sectionizeDocument(second.llm, cfg(8), "sys", "a.md", text, 64, {
+      resume: mid,
+    });
+    expect(second.inputs[0]?.outline).toEqual(mid.sections.map((s) => s.title));
+    expectPartition(sections, 0, 29);
   });
 });
