@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { LlmApi } from "../../src/index.js";
+import { SUMMARIZER_SYSTEM_PROMPT } from "../../src/knowledge/prompts.js";
 import {
   buildTree,
   type SectionizeCheckpoint,
   sectionizeDocument,
 } from "../../src/knowledge/summarizer.js";
+import { findSummaryNode } from "../../src/knowledge/types.js";
 import { expectPartition } from "../util/partition.js";
 
 const usage = { inputTokens: 0, outputTokens: 0 };
@@ -371,5 +373,57 @@ describe("sectionizeDocument — cut points tile the document", () => {
     });
     expect(second.inputs[0]?.outline).toEqual(mid.sections.map((s) => s.title));
     expectPartition(sections, 0, 29);
+  });
+});
+
+describe("sectionizeDocument — the model is asked for cut points only", () => {
+  it("never asks the model for an endLine or a range", async () => {
+    const descriptions: string[] = [];
+    const llm = {
+      generateObject: async (spec: { description: string; input: unknown }) => {
+        descriptions.push(spec.description);
+        const s = (spec.input as { rawLines: [number, string][] }).rawLines[0]?.[0] ?? 0;
+        const sections = [{ key: `a-${s}`, title: `A${s}`, startLine: s, summary: "a" }];
+        return { output: { title: "Doc", summary: "base", sections } as never, usage };
+      },
+    } as unknown as LlmApi;
+    await sectionizeDocument(llm, cfg(8), "sys", "a.md", "0\n1\n2", 64);
+    for (const text of [SUMMARIZER_SYSTEM_PROMPT, ...descriptions]) {
+      expect(text).not.toMatch(/endLine/);
+    }
+  });
+
+  it("gives an empty block's fallback section a key distinct from the document root", async () => {
+    const text = Array.from({ length: 30 }, (_, i) => `line ${i}`).join("\n");
+    let call = 0;
+    const llm = {
+      generateObject: async (spec: { input: unknown }) => {
+        const s = (spec.input as { rawLines: [number, string][] }).rawLines[0]?.[0] ?? 0;
+        call++;
+        const sections =
+          call === 2
+            ? []
+            : [
+                { key: `a-${s}`, title: `A${s}`, startLine: s, summary: "a" },
+                { key: `b-${s}`, title: `B${s}`, startLine: s + 3, summary: "b" },
+              ];
+        return { output: { title: "Doc", summary: "base", sections } as never, usage };
+      },
+    } as unknown as LlmApi;
+    const { title, baseSummary, sections } = await sectionizeDocument(
+      llm,
+      cfg(100),
+      "sys",
+      "a.md",
+      text,
+      64,
+    );
+    const fallback = sections.find((s) => s.summary === "");
+    if (!fallback) throw new Error("no fallback section");
+    const root = await buildTree(llm, cfg(100), "sys", title, baseSummary, sections);
+    expect(findSummaryNode(root, fallback.key)).toBe(
+      root.children?.find((c) => c.key === fallback.key),
+    );
+    expect(fallback.key).not.toBe(root.key);
   });
 });

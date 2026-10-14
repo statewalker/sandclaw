@@ -141,7 +141,7 @@ export async function sectionizeDocument(
     const { output } = await llm.generateObject({
       name: "summarize-document",
       description:
-        "Section a block of a document — title, a document-level summary, and ordered section entries each with a kebab-case key and a 0-indexed [startLine, endLine] range over the block's absolute line numbers.",
+        "Section a block of a document — title, a document-level summary, and ordered section entries each with a kebab-case key and the 0-indexed absolute line where the section begins (startLine).",
       model: cfg.modelFor("summarize"),
       system,
       input: {
@@ -159,11 +159,12 @@ export async function sectionizeDocument(
     let placed: SummaryNode[] = cutsToRanges(output.sections, start, end - 1);
     stats.droppedCuts += output.sections.length - placed.length;
     if (placed.length === 0) {
-      // Nothing placed: the block becomes one section, so the walk never stops early.
+      // Nothing placed: the block becomes one section, so the walk never stops early. Its key
+      // names the block, never the document title, which is the tree root's key.
       stats.emptyBlocks++;
       placed = [
         {
-          key: slugify(title || uri),
+          key: `block-${start}`,
           title: title || uri,
           summary: "",
           startLine: start,

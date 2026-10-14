@@ -65,10 +65,10 @@ On-corpus sections get a fuller summary; off-corpus or tangential ones get a one
 
 BLOCKS: you may receive only a BLOCK of a longer document — a contiguous slice of
 numbered lines, not necessarily the whole source. Section the lines you are given,
-using their ABSOLUTE line numbers in [startLine, endLine]. When 'previousSection' is
-supplied, it summarises the section immediately before this block — use it for
-continuity, but do NOT re-output it. The final block's last section may run to the
-document end; an interior block's trailing lines may be re-summarised in a later block.`;
+giving each section's 'startLine' as the ABSOLUTE line number where it begins. When
+'previousSection' is supplied, it summarises the section immediately before this
+block — use it for continuity, but do NOT re-output it. The last section of a block
+runs to the end of the block.`;
 
 /** Deferred table-extraction prompt: extract structured tables from one section's raw content. */
 export const TABLE_EXTRACT_SYSTEM_PROMPT = `You extract STRUCTURED TABLES from one section
