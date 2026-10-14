@@ -1,0 +1,5 @@
+# Real data files never enter the repository. Only listings, mappings and scripts are committed.
+testing-dataset/
+testing-thematic/
+*.pdf
+*.zip
