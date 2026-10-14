@@ -102,6 +102,7 @@ let selectRerank: boolean | undefined;
 /** When true, the `select-sections` call fails. */
 let selectThrows: boolean;
 /** The inputs each `select-sections` call received. */
+let selectModels: string[];
 let selectInputs: {
   question: string;
   candidates: { index: number; title: string; text: string }[];
@@ -145,6 +146,7 @@ const generateObject: LlmApi["generateObject"] = async (spec) => {
     }
     case "select-sections":
       if (selectThrows) throw new Error("rerank unavailable");
+      selectModels.push(spec.model);
       selectInputs.push(spec.input as (typeof selectInputs)[number]);
       return out({ selected: [1, 0] });
     case "compose-answer": {
@@ -238,9 +240,10 @@ describe("WikiQuery — lean-first path", () => {
     selectRerank = undefined;
     selectThrows = false;
     selectInputs = [];
+    selectModels = [];
   });
 
-  it("does not call the selection rerank unless the project enables it", async () => {
+  it("does not call the selection rerank when the project turns it off", async () => {
     const project = await buildProject();
     await project.requireAdapter(WikiQuery).ask("Who founded Acme?").complete();
     expect(calls["select-sections"]).toBeUndefined();
@@ -252,6 +255,7 @@ describe("WikiQuery — lean-first path", () => {
     const answer = await project.requireAdapter(WikiQuery).ask("Who founded Acme?").complete();
 
     expect(calls["select-sections"]).toBe(1);
+    expect(selectModels).toEqual([MODELS.queryStrong]); // no querySelect set → the strong tier
     const input = selectInputs[0];
     expect(input?.question).toBe("Who founded Acme?");
     expect(input?.candidates.map((c) => c.title).sort()).toEqual(["Founders", "Intro"]);

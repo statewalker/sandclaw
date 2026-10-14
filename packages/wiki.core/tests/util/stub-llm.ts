@@ -24,7 +24,8 @@ function stubConfig(opts: {
     dimensionality: opts.dimensionality ?? 2,
     corpusPurpose: opts.corpusPurpose,
     queryMode: opts.queryMode,
-    selectRerank: opts.selectRerank,
+    // Explicit in tests: stubs that do not answer `select-sections` keep working unchanged.
+    selectRerank: opts.selectRerank ?? false,
   };
 }
 

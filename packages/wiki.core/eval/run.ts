@@ -6,7 +6,7 @@
  * (hybrid search hits, selected sections, kept sections, routing).
  *
  * usage: tsx eval/run.ts <workspace-root> <project> <questions.json> <out-dir>
- *          [--mode lean-first|full-only] [--shard i/n] [--ids a,b,c] [--rerank <model>]
+ *          [--mode lean-first|full-only] [--shard i/n] [--ids a,b,c] [--rerank <model>|off]
  *
  * One JSON per question in <out-dir>/answers/<id>.json; existing files are skipped, so
  * an interrupted run resumes. Providers come from the environment (WIKI_PROVIDER, keys).
@@ -130,7 +130,11 @@ const cfg = await wikiConfigOf(project).load();
 (cfg as unknown as { cfg: Record<string, unknown> }).cfg = {
   ...cfg.data,
   queryMode: mode,
-  ...(rerank ? { selectRerank: true, models: { ...cfg.data.models, querySelect: rerank } } : {}),
+  ...(rerank === "off"
+    ? { selectRerank: false }
+    : rerank
+      ? { selectRerank: true, models: { ...cfg.data.models, querySelect: rerank } }
+      : {}),
 };
 
 let items = JSON.parse(await readFile(questionsPath, "utf8")) as Item[];

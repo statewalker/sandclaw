@@ -16,7 +16,7 @@ export interface StageModelNames {
   query?: string;
   queryFast?: string;
   queryStrong?: string;
-  /** The selection rerank (`select-sections`), when `selectRerank` is on. */
+  /** The selection rerank (`select-sections`); falls back to `queryStrong`, not `default`. */
   querySelect?: string;
 }
 
@@ -39,7 +39,7 @@ export interface WikiConfigData {
   /** Query routing mode (defaults to `lean-first`). */
   queryMode?: QueryMode;
   /** Let an LLM choose, from the top of the search ranking, the sections kept by the selection cut
-   * (defaults to off). */
+   * (defaults to on). */
   selectRerank?: boolean;
   /** Embedding model reference URI (also part of the per-doc embeddings filename + index
    * config). Omitted for a **text-only** wiki: no vectors are produced and search/query
@@ -131,9 +131,15 @@ export class WikiLlmConfiguration extends ProjectAdapter {
     return this.data.queryMode ?? "lean-first";
   }
 
-  /** Whether the selection rerank runs, defaulting to off. */
+  /** Whether the selection rerank runs, defaulting to on. */
   get selectRerank(): boolean {
-    return this.data.selectRerank ?? false;
+    return this.data.selectRerank ?? true;
+  }
+
+  /** Model for the selection rerank: `querySelect`, else the strong query tier — choosing sections
+   * is where the stronger model measurably beats the cheap one, unlike composing the answer. */
+  get selectModel(): string {
+    return this.data.models.querySelect ?? this.modelFor("queryStrong");
   }
 
   get embedModel(): string | undefined {

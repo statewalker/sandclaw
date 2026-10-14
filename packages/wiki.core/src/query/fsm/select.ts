@@ -8,7 +8,13 @@ import type { Candidate } from "./query-context.js";
  */
 export const SELECT_TOP_N = 20;
 
-/** How many top-ranked candidates the selection rerank chooses from. */
+/**
+ * How many top-ranked candidates the selection rerank chooses from. Measured on an evaluation set,
+ * the strong model picking from this pool (then filling to {@link SELECT_TOP_N} in search order)
+ * kept more of the evidence than the plain top 20 and improved end-to-end answers, most on
+ * multi-hop, thematic and table questions; the cheap model picked only a handful of sections and
+ * its effect was within run-to-run noise.
+ */
 export const RERANK_POOL = 60;
 
 export interface SelectOptions {

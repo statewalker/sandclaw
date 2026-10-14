@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run an evaluation set through the wiki in N parallel shards, then score it.
-# usage: eval/run-all.sh <workspace-root> <project> <questions.json> <out-dir> [lean-first|full-only] [shards] [rerank-model]
+# usage: eval/run-all.sh <workspace-root> <project> <questions.json> <out-dir> [lean-first|full-only] [shards] [rerank-model|off]
 # env:   WIKI_PROVIDER + its key
 set -euo pipefail
 if [ $# -lt 4 ]; then sed -n 3p "$0" >&2; exit 2; fi

@@ -511,7 +511,7 @@ export const SelectSectionsTrigger: QueryHandler = async function* (ctx) {
       const { output } = await timedGenerate(llmOf(project), log, progress, {
         name: "select-sections",
         description: "Choose the retrieved sections most likely to hold the answer's facts.",
-        model: cfg.modelFor("querySelect"),
+        model: cfg.selectModel,
         system: SELECT_PROMPT,
         // In the abductive loop, judge against what this iteration searched for.
         input: { question: ctx.hypothesis?.claim ?? req.question, candidates },
