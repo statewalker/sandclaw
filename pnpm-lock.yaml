@@ -552,6 +552,9 @@ importers:
       '@statewalker/inline.view.react':
         specifier: workspace:*
         version: link:../../packages/inline.view.react
+      '@statewalker/kernel.core':
+        specifier: workspace:^
+        version: link:../../packages/kernel.core
       '@statewalker/mime.core':
         specifier: workspace:*
         version: link:../../packages/mime.core
@@ -948,6 +951,9 @@ importers:
       '@statewalker/file-panels.core':
         specifier: workspace:*
         version: link:../../packages/file-panels.core
+      '@statewalker/kernel.core':
+        specifier: workspace:^
+        version: link:../../packages/kernel.core
       '@statewalker/shared-commands':
         specifier: 'catalog:'
         version: 0.2.3(@types/json-schema@7.0.15)(zod-to-json-schema@3.25.2(zod@4.6.5))(zod@4.6.5)
@@ -1297,6 +1303,9 @@ importers:
       '@statewalker/inline.view.react':
         specifier: workspace:*
         version: link:../inline.view.react
+      '@statewalker/kernel.core':
+        specifier: workspace:^
+        version: link:../kernel.core
       '@statewalker/mime.core':
         specifier: workspace:*
         version: link:../mime.core
@@ -1376,9 +1385,15 @@ importers:
       '@statewalker/webrun-files-mem':
         specifier: 'catalog:'
         version: 0.10.2
+      '@testing-library/react':
+        specifier: 'catalog:'
+        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@types/react':
         specifier: 'catalog:'
         version: 19.3.0
+      jsdom:
+        specifier: 'catalog:'
+        version: 30.1.2
       react:
         specifier: 'catalog:'
         version: 19.3.0
@@ -1388,6 +1403,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.3(@types/node@26.6.4)(jsdom@30.1.2)(vite@8.3.2(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   packages/backbone.browser:
     dependencies:
@@ -1732,6 +1750,34 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 5.0.3(@types/node@26.6.4)(jsdom@30.1.2)(vite@8.3.2(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/kernel.core:
+    dependencies:
+      '@statewalker/shared-adapters':
+        specifier: 'catalog:'
+        version: 0.1.2
+      '@statewalker/shared-commands':
+        specifier: 'catalog:'
+        version: 0.2.3(@types/json-schema@7.0.15)(zod-to-json-schema@3.25.2(zod@4.6.5))(zod@4.6.5)
+      '@statewalker/shared-slots':
+        specifier: 'catalog:'
+        version: 0.2.2
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.4
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.23.0(oxc-resolver@11.21.2)(tsx@4.23.15)(typescript@7.0.2)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.3(@types/node@26.6.4)(jsdom@30.1.2)(vite@8.3.2(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
 
   packages/mime.core:
     dependencies:
@@ -2436,6 +2482,9 @@ importers:
 
   packages/ui.view.react:
     dependencies:
+      '@statewalker/kernel.core':
+        specifier: workspace:^
+        version: link:../kernel.core
       '@statewalker/shared-baseclass':
         specifier: 'catalog:'
         version: 0.1.2
