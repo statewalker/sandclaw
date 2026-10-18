@@ -7,6 +7,7 @@ export {
   type OrderedById,
 } from "../internal/compare-ordered.js";
 export { DirectoryPickerEmptyState } from "../internal/directory-picker-empty-state.js";
+export { getQueryClient, queryClientAdapter } from "../internal/query-client-ctx.js";
 export { useAdapter } from "../internal/use-adapter.js";
 export {
   type ObservableAdapter,

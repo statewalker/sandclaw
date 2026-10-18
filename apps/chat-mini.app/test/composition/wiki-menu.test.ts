@@ -1,23 +1,20 @@
-import { menubarItemsSlot } from "@statewalker/app-shell";
-import { Slots } from "@statewalker/shared-slots";
-import { MemFilesApi } from "@statewalker/webrun-files-mem";
-import { Workspace } from "@statewalker/workspace.core";
+import { actionsSlot, createAppContext, getSlots } from "@statewalker/kernel.core";
 import { describe, expect, it } from "vitest";
+import { NewChatSessionCommand } from "../../src/init-new-session.js";
 import initWikiMenu from "../../src/init-wiki-menu.js";
 
 describe("wiki menu in chat-mini.app", () => {
-  it("contributes a Wiki menubar entry and removes it on teardown", async () => {
-    const workspace = new Workspace().setFileSystem(new MemFilesApi());
-    await workspace.open();
-    const slots = workspace.requireAdapter(Slots);
-    const ctx: Record<string, unknown> = { "workspace:workspace": workspace };
+  it("contributes a Wiki action over chat-mini:new-session and removes it on teardown", () => {
+    const ctx = createAppContext();
+    const slots = getSlots(ctx);
 
     const cleanup = initWikiMenu(ctx);
 
-    const items = slots.getSnapshot(menubarItemsSlot).filter((i) => i.menu === "Wiki");
-    expect(items.map((i) => i.id)).toContain("wiki:ask");
+    const actions = slots.getSnapshot(actionsSlot).filter((a) => a.menu === "Wiki");
+    expect(actions.map((a) => a.id)).toEqual(["wiki:ask"]);
+    expect(actions[0]?.command).toBe(NewChatSessionCommand);
 
-    await cleanup();
-    expect(slots.getSnapshot(menubarItemsSlot).some((i) => i.menu === "Wiki")).toBe(false);
+    cleanup();
+    expect(slots.getSnapshot(actionsSlot).some((a) => a.menu === "Wiki")).toBe(false);
   });
 });

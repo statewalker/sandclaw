@@ -1,26 +1,44 @@
 // The App's buses and the glue features use with them. One runtime per App
 // instance: two Apps on one page never see each other's contributions.
+// The buses are the kernel's: a runtime is a view onto one app context, and
+// features are activated as kernel fragments.
 import {
-  type CommandDeclaration,
+  type AppContext,
+  createAppContext,
+  type Fragment,
+  getCommands,
+  getSlots,
+  handleCommand,
+  handledCommandsAdapter,
+  Kernel,
+} from "@statewalker/kernel.core";
+import type {
+  CommandDeclaration,
   Commands,
-  CommandsRegistry,
-  type MutableCommandsRegistry,
+  MutableCommandsRegistry,
 } from "@statewalker/shared-commands";
-import { type KeyedSlotDeclaration, type SlotDeclaration, Slots } from "@statewalker/shared-slots";
+import type { KeyedSlotDeclaration, SlotDeclaration, Slots } from "@statewalker/shared-slots";
 import { createContext, useContext, useSyncExternalStore } from "react";
 import type { Commander } from "../file-panels/use-commander.js";
 import { type SectionId, sections, type Viewer } from "../settings/settings-model.js";
 import { type AppTheme, type SettingsTab, settingsTabsSlot } from "./contracts.js";
 
 export interface AppRuntime {
+  /** The app context the buses below come from. */
+  context: AppContext;
   slots: Slots;
   commands: Commands;
   /** The commands some handler answers: what menu items may name. */
   handled: MutableCommandsRegistry;
 }
 
-export function createRuntime(): AppRuntime {
-  return { slots: new Slots(), commands: Commands.create(), handled: CommandsRegistry.create() };
+export function createRuntime(context: AppContext = createAppContext()): AppRuntime {
+  return {
+    context,
+    slots: getSlots(context),
+    commands: getCommands(context),
+    handled: handledCommandsAdapter.get(context),
+  };
 }
 
 /** Answers `command` with `fn` and records it as handled; returns the disposer. */
@@ -29,14 +47,7 @@ export function handle<P>(
   command: CommandDeclaration<P, void>,
   fn: (payload: P) => void,
 ): () => void {
-  const stop = rt.commands.listen(command, (cmd) => {
-    fn(cmd.payload);
-  });
-  rt.handled.set(command);
-  return () => {
-    stop();
-    rt.handled.remove(command.key);
-  };
+  return handleCommand(rt.context, command, (payload) => fn(payload));
 }
 
 /** What a feature knows about the App it joins. */
@@ -60,12 +71,29 @@ export function all(...disposers: Array<() => void>): () => void {
   };
 }
 
+/** A feature as a kernel fragment of the runtime's app. */
+export function featureFragment(rt: AppRuntime, feature: Feature, ctx: FeatureContext): Fragment {
+  return { id: feature.id, label: feature.label, activate: () => feature.contribute(rt, ctx) };
+}
+
+/**
+ * Activate `features` through a kernel on the runtime's context. Features are
+ * synchronous, so every contribution is in place when this returns, and the
+ * disposer takes them all back (in reverse order) before it returns.
+ */
 export function contributeAll(
   rt: AppRuntime,
   features: Feature[],
   ctx: FeatureContext,
 ): () => void {
-  return all(...features.map((f) => f.contribute(rt, ctx)));
+  const kernel = new Kernel({
+    context: rt.context,
+    fragments: features.map((f) => featureFragment(rt, f, ctx)),
+  });
+  void kernel.start();
+  return () => {
+    void kernel.stop();
+  };
 }
 
 export function provideAll<T>(slots: Slots, slot: SlotDeclaration<T>, values: T[]): () => void {

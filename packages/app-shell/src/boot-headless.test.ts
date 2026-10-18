@@ -6,7 +6,7 @@ import {
 import initPlatformNode from "@statewalker/platform.node";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import { describe, expect, it } from "vitest";
-import { type BootHeadlessOptions, bootHeadless } from "./boot-shell.js";
+import { type BootHeadlessOptions, bootHeadless } from "./boot-headless.js";
 
 /**
  * bootHeadless with in-memory preferences so the test never touches the real

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Workbench-substrate boot helper (bootShell, bootHeadless) for the apps in this repository.",
+  "description": "Workbench boot for the apps in this repository: bootShell / bootHeadless run the substrate and the app's fragments through the kernel.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/statewalker/sandclaw.git",
@@ -14,7 +14,8 @@
   },
   "homepage": "https://github.com/statewalker/sandclaw/tree/main/packages/app-shell#readme",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./headless": "./src/headless.ts"
   },
   "files": [
     "src"
@@ -26,29 +27,30 @@
     "format": "biome format --write ."
   },
   "dependencies": {
-    "@statewalker/ui.view.react": "workspace:^",
-    "@statewalker/shell.core": "workspace:^",
-    "@statewalker/shell.view.react": "workspace:^",
-    "@statewalker/mime.core": "workspace:^",
-    "@statewalker/mime.view.image": "workspace:^",
     "@statewalker/inline.core": "workspace:^",
     "@statewalker/inline.view.react": "workspace:^",
+    "@statewalker/kernel.core": "workspace:^",
+    "@statewalker/mime.core": "workspace:^",
+    "@statewalker/mime.view.image": "workspace:^",
     "@statewalker/mime.view.markdown": "workspace:^",
     "@statewalker/mime.view.pdf": "workspace:^",
-    "@statewalker/render.core": "workspace:^",
-    "@statewalker/platform.core": "workspace:^",
+    "@statewalker/mime.view.video": "workspace:^",
     "@statewalker/platform.browser": "workspace:^",
+    "@statewalker/platform.core": "workspace:^",
     "@statewalker/platform.node": "workspace:^",
-    "@statewalker/webrun-files": "catalog:",
+    "@statewalker/render.core": "workspace:^",
     "@statewalker/settings.core": "workspace:^",
     "@statewalker/settings.view.react": "workspace:^",
-    "@statewalker/ui.view.shadcn": "workspace:^",
     "@statewalker/shared-commands": "catalog:",
     "@statewalker/shared-registry": "catalog:",
     "@statewalker/shared-slots": "catalog:",
-    "@statewalker/mime.view.video": "workspace:^",
-    "@statewalker/workspace.core": "workspace:^",
+    "@statewalker/shell.core": "workspace:^",
+    "@statewalker/shell.view.react": "workspace:^",
+    "@statewalker/ui.view.react": "workspace:^",
+    "@statewalker/ui.view.shadcn": "workspace:^",
+    "@statewalker/webrun-files": "catalog:",
     "@statewalker/workspace.browser": "workspace:^",
+    "@statewalker/workspace.core": "workspace:^",
     "@statewalker/workspace.view.react": "workspace:^",
     "@tanstack/react-query": "catalog:",
     "lucide-react": "catalog:"
@@ -60,10 +62,13 @@
   "devDependencies": {
     "@biomejs/biome": "catalog:",
     "@statewalker/webrun-files-mem": "catalog:",
+    "@testing-library/react": "catalog:",
     "@types/react": "catalog:",
+    "jsdom": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "sideEffects": false,
   "publishConfig": {

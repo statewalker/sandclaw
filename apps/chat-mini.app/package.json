@@ -105,7 +105,8 @@
     "@statewalker/explorer.view.react": "workspace:^",
     "@statewalker/wiki.core": "workspace:^",
     "@statewalker/wiki.view.react": "workspace:^",
-    "@statewalker/content-extractors": "catalog:"
+    "@statewalker/content-extractors": "catalog:",
+    "@statewalker/kernel.core": "workspace:^"
   },
   "devDependencies": {
     "@statewalker/webrun-files-mem": "catalog:",

@@ -1,8 +1,11 @@
+import { type Action, actionsSlot } from "@statewalker/kernel.core";
+import { Commands } from "@statewalker/shared-commands";
 import { Slots } from "@statewalker/shared-slots";
 import { compareByOrderAndId, useAdapter, useSlot } from "@statewalker/ui.view.react";
 import { Button } from "@statewalker/ui.view.shadcn";
 import { ChevronDown } from "lucide-react";
 import {
+  type ComponentType,
   type MouseEvent,
   type ReactElement,
   type ReactNode,
@@ -14,8 +17,10 @@ import {
 import { type MenubarItem, menubarItemsSlot } from "./extension-points.js";
 
 /**
- * Leading-header menu bar. Reads `app-shell:menubar-items`, groups
- * entries by their `menu` label, and renders one dropdown per group.
+ * Leading-header menu bar. Reads the kernel's `kernel:actions` (those with a
+ * `menu`) and the legacy `app-shell:menubar-items`, groups entries by their
+ * `menu` label, and renders one dropdown per group. Activating an action
+ * calls its command with its payload.
  *
  * Top-level menus are ordered by the minimum `order` of items in each
  * group (so a Files menu can be placed left of System by giving its
@@ -31,9 +36,18 @@ import { type MenubarItem, menubarItemsSlot } from "./extension-points.js";
  */
 export function Menubar(): ReactElement {
   const slots = useAdapter(Slots);
+  const commands = useAdapter(Commands);
   const items = useSlot(slots, menubarItemsSlot);
+  const actions = useSlot(slots, actionsSlot);
 
-  const groups = useMemo(() => groupByMenu(items), [items]);
+  const groups = useMemo(
+    () =>
+      groupByMenu([
+        ...items,
+        ...actions.flatMap((action) => (action.menu ? [fromAction(action, commands)] : [])),
+      ]),
+    [items, actions, commands],
+  );
 
   const [open, setOpen] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -90,7 +104,11 @@ export function Menubar(): ReactElement {
                     });
                   }}
                 >
-                  <item.Icon className="h-3.5 w-3.5 shrink-0" />
+                  {item.Icon ? (
+                    <item.Icon className="h-3.5 w-3.5 shrink-0" />
+                  ) : (
+                    <span className="h-3.5 w-3.5 shrink-0" />
+                  )}
                   <span>{item.label}</span>
                 </MenuItem>
               ))}
@@ -121,8 +139,24 @@ function MenuItem({
   );
 }
 
-function groupByMenu(items: readonly MenubarItem[]): Array<[string, MenubarItem[]]> {
-  const byMenu = new Map<string, MenubarItem[]>();
+/** A menubar row: a legacy item, or an action turned into one. */
+type MenuEntry = Omit<MenubarItem, "Icon"> & { Icon?: MenubarItem["Icon"] };
+
+function fromAction(action: Action, commands: Commands): MenuEntry {
+  return {
+    id: action.id,
+    menu: action.menu ?? "",
+    order: action.order,
+    label: action.label,
+    Icon: action.icon as ComponentType<{ className?: string }> | undefined,
+    onActivate: async () => {
+      await commands.call(action.command, action.payload).promise;
+    },
+  };
+}
+
+function groupByMenu(items: readonly MenuEntry[]): Array<[string, MenuEntry[]]> {
+  const byMenu = new Map<string, MenuEntry[]>();
   for (const item of items) {
     const bucket = byMenu.get(item.menu);
     if (bucket) bucket.push(item);
@@ -141,7 +175,7 @@ function groupByMenu(items: readonly MenubarItem[]): Array<[string, MenubarItem[
   });
 }
 
-function minOrder(items: readonly MenubarItem[]): number {
+function minOrder(items: readonly MenuEntry[]): number {
   let min = Number.POSITIVE_INFINITY;
   for (const item of items) {
     const o = item.order ?? 100;

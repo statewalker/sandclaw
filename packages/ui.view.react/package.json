@@ -41,13 +41,14 @@
     "build": "tsdown"
   },
   "dependencies": {
+    "@statewalker/kernel.core": "workspace:^",
     "@statewalker/shared-baseclass": "catalog:",
     "@statewalker/shared-commands": "catalog:",
     "@statewalker/shared-registry": "catalog:",
     "@statewalker/shared-slots": "catalog:",
     "@statewalker/ui.view.shadcn": "workspace:^",
-    "@statewalker/workspace.core": "workspace:^",
     "@statewalker/workspace.browser": "workspace:^",
+    "@statewalker/workspace.core": "workspace:^",
     "@tanstack/react-query": "catalog:",
     "lucide-react": "catalog:"
   },

@@ -1,8 +1,14 @@
+import { Command, passthrough } from "@statewalker/shared-commands";
 import { defineSlot } from "@statewalker/shared-slots";
 import type { ComponentType } from "react";
 
 /**
  * `app-shell:menubar-items` — entries for the leading-header menu bar.
+ *
+ * Prefer contributing a kernel action (`provideAction` from
+ * `@statewalker/kernel.core`) with a `menu`: it names a command instead of
+ * carrying a closure, so menus, palettes and tools share one declaration.
+ * This slot stays for items that are not a single command call.
  *
  * Each contribution becomes a row inside a top-level dropdown grouped
  * by its `menu` label (e.g. "Files", "System"). The menubar component
@@ -36,3 +42,14 @@ export interface MenubarItem {
 }
 
 export const menubarItemsSlot = defineSlot<MenubarItem>("app-shell:menubar-items");
+
+/**
+ * `app-shell:switch-workspace` — disconnect the current workspace and pick
+ * another one. Answered by the menubar fragment; a cancelled picker resolves
+ * quietly (the shell is left in its `empty` state).
+ */
+export const SwitchWorkspaceCommand = Command.async("app-shell:switch-workspace")
+  .input(passthrough<Record<string, never>>())
+  .output(passthrough<void>())
+  .label("Switch workspace")
+  .build();
