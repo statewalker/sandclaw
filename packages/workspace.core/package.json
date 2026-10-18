@@ -1,0 +1,73 @@
+{
+  "name": "@statewalker/workspace.core",
+  "version": "0.5.2",
+  "private": false,
+  "type": "module",
+  "description": "Workspace logic fragment: the Workspace class, system/secrets/settings adapters, the workspace:change intent, and its registrar init.",
+  "bugs": {
+    "url": "https://github.com/statewalker/sandclaw/issues"
+  },
+  "homepage": "https://github.com/statewalker/sandclaw/tree/main/packages/workspace.core#readme",
+  "author": {
+    "name": "Mikhail Kotelnikov",
+    "email": "mikhail.kotelnikov@gmail.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/statewalker/sandclaw.git",
+    "directory": "packages/workspace.core"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./fragment": {
+      "source": "./src/fragment.ts",
+      "types": "./dist/fragment.d.ts",
+      "import": "./dist/fragment.js",
+      "default": "./dist/fragment.js"
+    },
+    "./files-fragment": {
+      "source": "./src/files-fragment.ts",
+      "types": "./dist/files-fragment.d.ts",
+      "import": "./dist/files-fragment.js",
+      "default": "./dist/files-fragment.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check --write .",
+    "format": "biome format --write .",
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@statewalker/shared-adapters": "catalog:",
+    "@statewalker/shared-baseclass": "catalog:",
+    "@statewalker/shared-commands": "catalog:",
+    "@statewalker/shared-logger": "catalog:",
+    "@statewalker/webrun-builder": "catalog:",
+    "@statewalker/webrun-dataflow": "catalog:",
+    "@statewalker/webrun-files": "catalog:",
+    "@statewalker/webrun-files-composite": "catalog:"
+  },
+  "devDependencies": {
+    "@statewalker/webrun-files-mem": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "name": "@statewalker/webapp.core",
+  "version": "0.5.2",
+  "private": false,
+  "type": "module",
+  "description": "Web-app project nature (React-free): convention detection + config, and a persistent per-project module-server cache over @statewalker/webrun-modules.",
+  "bugs": {
+    "url": "https://github.com/statewalker/sandclaw/issues"
+  },
+  "homepage": "https://github.com/statewalker/sandclaw/tree/main/packages/webapp.core#readme",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/statewalker/sandclaw.git",
+    "directory": "packages/webapp.core"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check --write .",
+    "format": "biome format --write .",
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@statewalker/workspace.core": "workspace:^",
+    "@statewalker/webrun-modules": "catalog:",
+    "@statewalker/webrun-site-builder": "catalog:",
+    "@statewalker/webrun-site-host": "catalog:",
+    "@statewalker/webrun-files": "catalog:"
+  },
+  "devDependencies": {
+    "@statewalker/webrun-files-mem": "catalog:",
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

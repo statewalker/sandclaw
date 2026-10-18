@@ -45,7 +45,7 @@
     "tailwind-merge": "catalog:",
     "tw-animate-css": "catalog:",
     "@statewalker/wiki.core": "workspace:^",
-    "@statewalker/workspace.core": "catalog:"
+    "@statewalker/workspace.core": "workspace:^"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",

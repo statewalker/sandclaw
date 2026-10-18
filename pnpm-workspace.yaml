@@ -38,33 +38,15 @@ catalog:
   "@statewalker/ai-agent-runtime.core": "^0.5.0"
   "@statewalker/ai-agent.core": "^0.4.0"
   "@statewalker/ai-config.core": "^0.5.0"
-  "@statewalker/ai-config.view.react": "^0.2.0"
   "@statewalker/ai-local-models.browser": "^0.4.0"
   "@statewalker/ai-local-models.core": "^0.5.0"
-  "@statewalker/ai-local-models.view.react": "^0.2.0"
   "@statewalker/content-extractors": "^0.2.1"
-  "@statewalker/explorer.core": "^0.5.0"
-  "@statewalker/explorer.view.react": "^0.2.0"
   "@statewalker/fsm": ^0.38.1
   "@statewalker/fsm-validator": ^0.2.0
   "@statewalker/indexer-api": ^0.1.0
   "@statewalker/indexer-fulltext": ^0.1.0
   "@statewalker/indexer-mem-flexsearch": ^0.1.0
   "@statewalker/indexer-vector": ^0.1.0
-  "@statewalker/inline.core": "^0.4.0"
-  "@statewalker/inline.view.react": "^0.2.0"
-  "@statewalker/mime.core": "^0.5.0"
-  "@statewalker/mime.view.image": "^0.2.0"
-  "@statewalker/mime.view.markdown": "^0.2.0"
-  "@statewalker/mime.view.pdf": "^0.2.0"
-  "@statewalker/mime.view.video": "^0.2.0"
-  "@statewalker/platform.browser": "^0.5.0"
-  "@statewalker/platform.core": "^0.5.0"
-  "@statewalker/platform.node": "^0.5.0"
-  "@statewalker/render.core": "^0.5.0"
-  "@statewalker/render.view.react": "^0.2.0"
-  "@statewalker/settings.core": "^0.5.0"
-  "@statewalker/settings.view.react": "^0.2.0"
   "@statewalker/shared-adapters": ^0.1.0
   "@statewalker/shared-baseclass": ^0.1.0
   "@statewalker/shared-commands": ^0.2.0
@@ -72,19 +54,25 @@ catalog:
   "@statewalker/shared-logger-pino": ^0.1.0
   "@statewalker/shared-registry": ^0.1.0
   "@statewalker/shared-slots": ^0.2.0
-  "@statewalker/shell.core": "^0.5.0"
-  "@statewalker/shell.view.react": "^0.2.0"
-  "@statewalker/ui.view.react": "^0.2.0"
-  "@statewalker/ui.view.shadcn": ^0.1.1
+  "@statewalker/vcs-commands": ^0.3.0
+  "@statewalker/vcs-core": ^0.3.0
+  "@statewalker/vcs-store-files": ^0.3.0
+  "@statewalker/vcs-transport": ^0.3.0
+  "@statewalker/vcs-transport-adapters": ^0.3.0
+  "@statewalker/vcs-utils-node": ^0.3.0
+  "@statewalker/vcs-working-tree": ^0.3.0
+  "@statewalker/vcs-workspace": ^0.3.0
+  "@statewalker/webrun-builder": ^0.2.0
+  "@statewalker/webrun-dataflow": ^0.1.1
   "@statewalker/webrun-files": "^0.10.0"
   "@statewalker/webrun-files-browser": "^0.10.0"
   "@statewalker/webrun-files-composite": ^0.10.0
   "@statewalker/webrun-files-mem": ^0.10.0
   "@statewalker/webrun-files-node": ^0.10.0
   "@statewalker/webrun-files-s3": ^0.10.3
-  "@statewalker/workspace.browser": "^0.5.0"
-  "@statewalker/workspace.core": "^0.5.0"
-  "@statewalker/workspace.view.react": "^0.2.0"
+  "@statewalker/webrun-modules": ^0.3.0
+  "@statewalker/webrun-site-builder": ^0.2.0
+  "@statewalker/webrun-site-host": ^0.2.1
   "@storybook/addon-docs": ^10.6.1
   "@storybook/addon-themes": ^10.6.1
   "@storybook/react-vite": ^10.6.1
@@ -108,20 +96,23 @@ catalog:
   hono: ^4.13.12
   "honox": "^0.1.61"
   idb-keyval: ^6.3.0
+  "import-meta-resolve": ^4.2.0
   jsdom: ^30.1.1
   lucide-react: ^1.51.0
   "marked": "^18.0.14"
   radix-ui: ^1.6.7
+  react: ^19.3.0
   react-dom: ^19.3.0
   "react-hook-form": "^7.89.0"
   react-markdown: ^10.1.0
   react-resizable-panels: ^4.14.2
-  react: ^19.3.0
   "remark-breaks": "^4.0.0"
   remark-gfm: ^4.0.1
+  "rimraf": ^6.1.3
   shadcn: ^4.21.1
   "shiki": "^4.5.0"
   storybook: ^10.6.1
+  "sucrase": ^3.35.1
   tailwind-merge: ^3.7.0
   tailwindcss: ^4.3.3
   "tsdown": "^0.23.0"
@@ -146,3 +137,42 @@ overrides:
   "uuid@<11.1.1": ^11.1.1
   # @tailwindcss/typography pins postcss-selector-parser 6.0.10
   "postcss-selector-parser@<7.1.6": ^7.1.6
+
+  # Packages of this workspace win over their npm copies pulled in by external
+  # @statewalker packages (ai-*.core and friends), so the types and adapters stay single.
+  "@statewalker/ai-config.view.react": "workspace:*"
+  "@statewalker/ai-local-models.view.react": "workspace:*"
+  "@statewalker/backbone.browser": "workspace:*"
+  "@statewalker/backbone.core": "workspace:*"
+  "@statewalker/backbone.node": "workspace:*"
+  "@statewalker/explorer.core": "workspace:*"
+  "@statewalker/explorer.view.react": "workspace:*"
+  "@statewalker/file-mounts.core": "workspace:*"
+  "@statewalker/file-panels.core": "workspace:*"
+  "@statewalker/inline.core": "workspace:*"
+  "@statewalker/inline.view.react": "workspace:*"
+  "@statewalker/mime.core": "workspace:*"
+  "@statewalker/mime.view.image": "workspace:*"
+  "@statewalker/mime.view.markdown": "workspace:*"
+  "@statewalker/mime.view.pdf": "workspace:*"
+  "@statewalker/mime.view.video": "workspace:*"
+  "@statewalker/platform.browser": "workspace:*"
+  "@statewalker/platform.core": "workspace:*"
+  "@statewalker/platform.node": "workspace:*"
+  "@statewalker/render.core": "workspace:*"
+  "@statewalker/render.view.react": "workspace:*"
+  "@statewalker/settings.core": "workspace:*"
+  "@statewalker/settings.view.react": "workspace:*"
+  "@statewalker/shell.core": "workspace:*"
+  "@statewalker/shell.view.react": "workspace:*"
+  "@statewalker/ui.view.react": "workspace:*"
+  "@statewalker/ui.view.shadcn": "workspace:*"
+  "@statewalker/webapp.browser": "workspace:*"
+  "@statewalker/webapp.core": "workspace:*"
+  "@statewalker/webapp.view.react": "workspace:*"
+  "@statewalker/wiki.core": "workspace:*"
+  "@statewalker/wiki.view.react": "workspace:*"
+  "@statewalker/workspace-vcs.core": "workspace:*"
+  "@statewalker/workspace.browser": "workspace:*"
+  "@statewalker/workspace.core": "workspace:*"
+  "@statewalker/workspace.view.react": "workspace:*"

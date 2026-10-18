@@ -33,7 +33,7 @@
     "@statewalker/webrun-files": "catalog:",
     "@statewalker/webrun-files-composite": "catalog:",
     "@statewalker/webrun-files-mem": "catalog:",
-    "@statewalker/ui.view.shadcn": "catalog:",
+    "@statewalker/ui.view.shadcn": "workspace:^",
     "dockview-react": "catalog:",
     "lucide-react": "catalog:",
     "radix-ui": "catalog:",

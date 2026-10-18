@@ -1,0 +1,3 @@
+/* Styles for the AI connections settings tab. The panel renders through the
+ * shared shadcn primitives; this stylesheet is a placeholder hook for any
+ * panel-specific tweaks and to mirror the package's `./styles` export. */

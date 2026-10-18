@@ -1,0 +1,72 @@
+{
+  "name": "@statewalker/webapp.view.react",
+  "version": "0.2.2",
+  "private": false,
+  "type": "module",
+  "description": "Web-app dock renderer fragment: the <SiteFrame> catalog component (an iframe pointed at the hosted client) registered into the shell's json:catalogs slot for JsonPanel to render.",
+  "bugs": {
+    "url": "https://github.com/statewalker/sandclaw/issues"
+  },
+  "homepage": "https://github.com/statewalker/sandclaw/tree/main/packages/webapp.view.react#readme",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/statewalker/sandclaw.git",
+    "directory": "packages/webapp.view.react"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./fragment": {
+      "source": "./src/fragment.ts",
+      "types": "./dist/fragment.d.ts",
+      "import": "./dist/fragment.js",
+      "default": "./dist/fragment.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check --write .",
+    "format": "biome format --write .",
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@json-render/core": "catalog:",
+    "@statewalker/render.core": "workspace:^",
+    "@statewalker/render.view.react": "workspace:^",
+    "@statewalker/shared-registry": "catalog:",
+    "@statewalker/shared-slots": "catalog:",
+    "@statewalker/shell.view.react": "workspace:^",
+    "@statewalker/webapp.browser": "workspace:^",
+    "@statewalker/workspace.core": "workspace:^",
+    "zod": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:peers",
+    "react-dom": "catalog:peers"
+  },
+  "devDependencies": {
+    "@testing-library/react": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

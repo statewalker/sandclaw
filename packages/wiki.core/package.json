@@ -51,7 +51,7 @@
     "@statewalker/shared-logger": "catalog:",
     "@statewalker/shared-logger-pino": "catalog:",
     "@statewalker/webrun-files": "catalog:",
-    "@statewalker/workspace.core": "catalog:",
+    "@statewalker/workspace.core": "workspace:^",
     "@uwdata/flechette": "catalog:",
     "ai": "catalog:",
     "yaml": "catalog:",

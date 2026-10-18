@@ -35,7 +35,7 @@
     "build": "tsdown"
   },
   "dependencies": {
-    "@statewalker/explorer.core": "catalog:",
+    "@statewalker/explorer.core": "workspace:^",
     "@statewalker/file-mounts.core": "workspace:^",
     "@statewalker/shared-baseclass": "catalog:",
     "@statewalker/webrun-files": "catalog:",
