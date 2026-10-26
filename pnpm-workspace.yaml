@@ -18,7 +18,7 @@ catalog:
   "@hono/react-renderer": "^1.0.1"
   "@hono/vite-build": "^1.11.1"
   "@hono/vite-dev-server": "^0.26.1"
-  "@hookform/resolvers": "^5.9.1"
+  "@hookform/resolvers": "^6.0.0"
   "@json-render/core": ^0.21.0
   "@json-render/react": ^0.21.0
   "@json-render/shadcn": ^0.21.0
