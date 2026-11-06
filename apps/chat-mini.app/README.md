@@ -59,7 +59,3 @@ To ship a static build: `apps/chat-mini.app/release.sh`. It runs `pnpm build`, c
 | `pnpm --filter @statewalker/chat-mini-app typecheck` | `tsc --noEmit`. |
 | `pnpm --filter @statewalker/chat-mini-app lint:check` | Biome check. |
 | `apps/chat-mini.app/release.sh` | Build and package `dist/<date>.chat-mini.zip`. |
-
-### Further reading
-
-`CONTEXT.md` in this folder defines the app's domain terms (storage surfaces, fragments, slots, commands).
