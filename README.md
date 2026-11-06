@@ -2,7 +2,7 @@
 
 ## What it is
 
-The StateWalker chat and wiki applications, and the packages they are built from. Two web apps live here: `chat-mini.app`, a browser chat client with an AI agent, file viewers and self-indexing wikis, and `wiki-viewer.app`, a server-rendered viewer for wiki reports and live wiki questions. `ui-protos.app` is a Storybook of Sandclaw UI prototypes. Two packages are published to npm: `@statewalker/wiki.core` (the wiki engine) and `@statewalker/wiki.view.react` (its React panel). Everything else is private to this workspace.
+The StateWalker chat and wiki applications, and the packages they are built from. Two web apps live here: `chat-mini.app`, a browser chat client with an AI agent, file viewers and self-indexing wikis, and `wiki-viewer.app`, a server-rendered viewer for wiki reports and live wiki questions. `ui-protos.app` is a Storybook of Sandclaw UI prototypes. Four packages are published to npm: `@statewalker/wiki.core` (the wiki engine), `@statewalker/wiki.view.react` (its React panel), `@statewalker/file-mounts.core` (storages mounted as one `FilesApi`) and `@statewalker/file-panels.core` (the logic behind a file panel). Everything else is private to this workspace.
 
 ## Layout
 
@@ -10,6 +10,8 @@ The StateWalker chat and wiki applications, and the packages they are built from
 packages/
   wiki.core/            @statewalker/wiki.core         (npm)
   wiki.view.react/      @statewalker/wiki.view.react   (npm)
+  file-mounts.core/     @statewalker/file-mounts.core  (npm)
+  file-panels.core/     @statewalker/file-panels.core  (npm)
   app-shell/            @statewalker/app-shell         (private)
 apps/
   chat-mini.app/        @statewalker/chat-mini-app     (private app)
@@ -23,6 +25,8 @@ apps/
 | --- | --- | --- |
 | [`@statewalker/wiki.core`](packages/wiki.core) | LLM-curated wiki on the workspace model: ingestion pipeline, hybrid full-text + vector search, cited query answers, generated sites, CLI. React-free. | [npm](https://www.npmjs.com/package/@statewalker/wiki.core) |
 | [`@statewalker/wiki.view.react`](packages/wiki.view.react) | React renderer fragment: dock panel that browses generated wiki sites. | [npm](https://www.npmjs.com/package/@statewalker/wiki.view.react) |
+| [`@statewalker/file-mounts.core`](packages/file-mounts.core) | Storages mounted side by side as one `FilesApi`: local folders, browser storage, S3 buckets, an encrypted key vault. React-free. | [npm](https://www.npmjs.com/package/@statewalker/file-mounts.core) |
+| [`@statewalker/file-panels.core`](packages/file-panels.core) | File-panel logic: breadcrumb, safe copy and move across storages with byte progress, file operations, a panel model. React-free. | [npm](https://www.npmjs.com/package/@statewalker/file-panels.core) |
 | [`@statewalker/app-shell`](packages/app-shell) | `bootShell` / `bootHeadless`: boots the workbench substrate in a fixed order under an app. | private |
 | [`@statewalker/chat-mini.chat`](apps/chat-mini.chat) | Chat logic fragment: `chat:open-session`, chat catalog, turn-block and composer slots. | private |
 | [`@statewalker/chat-mini.chat-react`](apps/chat-mini.chat-react) | Chat renderer fragment: chat panel, turn views, sessions panel, deep links. | private |
@@ -71,9 +75,19 @@ Run one package's scripts with `pnpm --filter <name> <script>`, for example `pnp
 | `pnpm run lint` / `pnpm run lint:check` | Biome check, with or without writing fixes. |
 | `pnpm run format` / `pnpm run format:check` | Biome format, with or without writing. |
 
-### Releases
+### Releases are cut by CI and published only after an approval
 
-`@statewalker/wiki.core` and `@statewalker/wiki.view.react` are published to npm from CI with changesets. To choose the version bump or the changelog text yourself, add a changeset with `pnpm changeset`.
+The public packages are published to npm by `.github/workflows/ci.yml`, in three jobs that run after the checks on every push to `main`:
+
+1. **`version`** writes a patch changeset for every package whose packed files differ from npm's `latest` (a minor one when a dependency moved to another breaking line), then opens or updates the "chore: version packages" pull request. It never publishes. To choose the bump or the changelog text yourself, add a changeset with `pnpm changeset`.
+2. **`pack`** runs once that pull request is merged and packs every public package whose version is not on npm. It has no credentials.
+3. **`publish`** waits for a maintainer's approval on the `npm` GitHub environment, then publishes the tarballs with provenance and creates a GitHub release per package.
+
+No npm token is stored in GitHub. `publish` authenticates with npm trusted publishing (OIDC), and each package's trusted publisher names this repository, `ci.yml` and the `npm` environment, so a run that skips the approval cannot publish. Only `publish` may request an identity token, and it never installs or builds, so no dependency runs where a publish token can be obtained.
+
+A trusted publisher can only be added to a package that already exists, so a **new package's first version is published by hand** with the maintainer's 2FA (`pnpm pack`, then `npm publish <tarball> --access public`), followed by `npm trust github <name> --repo statewalker/sandclaw --file ci.yml --env npm --allow-publish`. Until then, `publish` fails for that package with `E404 Not Found - PUT https://registry.npmjs.org/@statewalker%2f<name>`: npm reports a missing trusted publisher as "not found". A first version published by hand while `publish` waits is skipped by it.
+
+The version pull request is opened by GitHub Actions, so the checks do not run on it; they run again on `main` after the merge, before `pack`.
 
 ### License
 
