@@ -1,4 +1,4 @@
-/** The proxy's address and key, kept in the browser (D4); an old pairing link fills them in. */
+/** The proxy's address and key, kept in the browser; a pairing link fills them in. */
 
 import { describe, expect, it } from "vitest";
 import {
@@ -40,6 +40,22 @@ describe("proxy settings", () => {
       url: "http://127.0.0.1:9091",
       key: "abc",
     });
+  });
+
+  it("take only a proxy on this machine from a link, so a crafted link cannot re-point it", () => {
+    const { win, items } = page("#localUrl=https%3A%2F%2Fevil.example&t=x");
+    expect(loadProxySettings(win)).toEqual(DEFAULT_PROXY);
+    expect(items.has("peershare:proxy")).toBe(false);
+    expect(win.location.hash).toBe("");
+  });
+
+  it("keep the address as an origin, so a trailing slash cannot break the socket path", () => {
+    const { win } = page();
+    saveProxySettings(win, { url: "http://127.0.0.1:9092/", key: "" });
+    expect(loadProxySettings(win).url).toBe("http://127.0.0.1:9092");
+    expect(loadProxySettings(page("#localUrl=http%3A%2F%2Flocalhost%3A9093%2F").win).url).toBe(
+      "http://localhost:9093",
+    );
   });
 
   it("are read back once saved", () => {

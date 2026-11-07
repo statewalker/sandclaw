@@ -23,6 +23,9 @@ import {
   saveProxySettings,
 } from "./proxy-settings.js";
 
+/** The published launcher: copies of the page elsewhere (`local/serve.mjs`) do not serve `/proxy/`. */
+const PROXY_COMMAND = "curl -fsSL https://peershare.httpeers.net/proxy/peershare-proxy.sh | sh";
+
 export function SharerApp({ config }: { config: PeerShareConfig }) {
   const fromLink = location.hash.includes("localUrl=");
   const [settings, setSettings] = useState(() => loadProxySettings(window));
@@ -30,12 +33,16 @@ export function SharerApp({ config }: { config: PeerShareConfig }) {
   current.current = settings;
   const [diagnosis, setDiagnosis] = useState<BridgeDiagnosis | "checking">();
   const checked = useRef(false);
+  const latest = useRef(0);
 
   const check = async () => {
     checked.current = true;
+    // Only the latest check may report: an older one (a filtered port hangs) must not overwrite it.
+    const run = ++latest.current;
     setDiagnosis("checking");
     const { url, key } = current.current;
-    setDiagnosis(await diagnoseBridge({ localUrl: url, token: key }));
+    const result = await diagnoseBridge({ localUrl: url, token: key });
+    if (run === latest.current) setDiagnosis(result);
   };
 
   const [rt] = useState(() => {
@@ -72,7 +79,7 @@ export function SharerApp({ config }: { config: PeerShareConfig }) {
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
         <ProxySettings
           value={settings}
-          command={`curl -fsSL ${location.origin}/proxy/peershare-proxy.sh | sh`}
+          command={PROXY_COMMAND}
           supported={proxySupported(navigator.userAgent)}
           onSave={save}
         />

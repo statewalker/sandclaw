@@ -5,11 +5,10 @@
 The standalone PeerShare page, with two routes:
 
 - `/` (and `/peer-share`) is the Sharer, the hub. Sharing starts when the page opens and
-  stops with the tab (ADR 0001). Services that allow calls from the page (CORS) need nothing
+  stops with the tab. Services that allow calls from the page (CORS) need nothing
   installed; the others go through the local proxy (below).
-- `/invite#join=…&from=Dirk` (and `/peer-share/invite`, for older links) is a Guest. Join,
-  then the Viewer: each Service in its own isolated session origin (ADR 0003), answered over
-  the mesh. Every invite link opens `invitePage` from `peershare.json`
+- `/invite#join=…&from=Dirk` is a Guest (`/peer-share/invite` is also served). Join, then
+  the Viewer: each Service in its own isolated session origin, answered over the mesh. Every invite link opens `invitePage` from `peershare.json`
   (`https://peershare.httpeers.net/invite` when published), or `/invite` on the page's own
   origin when it is not set. So a Sharer on any copy of the page, a local one included, hands
   out links that work for Guests anywhere.
@@ -76,7 +75,7 @@ The launcher fetches the proxy (`/proxy/peershare-proxy.mjs`, one file) into
 them, it downloads Deno once into `~/.cache/peershare/deno-<version>/` (it needs `unzip`), and
 never installs anything system-wide. It runs on macOS and Linux.
 
-| Option | Default | |
+| Option | Default | Meaning |
 |---|---|---|
 | `--port` | `9090` | listens on `127.0.0.1` only |
 | `--key` | none | when set, pages must send it; a wrong one is refused with 401 |
