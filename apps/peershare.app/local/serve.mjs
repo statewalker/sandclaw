@@ -179,7 +179,7 @@ const sessions = await listenLocal(async (req, res) => {
 // --- the Bridge: a new Pairing token on every launch, never stored
 const token = randomBytes(32).toString("base64url");
 const bridge = await listenLoopback(
-  createBridge({ token, allowedOrigin: pageOrigin, cookieJars: !values["no-cookie-jars"] }),
+  createBridge({ token, allowedOrigins: [pageOrigin], cookieJars: !values["no-cookie-jars"] }),
   Number(values["bridge-port"]),
 );
 
