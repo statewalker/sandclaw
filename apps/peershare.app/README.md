@@ -51,6 +51,43 @@ socket handed over that way up to 1.3.x (checked with 1.1.45, 1.2.23 and 1.3.14)
 accepted no connections and the page stayed on "Bridge connected". Bun 1.4.0 to 1.4.4 answer it.
 `peershare.sh --bun` and `serve.mjs` refuse an older Bun; `bun upgrade`, or run under Node.
 
+### The proxy reaches services that send no CORS headers
+
+A page can fetch a local service only if the service allows it with CORS. For the others, the
+Sharer runs the proxy, which is the Bridge as a command:
+
+```sh
+curl -fsSL https://peershare.httpeers.net/proxy/peershare-proxy.sh | sh
+curl -fsSL https://peershare.httpeers.net/proxy/peershare-proxy.sh | sh -s -- --port 9091 --key s3cret
+```
+
+The launcher fetches the proxy (`/proxy/peershare-proxy.mjs`, one file) into
+`~/.cache/peershare/` and runs it with the first of Deno, Bun or Node it finds. With none of
+them, it downloads Deno once into `~/.cache/peershare/deno-<version>/` (it needs `unzip`), and
+never installs anything system-wide. It runs on macOS and Linux.
+
+| Option | Default | |
+|---|---|---|
+| `--port` | `9090` | listens on `127.0.0.1` only |
+| `--key` | none | when set, pages must send it; a wrong one is refused with 401 |
+| `--origin` | `https://peershare.httpeers.net`, `http://localhost:*`, `http://127.0.0.1:*` | the pages allowed to use it; repeat it or use commas; it replaces the list |
+| `--no-cookie-jars` | jars on | one cookie jar per Guest |
+
+**Why the origin list, and why the key is optional.** A loopback port that answers
+cross-origin requests can be reached by every website the Sharer visits. The origin list is
+the guard: a page from any other origin gets 403 with no CORS grant. With that in place, the
+key protects only against local pages, so it is off by default. `--origin '*'` lets every
+site in, and the proxy prints a warning that says so. Targets are limited the same way as the
+Bridge's: this machine and the private network.
+
+**Why one file runs on three runtimes.** `scripts/build-proxy.mjs` inlines every dependency
+except `node:*`. The one exception is `ws`, which is picked at run time
+(`proxy/ws-for-runtime.ts`). Under Bun, the bundled `ws` connects to the app but never
+finishes the page's upgrade: the page waits with no error. So Bun gets its own built-in `ws`,
+and Node and Deno get the inlined copy. `pnpm test:runtimes` runs the built file under all
+three, and needs `bun` and `deno` installed. `test/launcher.test.ts` runs the launcher as a
+real `sh`, with stub runtimes on `PATH`.
+
 ### Develop
 
 ```sh
@@ -70,7 +107,7 @@ Serve `dist/` with every route falling back to `index.html`, and `/peershare.jso
 ## Publishing (decision 2.8)
 
 ```sh
-pnpm build:site            # site/peershare.httpeers.net/: the page, peershare.json, .site/config.json
+pnpm build:site            # site/peershare.httpeers.net/: the page, peershare.json, proxy/, .site/config.json
 rclone sync site/peershare.httpeers.net httpeers:sites/peershare.httpeers.net
 ```
 

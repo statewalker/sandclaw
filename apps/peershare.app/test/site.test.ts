@@ -63,4 +63,14 @@ describe("2.8 — the site for httpeers' static host", () => {
       sessionOrigin: "https://{name}.s.httpeers.net",
     });
   });
+
+  it("serves the proxy launcher and the proxy as static files under /proxy/ (D11)", () => {
+    const launcher = readFileSync(join(site(), "proxy/peershare-proxy.sh"), "utf8");
+    expect(launcher.split("\n")[0]).toBe("#!/bin/sh");
+    expect(launcher).toContain('SITE="https://peershare.httpeers.net"');
+    expect(launcher).not.toContain("@SITE@");
+    expect(readFileSync(join(site(), "proxy/peershare-proxy.mjs"), "utf8")).toContain(
+      "createBridge",
+    );
+  });
 });

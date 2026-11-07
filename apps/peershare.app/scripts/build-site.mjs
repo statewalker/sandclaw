@@ -6,6 +6,8 @@
  *
  *   <outDir>/<SITE>/index.html, assets/…   the page
  *   <outDir>/<SITE>/peershare.json         httpeers' relay and session zone
+ *   <outDir>/<SITE>/proxy/peershare-proxy.sh   the proxy's launcher (`curl … | sh`)
+ *   <outDir>/<SITE>/proxy/peershare-proxy.mjs  the proxy: one file, for Node, Bun and Deno
  *   <outDir>/<SITE>/.site/config.json      { "spa": true }: every route is the page
  *
  * SITE (default peershare.httpeers.net), SESSION_ZONE (default s.httpeers.net),
@@ -14,6 +16,7 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { build } from "vite";
+import { buildProxy } from "./build-proxy.mjs";
 
 const SITE = process.env.SITE ?? "peershare.httpeers.net";
 const SESSION_ZONE = process.env.SESSION_ZONE ?? "s.httpeers.net";
@@ -29,6 +32,8 @@ await build({
   logLevel: "warn",
   build: { outDir: site, emptyOutDir: true },
 });
+
+await buildProxy(join(site, "proxy"), SITE);
 
 // The relay states its own addresses (httpeers apps/relay, bootstrap document).
 const res = await fetch(RELAY_DOCUMENT_URL);
