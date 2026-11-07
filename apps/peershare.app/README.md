@@ -7,8 +7,12 @@ The standalone PeerShare page, with two routes:
 - `/` (and `/peer-share`) is the Sharer, the hub. Sharing starts when the page opens and
   stops with the tab (ADR 0001). Services that allow calls from the page (CORS) need nothing
   installed; the others go through the local proxy (below).
-- `/peer-share/invite#join=…&from=Dirk` is a Guest. Join, then the Viewer: each Service
-  in its own isolated session origin (ADR 0003), answered over the mesh.
+- `/invite#join=…&from=Dirk` (and `/peer-share/invite`, for older links) is a Guest. Join,
+  then the Viewer: each Service in its own isolated session origin (ADR 0003), answered over
+  the mesh. Every invite link opens `invitePage` from `peershare.json`
+  (`https://peershare.httpeers.net/invite` when published), or `/invite` on the page's own
+  origin when it is not set. So a Sharer on any copy of the page, a local one included, hands
+  out links that work for Guests anywhere.
 
 It is `@statewalker/peershare.share` (logic) + `@statewalker/peershare.share-react` (views) +
 `@statewalker/peershare.share/browser` (browser mesh platform, IndexedDB) + the session-shell
@@ -39,6 +43,12 @@ Service (the demo app, or anything on your machine or LAN), invite, and open the
 another browser profile or another browser. Everything is on loopback, so Guests are on this
 machine. Options: `--port` (page; sessions and relay take the next two), `--bridge-port`,
 `--demo-port`, `--no-cookie-jars`, `--no-build` (reuse the last build).
+
+`--public` is for real Guests on other machines. No local relay starts. The page uses httpeers'
+relay (read from `https://relay.httpeers.net/.well-known/httpeers-relay.json`, so it needs the
+network), and invites open `https://peershare.httpeers.net/invite`. Guests then join through
+the published page and its session zone, while the Sharer's page, proxy and services stay on
+this machine.
 
 `HTTPEERS_DIR=../httpeers` runs it against a checkout of statewalker/httpeers instead of the
 npm package: the script builds that package there and links it in without touching the
@@ -127,7 +137,8 @@ rclone sync site/peershare.httpeers.net httpeers:sites/peershare.httpeers.net
 
 `build:site` reads the relay's addresses from its own document
 (`https://relay.httpeers.net/.well-known/httpeers-relay.json`), points sessions at
-`*.s.httpeers.net`, and sets `spa: true` so `/peer-share/invite` is served too. `SITE`,
+`*.s.httpeers.net`, sets `invitePage` to `https://peershare.httpeers.net/invite`, and sets
+`spa: true` so `/invite` is served too. `SITE`,
 `SESSION_ZONE` and `RELAY_DOCUMENT_URL` override the defaults. `test/site.test.ts` checks
 the folder.
 

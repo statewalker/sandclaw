@@ -49,7 +49,7 @@ export function SharerApp({ config }: { config: PeerShareConfig }) {
       },
       mesh: browserMesh({
         relayAddrs: config.relayAddrs,
-        invitePage: `${location.origin}/peer-share/invite`,
+        invitePage: config.invitePage ?? `${location.origin}/invite`,
         dev: config.dev ?? false,
       }),
     }).contribute(runtime);

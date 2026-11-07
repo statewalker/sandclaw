@@ -5,7 +5,7 @@
  * and httpeers' `tools/publish` write to the `sites` bucket:
  *
  *   <outDir>/<SITE>/index.html, assets/…   the page
- *   <outDir>/<SITE>/peershare.json         httpeers' relay and session zone
+ *   <outDir>/<SITE>/peershare.json         httpeers' relay and session zone, the invite page
  *   <outDir>/<SITE>/proxy/peershare-proxy.sh   the proxy's launcher (`curl … | sh`)
  *   <outDir>/<SITE>/proxy/peershare-proxy.mjs  the proxy: one file, for Node, Bun and Deno
  *   <outDir>/<SITE>/.site/config.json      { "spa": true }: every route is the page
@@ -45,7 +45,15 @@ if (!Array.isArray(relayAddrs) || relayAddrs.length === 0) {
 
 writeFileSync(
   join(site, "peershare.json"),
-  `${JSON.stringify({ relayAddrs, sessionOrigin: `https://{name}.${SESSION_ZONE}` }, null, 2)}\n`,
+  `${JSON.stringify(
+    {
+      relayAddrs,
+      sessionOrigin: `https://{name}.${SESSION_ZONE}`,
+      invitePage: `https://${SITE}/invite`,
+    },
+    null,
+    2,
+  )}\n`,
 );
 mkdirSync(join(site, ".site"), { recursive: true });
 writeFileSync(
