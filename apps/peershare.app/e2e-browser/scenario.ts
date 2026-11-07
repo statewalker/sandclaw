@@ -43,7 +43,7 @@ export async function dirkSharesClaudiaViews(init: ScenarioInit): Promise<void> 
   await dirk.tab.goto(
     `${init.pageOrigin}/peer-share#localUrl=${encodeURIComponent(init.bridge.origin)}&t=${init.bridge.token}`,
   );
-  await dirk.tab.getByText("Bridge connected").waitFor({ timeout: 30_000 });
+  await dirk.tab.getByText("Proxy connected").waitFor({ timeout: 30_000 });
   await dirk.tab.getByRole("button", { name: /Turn off server/ }).waitFor({ timeout: 60_000 }); // sharing
 
   await dirk.tab.getByLabel("Your name").fill("Dirk");

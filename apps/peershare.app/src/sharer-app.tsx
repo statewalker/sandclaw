@@ -1,31 +1,52 @@
 /**
- * The Sharer's page: `/peer-share#localUrl=http://127.0.0.1:9090&t=<token>`.
- * The fragment pairs it with the Bridge (rung 02); sharing starts as soon as
- * the page is open, and stops with the tab (ADR 0001).
+ * The Sharer's page, the hub: `/` (and `/peer-share`). Sharing starts as soon
+ * as the page is open, and stops with the tab (ADR 0001). Services without
+ * CORS go through the local proxy, which is checked only when it is in use:
+ * after its settings are saved or come from a link, or on its first request.
  */
 
 import { createRuntime, peershare, StartSharing } from "@statewalker/peershare.share";
 import { browserMesh, idbSharerStore } from "@statewalker/peershare.share/browser";
-import { BridgeStatus, PeerShareProvider, SharerScreen } from "@statewalker/peershare.share-react";
-import { useEffect, useState } from "react";
+import {
+  BridgeStatus,
+  PeerShareProvider,
+  ProxySettings,
+  SharerScreen,
+} from "@statewalker/peershare.share-react";
+import { useEffect, useRef, useState } from "react";
 import { type BridgeDiagnosis, diagnoseBridge } from "./bridge-diagnosis.js";
 import type { PeerShareConfig } from "./config.js";
-
-/** The Bridge's pairing, from the link the Bridge printed or opened. */
-function pairingFromFragment(): { base: string; token: string } | undefined {
-  const fragment = new URLSearchParams(location.hash.slice(1));
-  const base = fragment.get("localUrl");
-  const token = fragment.get("t");
-  return base != null && token != null ? { base, token } : undefined;
-}
+import {
+  loadProxySettings,
+  proxySupported,
+  type ProxySettings as Settings,
+  saveProxySettings,
+} from "./proxy-settings.js";
 
 export function SharerApp({ config }: { config: PeerShareConfig }) {
-  const [pairing] = useState(pairingFromFragment);
+  const fromLink = location.hash.includes("localUrl=");
+  const [settings, setSettings] = useState(() => loadProxySettings(window));
+  const current = useRef(settings);
+  current.current = settings;
+  const [diagnosis, setDiagnosis] = useState<BridgeDiagnosis | "checking">();
+  const checked = useRef(false);
+
+  const check = async () => {
+    checked.current = true;
+    setDiagnosis("checking");
+    const { url, key } = current.current;
+    setDiagnosis(await diagnoseBridge({ localUrl: url, token: key }));
+  };
+
   const [rt] = useState(() => {
     const runtime = createRuntime();
     peershare({
       store: idbSharerStore(),
-      bridge: () => pairing,
+      // Read per request; the first request through the proxy checks it.
+      bridge: () => {
+        if (!checked.current) void check();
+        return { base: current.current.url, token: current.current.key };
+      },
       mesh: browserMesh({
         relayAddrs: config.relayAddrs,
         invitePage: `${location.origin}/peer-share/invite`,
@@ -34,28 +55,29 @@ export function SharerApp({ config }: { config: PeerShareConfig }) {
     }).contribute(runtime);
     return runtime;
   });
-  const [diagnosis, setDiagnosis] = useState<BridgeDiagnosis | "checking">();
-
-  const check = async () => {
-    if (pairing == null) return;
-    setDiagnosis("checking");
-    setDiagnosis(await diagnoseBridge({ localUrl: pairing.base, token: pairing.token }));
-  };
-
   useEffect(() => {
     void rt.commands.call(StartSharing, undefined).promise;
-    void check();
+    if (fromLink) void check();
   }, []);
+
+  const save = (next: Settings) => {
+    saveProxySettings(window, next);
+    current.current = next;
+    setSettings(next);
+    void check();
+  };
 
   return (
     <PeerShareProvider rt={rt}>
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
-        {pairing != null && (
-          <BridgeStatus
-            permission="prompt"
-            {...(diagnosis != null ? { diagnosis } : {})}
-            onCheck={check}
-          />
+        <ProxySettings
+          value={settings}
+          command={`curl -fsSL ${location.origin}/proxy/peershare-proxy.sh | sh`}
+          supported={proxySupported(navigator.userAgent)}
+          onSave={save}
+        />
+        {diagnosis != null && (
+          <BridgeStatus permission="prompt" diagnosis={diagnosis} onCheck={check} />
         )}
         <SharerScreen />
       </main>

@@ -4,9 +4,9 @@
 
 The standalone PeerShare page, with two routes:
 
-- `/peer-share#localUrl=…&t=…` is the Sharer. The fragment pairs the page with the
-  Bridge (the Bridge prints or opens this link). Sharing starts when the page opens and
-  stops with the tab (ADR 0001).
+- `/` (and `/peer-share`) is the Sharer, the hub. Sharing starts when the page opens and
+  stops with the tab (ADR 0001). Services that allow calls from the page (CORS) need nothing
+  installed; the others go through the local proxy (below).
 - `/peer-share/invite#join=…&from=Dirk` is a Guest. Join, then the Viewer: each Service
   in its own isolated session origin (ADR 0003), answered over the mesh.
 
@@ -48,7 +48,7 @@ lockfile. `e2e-browser/local.test.ts` runs the whole scenario against `local/ser
 **`--bun` needs Bun 1.4 or later.** `@libp2p/websockets` accepts each TCP socket itself and
 hands it to an `http.Server` with `server.emit("connection", socket)`. Bun's `node:http` ignored a
 socket handed over that way up to 1.3.x (checked with 1.1.45, 1.2.23 and 1.3.14), so the relay
-accepted no connections and the page stayed on "Bridge connected". Bun 1.4.0 to 1.4.4 answer it.
+accepted no connections and the page stayed on "Proxy connected". Bun 1.4.0 to 1.4.4 answer it.
 `peershare.sh --bun` and `serve.mjs` refuse an older Bun; `bun upgrade`, or run under Node.
 
 ### The proxy reaches services that send no CORS headers
@@ -79,6 +79,20 @@ the guard: a page from any other origin gets 403 with no CORS grant. With that i
 key protects only against local pages, so it is off by default. `--origin '*'` lets every
 site in, and the proxy prints a warning that says so. Targets are limited the same way as the
 Bridge's: this machine and the private network.
+
+**How the hub finds the proxy.** The hub's *Local proxy* card holds the proxy's address
+(default `http://127.0.0.1:9090`) and key, which are kept in this browser's `localStorage`
+(`peershare:proxy`, `src/proxy-settings.ts`). A link with `#localUrl=…&t=…`, as printed by the
+proxy and `local/serve.mjs`, fills them in. The fragment is then removed from the address bar,
+so the key doesn't stay on screen or in the history. The page checks the proxy only when it is
+in use: after a save, after such a link, or on the first request a Service sends through it.
+Opening the hub never probes the Sharer's machine. When a check fails, the page says why:
+"No proxy is running at that address", "The proxy refused the key", or "Your browser blocked
+access to your local network" (Chromium's Local Network Access). Chromium's refusal looks
+exactly like a closed port, so the page reads the permission state to tell them apart
+(`src/bridge-diagnosis.ts`). Safari blocks a secure page's calls to `http://127.0.0.1`, so
+there the card says the proxy needs Chrome or Firefox. Services that send CORS headers still
+work in Safari.
 
 **Why one file runs on three runtimes.** `scripts/build-proxy.mjs` inlines every dependency
 except `node:*`. The one exception is `ws`, which is picked at run time
