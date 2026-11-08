@@ -1,7 +1,7 @@
-import { cn } from "@statewalker/ui.view.shadcn";
+import { Button } from "@statewalker/ui.view.shadcn";
 import { ArrowUpRight, ShieldCheck } from "lucide-react";
-import { Popover } from "radix-ui";
 import { type ReactNode, useRef, useState } from "react";
+import { Badge, Popover, PopoverContent, PopoverTrigger } from "./primitives.js";
 
 /** PeerShare's help site: how to use it, how it works, why it is safe. */
 export const HELP_URL = "https://peershare.httpeers.net/help/";
@@ -18,10 +18,10 @@ export interface HelpTipProps {
 }
 
 /**
- * A light "?" pill next to an element that matters for safety. Hover (with a
- * mouse), focus, or a tap opens a short explanation of how that part is kept
- * safe, with a link to the help site. A popover rather than a tooltip, so it
- * works on touch screens and its link can be clicked.
+ * A light "?" pill (an outline Badge) next to an element that matters for safety. It opens a
+ * Popover with how that part is kept safe and a link to the help site: on hover with a mouse,
+ * on focus, and on a tap. A Popover rather than a Tooltip, so it works on touch screens and
+ * its link can be clicked.
  */
 export function HelpTip({ title, children, help, side = "bottom", className }: HelpTipProps) {
   const [open, setOpen] = useState(false);
@@ -40,50 +40,50 @@ export function HelpTip({ title, children, help, side = "bottom", className }: H
   };
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger asChild>
-        <button
-          type="button"
-          aria-label={`How this is kept safe: ${title}`}
-          onPointerEnter={mouse(show)}
-          onPointerLeave={mouse(hide)}
-          className={cn(
-            "border-border bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring/50 data-[state=open]:bg-muted data-[state=open]:text-foreground inline-flex h-[18px] min-w-[22px] shrink-0 items-center justify-center rounded-full border px-1.5 align-middle text-[11px] leading-none font-semibold transition-colors outline-none focus-visible:ring-[3px]",
-            className,
-          )}
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Badge
+          asChild
+          variant="outline"
+          className={
+            className ??
+            "bg-muted/60 text-muted-foreground hover:text-foreground data-[state=open]:text-foreground h-[18px] min-w-[22px] cursor-pointer rounded-full px-1.5 text-[11px] leading-none font-semibold"
+          }
         >
-          ?
-        </button>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content
-          side={side}
-          align="start"
-          sideOffset={6}
-          collisionPadding={12}
-          onPointerEnter={mouse(show)}
-          onPointerLeave={mouse(hide)}
-          // Opening must not move the focus away from what the person was doing.
-          onOpenAutoFocus={(e) => e.preventDefault()}
-          className="bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 z-50 grid w-72 gap-2 rounded-lg border p-3 text-sm shadow-md"
-        >
-          <p className="flex items-center gap-1.5 font-medium">
-            <ShieldCheck className="text-success size-4 shrink-0" /> {title}
-          </p>
-          <div className="text-muted-foreground grid gap-1.5 leading-relaxed">{children}</div>
-          {help != null && (
-            <a
-              href={`${HELP_URL}${help}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-foreground inline-flex w-fit items-center gap-1 text-xs font-medium underline-offset-2 hover:underline"
-            >
+          <button
+            type="button"
+            aria-label={`How this is kept safe: ${title}`}
+            onPointerEnter={mouse(show)}
+            onPointerLeave={mouse(hide)}
+          >
+            ?
+          </button>
+        </Badge>
+      </PopoverTrigger>
+      <PopoverContent
+        side={side}
+        align="start"
+        sideOffset={6}
+        collisionPadding={12}
+        className="grid gap-2 p-3 text-sm"
+        onPointerEnter={mouse(show)}
+        onPointerLeave={mouse(hide)}
+        // Opening must not move the focus away from what the person was doing.
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <p className="flex items-center gap-1.5 font-medium">
+          <ShieldCheck className="text-success size-4 shrink-0" /> {title}
+        </p>
+        <div className="text-muted-foreground grid gap-1.5 leading-relaxed">{children}</div>
+        {help != null && (
+          <Button asChild variant="link" size="sm" className="h-auto w-fit px-0 py-0 text-xs">
+            <a href={`${HELP_URL}${help}`} target="_blank" rel="noreferrer">
               Learn more<span className="sr-only"> about {title.toLowerCase()}</span>
               <ArrowUpRight className="size-3" />
             </a>
-          )}
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }

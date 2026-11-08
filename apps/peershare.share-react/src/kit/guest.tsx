@@ -11,6 +11,9 @@ import {
   Button,
   Card,
   cn,
+  Tabs,
+  TabsList,
+  TabsTrigger,
 } from "@statewalker/ui.view.shadcn";
 import {
   Ban,
@@ -295,23 +298,17 @@ export function GuestViewer({
             </HelpTip>
           )}
         </span>
-        {!revoked && services.length > 1 && (
-          <nav className="bg-muted ml-2 flex min-w-0 gap-1 overflow-x-auto rounded-lg p-1">
-            {services.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => onSelect?.(s.id)}
-                className={cn(
-                  "text-muted-foreground inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors",
-                  s.id === service?.id && "bg-background text-foreground shadow-sm",
-                )}
-              >
-                {s.paused && <PauseCircle className="size-3" />}
-                {s.name}
-              </button>
-            ))}
-          </nav>
+        {!revoked && services.length > 1 && service != null && (
+          <Tabs value={service.id} onValueChange={(id) => onSelect?.(id)} className="ml-2 min-w-0">
+            <TabsList className="h-8 max-w-full overflow-x-auto">
+              {services.map((s) => (
+                <TabsTrigger key={s.id} value={s.id} className="gap-1.5 text-xs">
+                  {s.paused && <PauseCircle className="size-3" />}
+                  {s.name}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         )}
         <span className="flex-1" />
         {!revoked && <CloseSessionButton sharerName={sharerName} onClose={onCloseSession} />}

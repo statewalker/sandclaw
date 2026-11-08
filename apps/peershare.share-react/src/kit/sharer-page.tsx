@@ -8,7 +8,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
-  cn,
   Input,
 } from "@statewalker/ui.view.shadcn";
 import { Power, UserPlus } from "lucide-react";
@@ -16,7 +15,7 @@ import { type ReactNode, useState } from "react";
 import type { Guest, Invite, Service, ServiceDraft, UpstreamKind } from "../views/model.js";
 import { HelpTip } from "./help-tip.js";
 import { GuestsCard, InviteDialog, KeepTabOpen } from "./people.js";
-import { Alert, AlertDescription, AlertTitle } from "./primitives.js";
+import { Alert, AlertDescription, AlertTitle, Badge } from "./primitives.js";
 import {
   ServiceCard,
   ServiceDialog,
@@ -94,17 +93,15 @@ export function SharerPage(props: SharerPageProps) {
           <span className="flex-1" />
           <HelpLink />
           <span className="inline-flex items-center gap-1.5">
-            <span
-              className={cn(
-                "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium",
-                sharing ? "border-success/30 bg-success/10" : "bg-muted",
-              )}
+            <Badge
+              variant={sharing ? "success" : "secondary"}
+              className="text-foreground gap-2 rounded-full px-3 py-1"
             >
               <PresenceDot value={sharing ? "online" : "offline"} />
               {sharing
                 ? `Sharing · ${count} ${count === 1 ? "guest" : "guests"}${presence ? " online" : ""}`
                 : "Not sharing"}
-            </span>
+            </Badge>
             <HelpTip title="Shared from this tab" help="security#tabs">
               <p>
                 Only the people you invite can see your services, over connections encrypted end to
