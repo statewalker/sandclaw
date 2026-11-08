@@ -33,7 +33,14 @@ import {
 import type { ReactNode } from "react";
 import { HelpTip } from "./help-tip.js";
 import { Alert, AlertDescription } from "./primitives.js";
-import { BrandMark, HelpLink, NameAvatar, type Presence, PresenceDot } from "./status.js";
+import {
+  BrandMark,
+  HelpLink,
+  NameAvatar,
+  type Presence,
+  PresenceDot,
+  ShareYourOwnLink,
+} from "./status.js";
 
 // ——— Before joining (scenarios G1, G2) ———————————————————————————————————
 
@@ -53,14 +60,19 @@ export interface GuestLandingProps {
   /** `Join`. */
   onJoin?: () => void;
   onDecline?: () => void;
+  /** PeerShare's sharing page, for a Guest to share their own services (`/` by default). */
+  shareHref?: string;
 }
 
-function Centered({ children }: { children: ReactNode }) {
+function Centered({ children, shareHref }: { children: ReactNode; shareHref?: string }) {
   return (
     <div className="bg-muted/30 flex min-h-full flex-col">
-      <header className="flex items-center justify-between px-6 py-4">
+      <header className="flex items-center justify-between gap-2 px-6 py-4">
         <BrandMark />
-        <HelpLink />
+        <span className="flex items-center gap-1">
+          <ShareYourOwnLink href={shareHref} />
+          <HelpLink />
+        </span>
       </header>
       <main className="grid flex-1 place-items-center px-4 pb-16">{children}</main>
     </div>
@@ -96,11 +108,17 @@ function Outcome({
   );
 }
 
-export function GuestLanding({ sharerName, stage, onJoin, onDecline }: GuestLandingProps) {
+export function GuestLanding({
+  sharerName,
+  stage,
+  onJoin,
+  onDecline,
+  shareHref,
+}: GuestLandingProps) {
   const name = sharerName || "Someone";
   if (stage === "invite-used")
     return (
-      <Centered>
+      <Centered shareHref={shareHref}>
         <Outcome icon={<Link2Off />} tone="warn" title="This invite was already used">
           <p>Each invite admits one person. Ask {name} for a new link.</p>
         </Outcome>
@@ -108,7 +126,7 @@ export function GuestLanding({ sharerName, stage, onJoin, onDecline }: GuestLand
     );
   if (stage === "invite-expired")
     return (
-      <Centered>
+      <Centered shareHref={shareHref}>
         <Outcome icon={<Clock />} tone="warn" title="This invite has expired">
           <p>Invites work for 24 hours. Ask {name} for a new link.</p>
         </Outcome>
@@ -116,7 +134,7 @@ export function GuestLanding({ sharerName, stage, onJoin, onDecline }: GuestLand
     );
   if (stage === "declined")
     return (
-      <Centered>
+      <Centered shareHref={shareHref}>
         <Outcome icon={<Ban />} title={`You declined ${name}'s invite`}>
           <p>Nothing was stored in this browser. You can close this tab.</p>
         </Outcome>
@@ -124,7 +142,7 @@ export function GuestLanding({ sharerName, stage, onJoin, onDecline }: GuestLand
     );
   if (stage === "closed")
     return (
-      <Centered>
+      <Centered shareHref={shareHref}>
         <Outcome icon={<LogOut />} title="Session closed">
           <p>
             This browser no longer has access to {name}'s services. To come back, ask {name} for a
@@ -137,7 +155,7 @@ export function GuestLanding({ sharerName, stage, onJoin, onDecline }: GuestLand
   const joining = stage === "joining";
   const offline = stage === "machine-offline";
   return (
-    <Centered>
+    <Centered shareHref={shareHref}>
       <Card className="grid w-full max-w-sm gap-5 p-6">
         <div className="grid justify-items-center gap-3 text-center">
           <NameAvatar name={name} className="size-14 text-base" />
@@ -217,6 +235,8 @@ export interface GuestViewerProps {
   onCloseSession?: () => void;
   /** The selected service itself: the isolated session's iframe in the app, a stand-in here. */
   renderService?: (service: ViewerTab) => ReactNode;
+  /** PeerShare's sharing page, for a Guest to share their own services (`/` by default). */
+  shareHref?: string;
 }
 
 function Notice({
@@ -248,6 +268,7 @@ export function GuestViewer({
   onSelect,
   onCloseSession,
   renderService = () => null,
+  shareHref,
 }: GuestViewerProps) {
   const service = services.find((s) => s.id === selected) ?? services[0];
   let body: ReactNode;
@@ -287,11 +308,11 @@ export function GuestViewer({
       className="bg-background flex h-full min-h-0 flex-col"
     >
       <header className="flex items-center gap-3 border-b px-3 py-2">
-        <BrandMark className="text-sm [&>span]:size-6" />
-        <span className="bg-border h-5 w-px" />
-        <span className="flex min-w-0 items-center gap-2 text-sm">
+        <BrandMark compact className="text-sm [&>span:first-child]:size-6" />
+        <span className="bg-border h-5 w-px max-sm:hidden" />
+        <span className="flex shrink-0 items-center gap-2 text-sm">
           <PresenceDot value={revoked ? "offline" : presence} />
-          <span className="truncate font-medium">{sharerName}</span>
+          <span className="max-w-32 truncate font-medium sm:max-w-48">{sharerName}</span>
           {!revoked && (
             <HelpTip title="A private, isolated page" help="security#isolation">
               <p>
@@ -316,6 +337,7 @@ export function GuestViewer({
           </TabsList>
         )}
         <span className="flex-1" />
+        <ShareYourOwnLink href={shareHref} />
         {!revoked && <CloseSessionButton sharerName={sharerName} onClose={onCloseSession} />}
       </header>
       {presence === "offline" && !revoked && (
@@ -345,7 +367,8 @@ function CloseSessionButton({ sharerName, onClose }: { sharerName: string; onClo
     <AlertDialog>
       <AlertDialogTrigger asChild>
         <Button size="sm" variant="ghost">
-          <LogOut /> Close session
+          <LogOut />
+          <span className="max-sm:sr-only">Close session</span>
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>

@@ -17,6 +17,7 @@ import { HelpTip } from "./help-tip.js";
 import { GuestsCard, InviteDialog, KeepTabOpen } from "./people.js";
 import { Alert, AlertDescription, AlertTitle, Badge } from "./primitives.js";
 import {
+  EXAMPLE_SERVICE,
   ServiceCard,
   ServiceDialog,
   ServiceForm,
@@ -142,6 +143,7 @@ export function SharerPage(props: SharerPageProps) {
               <ServiceForm
                 services={services}
                 initial={{ name: "", target: "", isDefault: true }}
+                example={EXAMPLE_SERVICE}
                 onSubmit={(draft, kind) => props.onAdd?.(draft, kind)}
               />
             </ServicesEmpty>
