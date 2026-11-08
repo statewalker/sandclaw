@@ -10,7 +10,8 @@ import { u } from "../lib/url.ts";
   <h1>Why it is safe</h1>
   <p class="lede">
     Your services travel between two browser tabs, encrypted end to end, to people whose
-    identity is a key only they hold. No server in the middle can read, change or keep them.
+    identity is a key only they hold. The relay in the middle can neither read nor change them,
+    and no server keeps them.
   </p>
 
   <h2>1. Sharing happens between browser tabs</h2>
@@ -94,9 +95,9 @@ import { u } from "../lib/url.ts";
     </li>
   </ul>
 
-  <h2>5. Invites are single-use, short-lived, and never sent to a server</h2>
+  <h2>5. Invites are single-use, short-lived, and kept out of server logs</h2>
   <ul>
-    <li>An invite works <strong>once</strong>; the second person to open it is refused.</li>
+    <li>An invite works <strong>once</strong>; the second person to join with it is refused.</li>
     <li>It expires after <strong>24 hours</strong>.</li>
     <li>
       Everything in it sits in the link's fragment (after <code>#</code>), which browsers do not
@@ -123,8 +124,9 @@ import { u } from "../lib/url.ts";
     </li>
   </ul>
   <p>
-    This was measured in Chromium and Firefox. Two sessions, and the page that opened them, could
-    not see each other's storage, cookies or IndexedDB, nor read the parent page.
+    httpeers measured this for its session origins in Chromium and Firefox: two sessions, and the
+    page that opened them, could not see each other's storage, cookies or IndexedDB, nor read the
+    parent page.
   </p>
 
   <h2>7. The local proxy only works for you, and only nearby</h2>
@@ -138,7 +140,7 @@ import { u } from "../lib/url.ts";
     </li>
     <li>
       it reaches only this computer and your local network: <code>localhost</code>, private
-      addresses, Tailscale, <code>.local</code> names;
+      addresses, Tailscale addresses (<code>100.x</code>), <code>.local</code> names;
     </li>
     <li>a public address is refused, so it is never a gateway to the internet for your guests;</li>
     <li>your browser itself asks you before the page may reach it (local network access).</li>
@@ -155,9 +157,15 @@ import { u } from "../lib/url.ts";
       person, and revoke anyone you don't recognise.
     </p>
     <p>
-      <strong>The PeerShare page is trusted code.</strong> It is served from
-      <code>peershare.httpeers.net</code> and runs with your key. Use the published address, or
-      host it yourself.
+      <strong>The PeerShare page and the session shell are trusted code.</strong> They are served
+      from <code>peershare.httpeers.net</code> and <code>*.s.httpeers.net</code>; the page runs
+      with your key, and both handle your services unencrypted inside the browser. Use the
+      published addresses, or host them yourself.
+    </p>
+    <p>
+      <strong>A remote https service you share directly learns each guest's peer ID</strong>:
+      PeerShare tells it which guest is asking (that is how a service on your computer gets a
+      cookie jar per guest). It never sees their token.
     </p>
     <p>
       <strong>The relay can see that two peer IDs talk</strong>, when and how much, though not

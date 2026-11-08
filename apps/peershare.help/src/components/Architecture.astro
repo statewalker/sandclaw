@@ -7,8 +7,8 @@
     <title id="arch-title">PeerShare's architecture</title>
     <desc id="arch-desc">
       The Guest's browser holds the service page in an isolated origin and the PeerShare page.
-      Both browsers connect through the relay, or directly over WebRTC, with Noise encryption end
-      to end. The Sharer's PeerShare tab is the hub; it reaches local services through the local
+      Both browsers connect through the relay, encrypted end to end with Noise, or directly over
+      WebRTC, encrypted with DTLS whose keys were exchanged over the Noise channel. The Sharer's PeerShare tab is the hub; it reaches local services through the local
       proxy and remote https services directly.
     </desc>
     <defs>
@@ -55,9 +55,9 @@
 
     <!-- The encrypted channel -->
     <path class="enc" d="M232 262 H548"></path>
-    <rect class="lock" x="318" y="244" width="144" height="36" rx="8"></rect>
-    <text class="t" x="332" y="262">Noise, end to end</text>
-    <text class="s" x="332" y="276">WebRTC or via relay</text>
+    <rect class="lock" x="304" y="244" width="172" height="36" rx="8"></rect>
+    <text class="t" x="318" y="262">Encrypted end to end</text>
+    <text class="s" x="318" y="276">Noise · DTLS if direct</text>
 
     <!-- Sharer's browser -->
     <rect class="zone" x="532" y="28" width="236" height="300" rx="14"></rect>
@@ -65,7 +65,7 @@
     <rect class="box" x="550" y="214" width="200" height="94" rx="10"></rect>
     <text class="t" x="564" y="238">PeerShare tab = hub</text>
     <text class="s" x="564" y="258">Sharer's key, members,</text>
-    <text class="s" x="564" y="273">revocations, the services</text>
+    <text class="s" x="564" y="273">the services</text>
     <text class="s" x="564" y="293">checks every request</text>
     <rect class="box" x="550" y="66" width="96" height="86" rx="10"></rect>
     <text class="t" x="560" y="90">Local proxy</text>

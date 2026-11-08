@@ -46,8 +46,13 @@ describe("the help site", () => {
     }
   });
 
-  it("runs no script: it shares an origin with the PeerShare page, which holds the Sharer's key", () => {
-    for (const page of PAGES) expect(read(page), page).not.toContain("<script");
+  it("runs no script: it shares an origin with the PeerShare page, which holds the keys", () => {
+    for (const page of PAGES) {
+      const html = read(page);
+      expect(html, page).not.toContain("<script");
+      // And the browser is told so, whatever a page might contain one day.
+      expect(html, page).toMatch(/http-equiv="Content-Security-Policy"[^>]*script-src 'none'/);
+    }
   });
 
   it("explains why sharing is safe: Noise, peer IDs as keys, tab to tab, isolated origins", () => {

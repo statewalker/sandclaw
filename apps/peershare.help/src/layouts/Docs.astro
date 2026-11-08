@@ -25,6 +25,13 @@ const next = index >= 0 && index < pages.length - 1 ? pages[index + 1] : undefin
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Same origin as the PeerShare page, where the Sharer's and Guests' keys live: no script
+         may ever run here, whatever a page contains. Styles may be inline (Astro inlines the CSS,
+         the diagram carries its own): without script they cannot reach anything. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
     <title>{title} · PeerShare help</title>
     <meta name="description" content={description} />
     <link rel="icon" href={u("/favicon.svg")} />

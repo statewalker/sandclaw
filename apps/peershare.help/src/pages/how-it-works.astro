@@ -29,7 +29,7 @@ import { u } from "../lib/url.ts";
     <li>your services: names, addresses, and whether they are on.</li>
   </ul>
   <p>
-    None of this leaves your browser. Reloading the page brings the same mesh back, and guests
+    None of this is stored anywhere but your browser. Reloading the page brings the same mesh back, and guests
     reconnect by themselves. Closing the tab stops it: sharing lives exactly as long as your tab.
   </p>
 
@@ -55,7 +55,8 @@ import { u } from "../lib/url.ts";
     <li>
       <strong>Invite</strong> asks your hub for a fresh invitation: a single-use secret that
       expires in 24 hours. The link carries it, with your peer ID and the relay's address, in the
-      <em>fragment</em> (after <code>#</code>), which browsers never send to any server.
+      <em>fragment</em> (after <code>#</code>), which the browser does not send to PeerShare's
+      servers. Anyone who can read the message you send it in could use it first.
     </li>
     <li>
       The guest's browser creates its own key pair, connects to your peer ID, and presents the

@@ -33,7 +33,10 @@ import { u } from "../lib/url.ts";
       <tr>
         <td><code>https://docs.example.org</code></td>
         <td>Directly, by the PeerShare page</td>
-        <td>The site allows calls from <code>https://peershare.httpeers.net</code> (CORS)</td>
+        <td>
+          The site allows calls from <code>https://peershare.httpeers.net</code>, with the
+          <code>x-peershare-guest</code> header (CORS)
+        </td>
       </tr>
     </tbody>
   </table>
