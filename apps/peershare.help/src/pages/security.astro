@@ -1,5 +1,6 @@
 ---
 import Docs from "../layouts/Docs.astro";
+import { u } from "../lib/url.ts";
 ---
 
 <Docs
@@ -127,7 +128,7 @@ import Docs from "../layouts/Docs.astro";
   </p>
 
   <h2>7. The local proxy only works for you, and only nearby</h2>
-  <p>The <a href="/local-proxy">local proxy</a> is the one piece on your computer:</p>
+  <p>The <a href={u("/local-proxy")}>local proxy</a> is the one piece on your computer:</p>
   <ul>
     <li>it listens on <code>127.0.0.1</code> only, never on your network;</li>
     <li>

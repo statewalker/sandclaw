@@ -113,9 +113,23 @@ real `sh`, with stub runtimes on `PATH`.
 
 ### An example site to share
 
-PeerShare's help site (`apps/peershare.help`, published at https://peershare-demo.httpeers.net)
-is also the example service: share it with **Address** `https://peershare-demo.httpeers.net`.
-It is shared directly, without the proxy; see that package's README for why it may be.
+`example-site/` is a small static site to try PeerShare with: a status board, a releases table
+(both read from JSON by a script), an about page and a 404. It is published at
+https://peershare-demo.httpeers.net by `.github/workflows/peershare-demo-site.yml`.
+
+Share it with **Address** `https://peershare-demo.httpeers.net`. It is a remote https site with
+a domain name, so it is shared directly, without the proxy. Directly means the PeerShare page
+reads it with `fetch`, so the site has to allow that. Its `.site/config.json` lists
+`https://peershare.httpeers.net` (and `http://localhost:8080` for `local/serve.mjs`) under
+`cors`. httpeers' sites host then sends `Access-Control-Allow-Origin` and answers the preflight
+that PeerShare's own `x-peershare-guest` header causes. Its links and data paths are relative,
+so in a Guest's isolated origin every page, image and JSON file comes over the mesh.
+
+### The help site
+
+`apps/peershare.help` (Astro) is published under https://peershare.httpeers.net/help/: what
+PeerShare is, getting started, how it works, why it is safe, the local proxy, troubleshooting.
+The site workflow builds it and copies it into the site's `help/` folder.
 
 ### Develop
 

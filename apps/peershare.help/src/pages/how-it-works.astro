@@ -1,6 +1,7 @@
 ---
 import Architecture from "../components/Architecture.astro";
 import Docs from "../layouts/Docs.astro";
+import { u } from "../lib/url.ts";
 ---
 
 <Docs
@@ -46,7 +47,7 @@ import Docs from "../layouts/Docs.astro";
     the two browsers, so it is encrypted end to end and the relay forwards bytes it cannot read.
     A direct WebRTC connection is encrypted by WebRTC itself (DTLS); its key fingerprints are
     exchanged over that Noise-secured channel, so it is bound to the same two identities. See
-    <a href="/security">Why it is safe</a>.
+    <a href={u("/security")}>Why it is safe</a>.
   </p>
 
   <h2>Joining with an invite</h2>

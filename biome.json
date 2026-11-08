@@ -45,7 +45,7 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/*.css", "!**/peershare.app/src/vendor/session-shell/**"]
+    "includes": ["**", "!**/*.css", "!**/peershare.app/src/vendor/session-shell"]
   },
   "overrides": [
     {

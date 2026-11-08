@@ -1,5 +1,6 @@
 ---
 import Docs from "../layouts/Docs.astro";
+import { u } from "../lib/url.ts";
 ---
 
 <Docs title="Troubleshooting" description="What PeerShare's messages mean, and what to do.">
@@ -13,7 +14,7 @@ import Docs from "../layouts/Docs.astro";
       <tr>
         <td>No proxy is running at that address</td>
         <td>Nothing answers at the proxy's address</td>
-        <td>Start the proxy (<a href="/local-proxy">how</a>) and check again</td>
+        <td>Start the proxy (<a href={u("/local-proxy")}>how</a>) and check again</td>
       </tr>
       <tr>
         <td>The proxy refused the key</td>

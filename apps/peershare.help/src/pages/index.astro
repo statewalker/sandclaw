@@ -1,5 +1,6 @@
 ---
 import Docs from "../layouts/Docs.astro";
+import { u } from "../lib/url.ts";
 ---
 
 <Docs
@@ -21,19 +22,19 @@ import Docs from "../layouts/Docs.astro";
   </p>
 
   <div class="cards">
-    <a href="/getting-started">
+    <a href={u("/getting-started")}>
       <strong>Getting started</strong>
       <span>Share a service, invite a guest, and what the guest sees.</span>
     </a>
-    <a href="/how-it-works">
+    <a href={u("/how-it-works")}>
       <strong>How it works</strong>
       <span>Your tab is the hub; guests connect to it over a peer-to-peer mesh.</span>
     </a>
-    <a href="/security">
+    <a href={u("/security")}>
       <strong>Why it is safe</strong>
       <span>Noise encryption, peer IDs that are public keys, nothing stored on a server.</span>
     </a>
-    <a href="/local-proxy">
+    <a href={u("/local-proxy")}>
       <strong>The local proxy</strong>
       <span>For services on your computer that do not allow calls from PeerShare.</span>
     </a>
@@ -65,9 +66,9 @@ import Docs from "../layouts/Docs.astro";
 
   <div class="callout">
     <p>
-      <strong>This site is an example service.</strong> It is static files at
-      <code>https://peershare-demo.httpeers.net</code>, set up so PeerShare may read it. Add that
-      address as a service to try PeerShare without running anything on your computer.
+      <strong>Try it with nothing installed:</strong> share the example site
+      <code>https://peershare-demo.httpeers.net</code>. It is a small static site set up so
+      PeerShare may read it, so it works without the local proxy.
     </p>
   </div>
 </Docs>

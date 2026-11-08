@@ -1,13 +1,14 @@
 import { defineConfig } from "astro/config";
 
 /**
- * A static site. Pages are written as `security.html`, not `security/index.html`: httpeers'
- * sites host serves `/security` from `security.html`, so links stay without a trailing slash.
- * Every link is root-relative: the site is served at the root of its own origin, and so is
- * each Guest's isolated copy of it.
+ * A static site under `/help` of the PeerShare site (the site workflow copies dist/ into its
+ * `help/` folder). Pages are written as `security.html`, not `security/index.html`: httpeers'
+ * sites host serves `/help/security` from `help/security.html`. Links carry the base through
+ * `u()` (src/lib/url.ts).
  */
 export default defineConfig({
-  site: "https://peershare-demo.httpeers.net",
+  site: "https://peershare.httpeers.net",
+  base: "/help",
   build: { format: "file" },
   trailingSlash: "never",
   // Compression joins a word to a link that starts the next source line ("onlibp2p"): the

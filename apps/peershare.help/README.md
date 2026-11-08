@@ -3,8 +3,9 @@
 ## What it is
 
 PeerShare's help site, built with [Astro](https://astro.build) and published at
-https://peershare-demo.httpeers.net. It covers what PeerShare is, how to use it, how it works,
-why it is safe, the local proxy, and troubleshooting. The security page explains:
+https://peershare.httpeers.net/help/, next to the page it explains. It covers what PeerShare is,
+how to use it, how it works, why it is safe, the local proxy, and troubleshooting. The security
+page explains:
 - sharing happens between browser tabs, and no server stores anything;
 - connections are encrypted end to end with Noise (WebRTC's DTLS on direct links, with the keys
   bound through that Noise channel);
@@ -15,36 +16,35 @@ why it is safe, the local proxy, and troubleshooting. The security page explains
 - the local proxy listens on loopback only and reaches only nearby addresses;
 - and what none of this protects against.
 
-It is also **the example service to share**. Share `https://peershare-demo.httpeers.net`: a
-remote https site with a domain name, so PeerShare reaches it directly, from the page. For that,
-`public/.site/config.json` lists `https://peershare.httpeers.net` (and `http://localhost:8080`
-for `local/serve.mjs`) under `cors`. httpeers' sites host then sends
-`Access-Control-Allow-Origin` and answers the preflight that PeerShare's `x-peershare-guest`
-header causes (statewalker/httpeers#65).
-
 ## How to use
 
 ```sh
-pnpm --filter @statewalker/peershare.help dev     # http://localhost:4321
-pnpm --filter @statewalker/peershare.help build   # dist/
+pnpm --filter @statewalker/peershare.help dev     # http://localhost:4321/help/
+pnpm --filter @statewalker/peershare.help build   # dist/, for the site's help/ folder
 pnpm --filter @statewalker/peershare.help test    # builds, then checks dist/
 ```
 
-Astro 7.4 needs Node 22.23.4 or later (CI runs Node 24).
-`.github/workflows/peershare-demo-site.yml` publishes `dist/` when this package changes. The
-publishing credentials must be allowed the `peershare-demo.httpeers.net` prefix (see that
-workflow's comment).
+Astro 7.4 needs Node 22.23.4 or later (CI runs Node 24). The PeerShare site workflow
+(`.github/workflows/peershare-site.yml`) builds this package and copies `dist/` into the site's
+`help/` folder.
 
 ## Internals
 
-- `build.format: "file"` writes `security.html`, which the sites host serves at `/security`.
-  Links have no trailing slash and are root-relative: the site sits at the root of its origin,
-  and so does each Guest's isolated copy of it.
-- `compressHTML: false`: compression joined a word to a link that started the next source line
-  ("onlibp2p").
+- **It runs no script.** It shares an origin with the PeerShare page, which holds the Sharer's
+  key, so it is plain HTML and CSS, and a test checks that no page contains a `<script>`.
+- **`base: "/help"`.** Every internal link goes through `u()` (`src/lib/url.ts`), and "Open
+  PeerShare" goes to `/`.
+- **`build.format: "file"`** writes `security.html`, which the sites host serves at
+  `/help/security`.
+- **`compressHTML: false`.** Compression joined a word to a link that started the next source
+  line ("onlibp2p").
+- **The test builds with Vitest's environment removed.** Vitest sets `BASE_URL`, `MODE` and
+  similar variables, and inherited by `astro build` they replace the config's base.
 - The pages are `.astro` files with plain HTML prose; `src/pages/_nav.ts` orders them (the `_`
   keeps it out of the routes). The architecture diagram is inline SVG
   (`src/components/Architecture.astro`).
+- To try PeerShare with nothing installed, share the separate example site
+  (`apps/peershare.app/example-site`, at https://peershare-demo.httpeers.net).
 
 ## License
 

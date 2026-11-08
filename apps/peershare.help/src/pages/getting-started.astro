@@ -1,5 +1,6 @@
 ---
 import Docs from "../layouts/Docs.astro";
+import { u } from "../lib/url.ts";
 ---
 
 <Docs
@@ -26,7 +27,7 @@ import Docs from "../layouts/Docs.astro";
     <tbody>
       <tr>
         <td><code>http://localhost:5173</code>, <code>http://192.168.1.20:3000</code>, <code>http://nas.local</code></td>
-        <td>Through the <a href="/local-proxy">local proxy</a></td>
+        <td>Through the <a href={u("/local-proxy")}>local proxy</a></td>
         <td>The proxy running on your computer</td>
       </tr>
       <tr>
@@ -45,7 +46,7 @@ import Docs from "../layouts/Docs.astro";
   </p>
   <div class="callout">
     <p>
-      To try it with nothing installed, share this help site:
+      To try it with nothing installed, share the example site
       <code>https://peershare-demo.httpeers.net</code>.
     </p>
   </div>
