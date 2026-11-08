@@ -360,7 +360,8 @@ export const scenarios: Scenario[] = [
       {
         id: "g1-joining",
         title: "Joining",
-        caption: "Dirk's tab answers the Join; the button says who we wait for.",
+        caption:
+          "Dirk's tab answers the Join; the button says who we wait for, and the line below what the join is doing (here: trying a direct connection).",
         device: "phone",
         render: () => <GuestDemo />,
         play: () => click("Join Dirk"),

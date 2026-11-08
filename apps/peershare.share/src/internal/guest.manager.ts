@@ -7,7 +7,7 @@
 import { generateKeyPair } from "@libp2p/crypto/keys";
 import type { Ed25519PrivateKey } from "@libp2p/interface";
 import { createMounts } from "@statewalker/httpeers-core";
-import { type MemberHandle, startMember } from "@statewalker/httpeers-member";
+import { type MemberHandle, type MemberState, startMember } from "@statewalker/httpeers-member";
 import {
   type CatalogEntry,
   decodeInvite,
@@ -16,9 +16,22 @@ import {
   openTunnel,
   type TunnelSocket,
 } from "@statewalker/httpeers-share";
-import type { GuestState } from "../public/commands.js";
+import type { GuestConnecting, GuestState } from "../public/commands.js";
 import type { GuestIdentity, MeshInit } from "../public/mesh.js";
 import { PEERSHARE_RULES } from "./rules.js";
+
+/** startMember's steps, as the Guest's page names them. */
+const STEP: Record<MemberState, GuestConnecting | undefined> = {
+  "connecting-relay": "relay",
+  "starting-peer": "relay",
+  "dialing-hub": "direct",
+  resuming: "joining",
+  joining: "joining",
+  "awaiting-reservation": "joining",
+  "mounting-edge": "joining",
+  ready: undefined,
+  stopped: undefined,
+};
 
 export class GuestManager {
   private member: MemberHandle | undefined;
@@ -114,6 +127,7 @@ export class GuestManager {
       this.member = await this.start(identity.privateKey, identity, invitationId);
     } catch (error) {
       const stage = joinOutcome(error);
+      this.connecting(undefined);
       // A refused Invite leaves the Guest where it was; an offline Sharer
       // keeps the identity, so the Guest can come back (rung 10).
       return { stage, sharerName: identity.sharerName, sharerPeerId: identity.sharerPeerId };
@@ -135,8 +149,17 @@ export class GuestManager {
       config: { relayAddrs: identity.relayAddrs, hubPeerId: identity.sharerPeerId },
       platform: this.mesh.platform.member,
       privateKey,
+      // What the page shows while it waits: a direct connection that cannot come up
+      // costs seconds before the relay takes over.
+      onState: (step) => this.connecting(STEP[step]),
       ...(invitationId != null ? { invitationId } : {}),
     });
+  }
+
+  private connecting(step: GuestConnecting | undefined): void {
+    if (this.current.connecting === step) return;
+    const { connecting: _, ...rest } = this.current;
+    this.current = step == null ? rest : { ...rest, connecting: step };
   }
 
   private async fetch(path: string, init?: RequestInit): Promise<Response> {

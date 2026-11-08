@@ -93,3 +93,11 @@ describe("a guest can share their own services", () => {
     expect(shareLink().getAttribute("target")).toBe("_blank");
   });
 });
+
+describe("a join says what it is doing", () => {
+  it("while joining, the step replaces Decline", () => {
+    render(<GuestLanding sharerName="Dirk" stage="joining" connecting="direct" />);
+    expect(screen.getByRole("status").textContent).toMatch(/Trying a direct connection/);
+    expect(screen.queryByRole("button", { name: "Decline" })).toBeNull();
+  });
+});

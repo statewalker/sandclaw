@@ -187,7 +187,7 @@ export function GuestScreen({ link, sharerName, frameFor }: GuestScreenProps) {
       ? "closed"
       : declined
         ? "declined"
-        : joining
+        : joining || guest.connecting != null
           ? "joining"
           : guest.stage !== "no-link"
             ? (guest.stage as GuestStage) // not joined here: see `joined` above
@@ -196,6 +196,7 @@ export function GuestScreen({ link, sharerName, frameFor }: GuestScreenProps) {
       <GuestLanding
         sharerName={name}
         stage={stage}
+        connecting={guest.connecting}
         onJoin={async () => {
           setJoining(true);
           const answer = await call(Join, { link });

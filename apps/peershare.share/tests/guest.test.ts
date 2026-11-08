@@ -111,6 +111,27 @@ describe("M3 — Invite and join", () => {
     expect(await res.json()).toEqual({ app: "dirk", path: "/hello?x=1" });
   });
 
+  it("while it joins, the Guest's state says where it is: relay, direct, joining; none once in", async () => {
+    const { url } = await dirk.call(Invite, undefined);
+    const claudia = guest();
+    let model: PeerShareModel | undefined;
+    claudia.rt.slots.observe(peershareModelSlot, (v) => {
+      model = v[0];
+    })();
+    const steps: string[] = [];
+    const unsubscribe = model?.subscribe(() => {
+      const step = model?.getSnapshot().guest.connecting;
+      if (step != null && steps.at(-1) !== step) steps.push(step);
+    });
+
+    const joined = await claudia.call(Join, { link: url });
+    unsubscribe?.();
+
+    expect(steps).toEqual(["relay", "direct", "joining"]);
+    expect(joined.connecting).toBeUndefined();
+    expect(model?.getSnapshot().guest.connecting).toBeUndefined();
+  });
+
   it("the same link a second time: invite-used", async () => {
     const { url } = await dirk.call(Invite, undefined);
     await guest().call(Join, { link: url });

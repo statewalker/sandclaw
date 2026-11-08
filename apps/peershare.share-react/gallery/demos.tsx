@@ -232,6 +232,7 @@ export function GuestDemo(props: GuestDemoProps) {
       <GuestLanding
         sharerName="Dirk"
         stage={stage}
+        connecting={stage === "joining" ? "direct" : undefined}
         onJoin={() => {
           setStage("joining");
           setTimeout(() => setStage(props.answer ?? "joined"), 1200);

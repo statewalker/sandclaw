@@ -62,7 +62,16 @@ export interface GuestLandingProps {
   onDecline?: () => void;
   /** PeerShare's sharing page, for a Guest to share their own services (`/` by default). */
   shareHref?: string;
+  /** While `joining`: what the join is doing now (`GuestState.connecting`). */
+  connecting?: "relay" | "direct" | "joining";
 }
+
+/** What a join is doing, in words: a direct connection can take seconds before the relay steps in. */
+const connectingText = {
+  relay: "Reaching the relay…",
+  direct: "Trying a direct connection… This can take a few seconds on some networks.",
+  joining: "Connected. Joining…",
+} as const;
 
 function Centered({ children, shareHref }: { children: ReactNode; shareHref?: string }) {
   return (
@@ -114,6 +123,7 @@ export function GuestLanding({
   onJoin,
   onDecline,
   shareHref,
+  connecting,
 }: GuestLandingProps) {
   const name = sharerName || "Someone";
   if (stage === "invite-used")
@@ -206,9 +216,18 @@ export function GuestLanding({
               `Join ${name}`
             )}
           </Button>
-          <Button variant="ghost" disabled={joining} onClick={onDecline}>
-            Decline
-          </Button>
+          {joining && connecting != null ? (
+            <p
+              className="text-muted-foreground min-h-9 text-center text-xs leading-relaxed"
+              role="status"
+            >
+              {connectingText[connecting]}
+            </p>
+          ) : (
+            <Button variant="ghost" disabled={joining} onClick={onDecline}>
+              Decline
+            </Button>
+          )}
         </div>
       </Card>
     </Centered>

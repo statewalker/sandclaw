@@ -48,10 +48,18 @@ export type GuestStage =
   | "invite-expired"
   | "machine-offline";
 
+/**
+ * Where a Join or a Resume is while it runs: reaching the relay, trying a direct (WebRTC)
+ * connection to the Sharer's browser, then joining. Absent when nothing is under way.
+ */
+export type GuestConnecting = "relay" | "direct" | "joining";
+
 export interface GuestState {
   stage: GuestStage;
   sharerName?: string;
   sharerPeerId?: string;
+  /** Set while a Join or a Resume runs: what it is doing now. */
+  connecting?: GuestConnecting;
 }
 
 export const Join = required<{ link: string }, GuestState>("peershare:join");
