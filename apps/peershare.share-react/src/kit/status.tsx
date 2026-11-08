@@ -3,6 +3,7 @@
 import { cn } from "@statewalker/ui.view.shadcn";
 import { CircleHelp, CircleOff, Globe, Laptop, Loader2, Share2 } from "lucide-react";
 import type { Health, UpstreamKind } from "../views/model.js";
+import { HELP_URL } from "./help-tip.js";
 import { Badge } from "./primitives.js";
 
 const health: Record<
@@ -107,9 +108,6 @@ export function BrandMark({ className }: { className?: string }) {
     </span>
   );
 }
-
-/** PeerShare's help site: how to use it, how it works, why it is safe. */
-export const HELP_URL = "https://peershare.httpeers.net/help/";
 
 export function HelpLink({ className }: { className?: string }) {
   return (

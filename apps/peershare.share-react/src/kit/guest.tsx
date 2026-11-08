@@ -27,6 +27,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { HelpTip } from "./help-tip.js";
 import { Alert, AlertDescription } from "./primitives.js";
 import { BrandMark, HelpLink, NameAvatar, type Presence, PresenceDot } from "./status.js";
 
@@ -157,6 +158,13 @@ export function GuestLanding({ sharerName, stage, onJoin, onDecline }: GuestLand
           </li>
           <li className="flex items-center gap-2.5">
             <Lock className="size-4 shrink-0" /> End-to-end encrypted, even on public Wi-Fi.
+            <HelpTip title="Encrypted end to end" help="security#encryption">
+              <p>
+                Your browser connects to {name}'s browser tab, and the connection proves it is
+                theirs: the link names {name}'s key.
+              </p>
+              <p>The relay that helps you connect only forwards bytes it cannot read.</p>
+            </HelpTip>
           </li>
           <li className="flex items-center gap-2.5">
             <Globe className="size-4 shrink-0" /> Each service opens in its own isolated page.
@@ -274,6 +282,18 @@ export function GuestViewer({
         <span className="flex min-w-0 items-center gap-2 text-sm">
           <PresenceDot value={revoked ? "offline" : presence} />
           <span className="truncate font-medium">{sharerName}</span>
+          {!revoked && (
+            <HelpTip title="A private, isolated page" help="security#isolation">
+              <p>
+                {service?.name ?? "This service"} comes from {sharerName}'s computer, encrypted end
+                to end, and only invited people can open it.
+              </p>
+              <p>
+                It runs in its own isolated page, so it cannot read your PeerShare data or your
+                other tabs.
+              </p>
+            </HelpTip>
+          )}
         </span>
         {!revoked && services.length > 1 && (
           <nav className="bg-muted ml-2 flex min-w-0 gap-1 overflow-x-auto rounded-lg p-1">
