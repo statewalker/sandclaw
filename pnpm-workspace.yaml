@@ -99,6 +99,7 @@ catalog:
   "@uwdata/flechette": ^2.5.0
   "@vitejs/plugin-react": ^6.1.1
   ai: ^7.0.127
+  astro: ~7.4.5
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
   "dockview-core": ^8.4.0

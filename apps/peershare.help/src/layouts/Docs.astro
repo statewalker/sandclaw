@@ -1,0 +1,54 @@
+---
+import "../styles/global.css";
+import { pages } from "../pages/_nav.ts";
+
+interface Props {
+  title: string;
+  description: string;
+}
+const { title, description } = Astro.props;
+const path = Astro.url.pathname.replace(/\.html$/, "").replace(/\/index$/, "/") || "/";
+const index = pages.findIndex((p) => p.href === path);
+const prev = index > 0 ? pages[index - 1] : undefined;
+const next = index >= 0 && index < pages.length - 1 ? pages[index + 1] : undefined;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} · PeerShare help</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.svg" />
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="/">
+        <img src="/favicon.svg" alt="" width="28" height="28" />
+        PeerShare <span>help</span>
+      </a>
+      <a class="cta" href="https://peershare.httpeers.net">Open PeerShare →</a>
+    </header>
+    <div class="shell">
+      <nav class="side" aria-label="Help pages">
+        {
+          pages.map((p) => (
+            <a href={p.href} aria-current={p.href === path ? "page" : undefined}>
+              {p.title}
+            </a>
+          ))
+        }
+      </nav>
+      <main>
+        <article class="prose">
+          <slot />
+        </article>
+        <footer class="pager">
+          {prev ? <a href={prev.href}>← {prev.title}</a> : <span />}
+          {next ? <a href={next.href}>{next.title} →</a> : <span />}
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>
