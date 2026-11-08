@@ -104,8 +104,9 @@ export function SharerPage(props: SharerPageProps) {
             </Badge>
             <HelpTip title="Shared from this tab" help="security#tabs">
               <p>
-                Only the people you invite can see your services, over connections encrypted end to
-                end. This tab serves them itself: no PeerShare server receives or keeps your pages.
+                Only people who join with your invites can see your services, over connections
+                encrypted end to end. This tab serves them itself: no PeerShare server can read or
+                keep your pages.
               </p>
               <p>Closing the tab stops sharing.</p>
             </HelpTip>

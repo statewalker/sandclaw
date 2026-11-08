@@ -1,6 +1,6 @@
-import { Button } from "@statewalker/ui.view.shadcn";
+import { Button, cn } from "@statewalker/ui.view.shadcn";
 import { ArrowUpRight, ShieldCheck } from "lucide-react";
-import { type ReactNode, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Badge, Popover, PopoverContent, PopoverTrigger } from "./primitives.js";
 
 /** PeerShare's help site: how to use it, how it works, why it is safe. */
@@ -19,42 +19,64 @@ export interface HelpTipProps {
 
 /**
  * A light "?" pill (an outline Badge) next to an element that matters for safety. It opens a
- * Popover with how that part is kept safe and a link to the help site: on hover with a mouse,
- * on focus, and on a tap. A Popover rather than a Tooltip, so it works on touch screens and
- * its link can be clicked.
+ * Popover with how that part is kept safe and a link to the help site.
+ * - Hovering with a mouse opens it as a preview: focus stays where it was, and it closes when
+ *   the pointer leaves.
+ * - A click, a tap, or Enter/Space on the focused pill pins it open: focus moves into it (so
+ *   the keyboard reaches "Learn more"), and Escape or a click outside closes it. A click after
+ *   a hover keeps the preview open rather than toggling it shut.
+ * A Popover rather than a Tooltip, so it works on touch screens and its link can be clicked.
  */
 export function HelpTip({ title, children, help, side = "bottom", className }: HelpTipProps) {
   const [open, setOpen] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const closing = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const show = () => {
+  useEffect(() => () => clearTimeout(closing.current), []);
+
+  const preview = () => {
     clearTimeout(closing.current);
     setOpen(true);
   };
   // A moment's grace, so the pointer can travel from the pill to the card.
-  const hide = () => {
+  const endPreview = () => {
     clearTimeout(closing.current);
-    closing.current = setTimeout(() => setOpen(false), 180);
+    if (!pinned) closing.current = setTimeout(() => setOpen(false), 180);
   };
   const mouse = (fn: () => void) => (e: React.PointerEvent) => {
     if (e.pointerType === "mouse") fn();
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        clearTimeout(closing.current);
+        setOpen(next);
+        setPinned(next);
+      }}
+    >
       <PopoverTrigger asChild>
         <Badge
           asChild
           variant="outline"
-          className={
-            className ??
-            "bg-muted/60 text-muted-foreground hover:text-foreground data-[state=open]:text-foreground h-[18px] min-w-[22px] cursor-pointer rounded-full px-1.5 text-[11px] leading-none font-semibold"
-          }
+          className={cn(
+            "bg-muted/60 text-muted-foreground hover:text-foreground data-[state=open]:text-foreground h-[18px] min-w-[22px] cursor-pointer rounded-full px-1.5 text-[11px] leading-none font-semibold",
+            className,
+          )}
         >
           <button
             type="button"
             aria-label={`How this is kept safe: ${title}`}
-            onPointerEnter={mouse(show)}
-            onPointerLeave={mouse(hide)}
+            onPointerEnter={mouse(preview)}
+            onPointerLeave={mouse(endPreview)}
+            onClick={(e) => {
+              // Open as a preview: pin it instead of letting the trigger toggle it shut.
+              if (open && !pinned) {
+                e.preventDefault();
+                clearTimeout(closing.current);
+                setPinned(true);
+              }
+            }}
           >
             ?
           </button>
@@ -66,10 +88,12 @@ export function HelpTip({ title, children, help, side = "bottom", className }: H
         sideOffset={6}
         collisionPadding={12}
         className="grid gap-2 p-3 text-sm"
-        onPointerEnter={mouse(show)}
-        onPointerLeave={mouse(hide)}
-        // Opening must not move the focus away from what the person was doing.
-        onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerEnter={mouse(preview)}
+        onPointerLeave={mouse(endPreview)}
+        // A hover preview leaves the focus where it was; a pinned tip takes it.
+        onOpenAutoFocus={(e) => {
+          if (!pinned) e.preventDefault();
+        }}
       >
         <p className="flex items-center gap-1.5 font-medium">
           <ShieldCheck className="text-success size-4 shrink-0" /> {title}
@@ -78,7 +102,7 @@ export function HelpTip({ title, children, help, side = "bottom", className }: H
         {help != null && (
           <Button asChild variant="link" size="sm" className="h-auto w-fit px-0 py-0 text-xs">
             <a href={`${HELP_URL}${help}`} target="_blank" rel="noreferrer">
-              Learn more<span className="sr-only"> about {title.toLowerCase()}</span>
+              Learn more <span className="sr-only">about {title.toLowerCase()}</span>
               <ArrowUpRight className="size-3" />
             </a>
           </Button>

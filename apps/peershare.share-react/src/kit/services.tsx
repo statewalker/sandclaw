@@ -297,8 +297,8 @@ export function ServiceForm({
               only listens on this computer.
             </p>
             <p>
-              A remote https site is read directly, so it must allow PeerShare (CORS); it learns
-              which guest is asking.
+              A remote https site is read directly, so it must allow PeerShare (CORS); it sees an
+              anonymous ID for each guest.
             </p>
           </HelpTip>
         </span>
@@ -395,8 +395,8 @@ export function ServicesHeader({ count, onAdd }: { count: number; onAdd?: () => 
   return (
     <div className="flex items-end justify-between gap-3">
       <div>
-        <h2 className="flex items-center gap-2 text-lg font-semibold">
-          Services
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Services</h2>
           <HelpTip title="Where your pages go" help="how-it-works#one-request">
             <p>
               A guest's request reaches this tab over the encrypted connection. The tab fetches the
@@ -404,7 +404,7 @@ export function ServicesHeader({ count, onAdd }: { count: number; onAdd?: () => 
             </p>
             <p>The relay that helps browsers connect only forwards bytes it cannot read.</p>
           </HelpTip>
-        </h2>
+        </div>
         <p className="text-muted-foreground text-sm">
           {count === 1 ? "1 service" : `${count} services`} open to your guests.
         </p>

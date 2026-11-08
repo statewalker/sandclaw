@@ -212,12 +212,12 @@ export function ProxyCard({
         <div className="grid min-w-0 flex-1 gap-1 text-sm">
           <p className="flex items-center gap-2 font-medium">
             <span>{view.title}</span>
-            <HelpTip title="The local proxy" help="local-proxy">
+            <HelpTip title="The local proxy" help="security#proxy">
               <p>
                 It listens only on this computer (127.0.0.1), answers only PeerShare and pages on
                 this computer, and reaches only this computer and your network, never the internet.
               </p>
-              <p>Your browser asks you before this page may use it.</p>
+              <p>Recent Chrome and Edge also ask you before this page may use it.</p>
             </HelpTip>
           </p>
           <p className="text-muted-foreground">

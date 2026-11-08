@@ -12,6 +12,7 @@ import {
   Card,
   cn,
   Tabs,
+  TabsContent,
   TabsList,
   TabsTrigger,
 } from "@statewalker/ui.view.shadcn";
@@ -163,8 +164,8 @@ export function GuestLanding({ sharerName, stage, onJoin, onDecline }: GuestLand
             <Lock className="size-4 shrink-0" /> End-to-end encrypted, even on public Wi-Fi.
             <HelpTip title="Encrypted end to end" help="security#encryption">
               <p>
-                Your browser connects to {name}'s browser tab, and the connection proves it is
-                theirs: the link names {name}'s key.
+                The link carries the key of the browser that created it, and the connection proves
+                it reached that browser.
               </p>
               <p>The relay that helps you connect only forwards bytes it cannot read.</p>
             </HelpTip>
@@ -277,8 +278,14 @@ export function GuestViewer({
     );
   }
 
+  const tabbed = !revoked && services.length > 1 && service != null;
+  // The services are Tabs: the list in the bar controls the panel below it.
   return (
-    <div className="bg-background flex h-full min-h-0 flex-col">
+    <Tabs
+      value={service?.id ?? ""}
+      onValueChange={(id) => onSelect?.(id)}
+      className="bg-background flex h-full min-h-0 flex-col"
+    >
       <header className="flex items-center gap-3 border-b px-3 py-2">
         <BrandMark className="text-sm [&>span]:size-6" />
         <span className="bg-border h-5 w-px" />
@@ -289,26 +296,24 @@ export function GuestViewer({
             <HelpTip title="A private, isolated page" help="security#isolation">
               <p>
                 {service?.name ?? "This service"} comes from {sharerName}'s computer, encrypted end
-                to end, and only invited people can open it.
+                to end, to people {sharerName} invited.
               </p>
               <p>
-                It runs in its own isolated page, so it cannot read your PeerShare data or your
-                other tabs.
+                It runs in its own isolated page, so it cannot read your PeerShare key, token or
+                other services.
               </p>
             </HelpTip>
           )}
         </span>
-        {!revoked && services.length > 1 && service != null && (
-          <Tabs value={service.id} onValueChange={(id) => onSelect?.(id)} className="ml-2 min-w-0">
-            <TabsList className="h-8 max-w-full overflow-x-auto">
-              {services.map((s) => (
-                <TabsTrigger key={s.id} value={s.id} className="gap-1.5 text-xs">
-                  {s.paused && <PauseCircle className="size-3" />}
-                  {s.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+        {tabbed && (
+          <TabsList className="ml-2 h-8 max-w-full min-w-0 overflow-x-auto">
+            {services.map((s) => (
+              <TabsTrigger key={s.id} value={s.id} className="gap-1.5 text-xs">
+                {s.paused && <PauseCircle className="size-3" />}
+                {s.name}
+              </TabsTrigger>
+            ))}
+          </TabsList>
         )}
         <span className="flex-1" />
         {!revoked && <CloseSessionButton sharerName={sharerName} onClose={onCloseSession} />}
@@ -324,8 +329,14 @@ export function GuestViewer({
           <Loader2 className="size-4 animate-spin" /> Reconnecting to {sharerName}…
         </div>
       )}
-      {body}
-    </div>
+      {tabbed ? (
+        <TabsContent value={service.id} className="mt-0 flex flex-1 flex-col">
+          {body}
+        </TabsContent>
+      ) : (
+        body
+      )}
+    </Tabs>
   );
 }
 
