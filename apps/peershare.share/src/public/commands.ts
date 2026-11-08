@@ -46,7 +46,9 @@ export type GuestStage =
   | "joined"
   | "invite-used"
   | "invite-expired"
-  | "machine-offline";
+  | "machine-offline"
+  /** The Sharer revoked this Guest: told by the hub's answer to its heartbeat. */
+  | "revoked";
 
 /**
  * Where a Join or a Resume is while it runs: reaching the relay, trying a direct (WebRTC)

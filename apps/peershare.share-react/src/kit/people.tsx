@@ -228,8 +228,8 @@ function RevokeButton({ name, onConfirm }: { name: string; onConfirm: () => void
         <AlertDialogHeader>
           <AlertDialogTitle>Revoke {name}?</AlertDialogTitle>
           <AlertDialogDescription>
-            {name} loses access at once: open pages stop loading and live connections close. To let
-            them back in, send a new invite.
+            {name} loses access at once: open pages stop loading, live connections close, and their
+            page tells them you removed their access. To let them back in, send a new invite.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

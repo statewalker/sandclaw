@@ -58,7 +58,7 @@ function standInPeerShare(answer: GuestState["stage"] = "joined") {
     return { stage: "no-link" } as GuestState;
   });
   rt.commands.listen(CloseSession, () => closed());
-  return { rt, joined, closed };
+  return { rt, joined, closed, setGuest };
 }
 
 describe("GuestScreen", () => {
@@ -111,4 +111,26 @@ describe("GuestScreen", () => {
       expect(screen.queryByText(/Team wiki/)).toBeNull();
     },
   );
+
+  it("when Dirk revokes her, the Viewer says so in place of his services, and the tab title too", async () => {
+    const { rt, setGuest } = standInPeerShare();
+    document.title = "PeerShare";
+    render(
+      <PeerShareProvider rt={rt}>
+        <GuestScreen link="https://x/invite#join=x&from=Dirk" sharerName="Dirk" />
+      </PeerShareProvider>,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Join Dirk/ }));
+    });
+
+    await act(async () => {
+      setGuest({ stage: "revoked", sharerName: "Dirk", sharerPeerId: "12D3KooWDirk" });
+    });
+
+    expect(screen.getByText("Dirk removed your access")).toBeTruthy();
+    expect(screen.queryByTitle(/shared by Dirk/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Close session/ })).toBeNull();
+    expect(document.title).toBe("Access removed · PeerShare");
+  });
 });

@@ -152,9 +152,31 @@ export class GuestManager {
       // What the page shows while it waits: a direct connection that cannot come up
       // costs seconds before the relay takes over.
       onState: (step) => this.connecting(STEP[step]),
+      // The hub answers a heartbeat with 403 once this Guest is no longer a member: the
+      // Sharer revoked it. That is the Guest's notice, within a heartbeat (5 s), even if
+      // it makes no request of its own.
+      onPresenceRefused: (refusal) => {
+        if (refusal.kind === "not-a-member") void this.revoked();
+      },
       ...(invitationId != null ? { invitationId } : {}),
     });
   }
+
+  /** Revoked: leave the mesh and forget the identity, which no hub will take back. */
+  private async revoked(): Promise<void> {
+    // Heartbeats keep coming while it leaves: act on the first refusal only.
+    if (this.revoking || this.member == null) return;
+    this.revoking = true;
+    try {
+      const { sharerName, sharerPeerId } = this.current;
+      await this.mesh.guestStore.clear();
+      await this.leave();
+      this.current = { stage: "revoked", sharerName, sharerPeerId };
+    } finally {
+      this.revoking = false;
+    }
+  }
+  private revoking = false;
 
   private connecting(step: GuestConnecting | undefined): void {
     if (this.current.connecting === step) return;

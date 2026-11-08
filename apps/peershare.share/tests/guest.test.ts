@@ -157,6 +157,22 @@ describe("M5 — lifecycle", () => {
     expect((await dirk.call(ListGuests, undefined)).map((g) => g.peerId)).not.toContain(peerId);
   });
 
+  it("Revoke: Claudia is told, within a heartbeat, without making a request; her identity is forgotten", async () => {
+    const mesh = meshFor(relay.addr);
+    const claudia = guest(mesh);
+    await claudia.call(Join, { link: (await dirk.call(Invite, undefined)).url });
+    const peerId = (await dirk.call(ListGuests, undefined)).at(-1)?.peerId as string;
+
+    await dirk.call(RevokeGuest, { peerId });
+
+    await expect
+      .poll(async () => (await claudia.call(GetGuest, undefined)).stage, { timeout: 15_000 })
+      .toBe("revoked");
+    expect(await claudia.call(GetGuest, undefined)).toMatchObject({ sharerName: "Dirk" });
+    // Nothing to resume: the revoked identity is gone with the membership.
+    expect(await mesh.guestStore.load()).toBeUndefined();
+  }, 30_000);
+
   it("closing the tab keeps her identity: a new runtime resumes without the Invite", async () => {
     const mesh = meshFor(relay.addr);
     const tab = guest(mesh);

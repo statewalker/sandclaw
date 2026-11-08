@@ -171,14 +171,26 @@ export function GuestScreen({ link, sharerName, frameFor }: GuestScreenProps) {
   const [catalog, setCatalog] = useState<CatalogEntry[]>([]);
   const [selected, setSelected] = useState<string>();
 
-  const joined = guest.stage === "joined" || guest.stage === "machine-offline";
+  const revoked = guest.stage === "revoked";
+  // Revoked is shown in the Viewer, in place of the service: the Guest was in it.
+  const joined = guest.stage === "joined" || guest.stage === "machine-offline" || revoked;
   useEffect(() => {
-    if (!joined) return;
+    if (!joined || revoked) return;
     void call(ListSharedServices, undefined).then((entries) => {
       setCatalog(entries);
       setSelected((current) => current ?? entries.find((e) => e.isDefault)?.id ?? entries[0]?.id);
     });
-  }, [joined, call]);
+  }, [joined, revoked, call]);
+
+  // A tab in the background shows it in its title too.
+  useEffect(() => {
+    if (!revoked) return;
+    const before = document.title;
+    document.title = `Access removed · ${before}`;
+    return () => {
+      document.title = before;
+    };
+  }, [revoked]);
 
   const name = guest.sharerName ?? sharerName;
 
@@ -215,6 +227,7 @@ export function GuestScreen({ link, sharerName, frameFor }: GuestScreenProps) {
       services={services}
       selected={selected ?? services[0]?.id ?? ""}
       presence={guest.stage === "machine-offline" ? "offline" : "online"}
+      revoked={revoked}
       onSelect={setSelected}
       onCloseSession={async () => {
         await call(CloseSession, undefined);
