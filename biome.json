@@ -45,6 +45,19 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/*.css", "!**/peershare.app/src/vendor/session-shell/**"]
-  }
+    "includes": ["**", "!**/*.css", "!**/peershare.app/src/vendor/session-shell"]
+  },
+  "overrides": [
+    {
+      "includes": ["**/*.astro"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnusedImports": "off",
+            "noUnusedVariables": "off"
+          }
+        }
+      }
+    }
+  ]
 }
