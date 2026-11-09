@@ -28,10 +28,22 @@ export interface SharingState {
   peerId?: string;
 }
 
+/**
+ * Where a Guest stands, as the Sharer's hub sees it:
+ * - `online`: its heartbeats arrive (the hub's presence, 15 s);
+ * - `away`: still a member, but no heartbeat lately (tab closed, asleep, offline);
+ * - `left`: it closed its session;
+ * - `revoked`: the Sharer revoked it.
+ */
+export type GuestStatus = "online" | "away" | "left" | "revoked";
+
 export interface GuestRecord {
   peerId: string;
   /** When the Guest joined, in the hub's time (ms). */
   joinedAt: number;
+  status: GuestStatus;
+  /** When it left or was revoked (ms); only for those two. */
+  endedAt?: number;
 }
 
 export const StartSharing = required<void, SharingState>("peershare:start");
@@ -62,6 +74,11 @@ export interface GuestState {
   sharerPeerId?: string;
   /** Set while a Join or a Resume runs: what it is doing now. */
   connecting?: GuestConnecting;
+  /**
+   * Moves each time the Sharer's list of Services changes (added, renamed, paused…), as the
+   * Guest's watch sees it: a view re-reads `ListSharedServices` when it does.
+   */
+  catalogVersion?: number;
 }
 
 export const Join = required<{ link: string }, GuestState>("peershare:join");

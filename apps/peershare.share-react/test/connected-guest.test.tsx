@@ -47,18 +47,20 @@ function standInPeerShare(answer: GuestState["stage"] = "joined") {
     return state;
   });
   rt.commands.listen(Join, (cmd) => joined(cmd.payload));
-  rt.commands.listen(ListSharedServices, () =>
-    Promise.resolve([
-      { id: "foo", name: "fooService", isDefault: true, paused: false },
-      { id: "wiki", name: "Team wiki", isDefault: false, paused: true },
-    ]),
-  );
+  let catalog = [
+    { id: "foo", name: "fooService", isDefault: true, paused: false },
+    { id: "wiki", name: "Team wiki", isDefault: false, paused: true },
+  ];
+  const setCatalog = (next: typeof catalog) => {
+    catalog = next;
+  };
+  rt.commands.listen(ListSharedServices, () => Promise.resolve(catalog));
   const closed = vi.fn(async () => {
     setGuest({ stage: "no-link" });
     return { stage: "no-link" } as GuestState;
   });
   rt.commands.listen(CloseSession, () => closed());
-  return { rt, joined, closed, setGuest };
+  return { rt, joined, closed, setGuest, setCatalog };
 }
 
 describe("GuestScreen", () => {
@@ -132,5 +134,26 @@ describe("GuestScreen", () => {
     expect(screen.queryByTitle(/shared by Dirk/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Close session/ })).toBeNull();
     expect(document.title).toBe("Access removed · PeerShare");
+  });
+
+  it("when Dirk's list changes, the Viewer reads it again", async () => {
+    const { rt, setGuest, setCatalog } = standInPeerShare();
+    render(
+      <PeerShareProvider rt={rt}>
+        <GuestScreen link="https://x/invite#join=x&from=Dirk" sharerName="Dirk" />
+      </PeerShareProvider>,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Join Dirk/ }));
+    });
+    expect(screen.queryByRole("tab", { name: "Notes" })).toBeNull();
+    setCatalog([
+      { id: "foo", name: "fooService", isDefault: true, paused: false },
+      { id: "notes", name: "Notes", isDefault: false, paused: false },
+    ]);
+    await act(async () => {
+      setGuest({ stage: "joined", sharerName: "Dirk", sharerPeerId: "x", catalogVersion: 1 });
+    });
+    expect(screen.getByRole("tab", { name: "Notes" })).toBeTruthy();
   });
 });

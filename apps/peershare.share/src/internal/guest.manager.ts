@@ -33,6 +33,12 @@ const STEP: Record<MemberState, GuestConnecting | undefined> = {
   stopped: undefined,
 };
 
+/**
+ * How often a joined Guest asks the Sharer for its Services: that is how its page learns,
+ * without a click, that the Sharer went offline, came back, or changed what it shares.
+ */
+export const HUB_WATCH_MS = 5_000;
+
 export class GuestManager {
   private member: MemberHandle | undefined;
   private state_: GuestState = { stage: "no-link" };
@@ -57,13 +63,20 @@ export class GuestManager {
 
   async join(link: string): Promise<GuestState> {
     const invite = decodeInvite(link);
-    const privateKey = await generateKeyPair("Ed25519");
-    const identity: GuestIdentity = {
-      privateKey,
-      sharerPeerId: invite.sharerPeerId,
-      sharerName: invite.sharerName,
-      relayAddrs: invite.relayAddrs,
-    };
+    // Already a member of this Sharer's mesh (joined before; Try again after an outage; a
+    // reload on the invite link): come back with that key. startMember resumes the
+    // membership and redeems the invite only if the hub no longer knows the key. A new
+    // key would redeem the invite again, and a spent invite answers "already used".
+    const saved = await this.mesh.guestStore.load();
+    const identity: GuestIdentity =
+      saved != null && saved.sharerPeerId === invite.sharerPeerId
+        ? { ...saved, sharerName: invite.sharerName || saved.sharerName }
+        : {
+            privateKey: await generateKeyPair("Ed25519"),
+            sharerPeerId: invite.sharerPeerId,
+            sharerName: invite.sharerName,
+            relayAddrs: invite.relayAddrs,
+          };
     return this.enter(identity, invite.invitationId);
   }
 
@@ -116,6 +129,8 @@ export class GuestManager {
   }
 
   async leave(): Promise<void> {
+    clearInterval(this.watch);
+    this.watch = undefined;
     const member = this.member;
     this.member = undefined;
     await member?.stop().catch(() => {});
@@ -138,6 +153,7 @@ export class GuestManager {
       sharerName: identity.sharerName,
       sharerPeerId: identity.sharerPeerId,
     };
+    this.startWatch();
     return this.state();
   }
 
@@ -177,6 +193,40 @@ export class GuestManager {
     }
   }
   private revoking = false;
+
+  private watch: ReturnType<typeof setInterval> | undefined;
+  private lastCatalog = "";
+
+  /** While joined: ask for the Services every `HUB_WATCH_MS`; `fetch` keeps the stage right. */
+  private startWatch(): void {
+    clearInterval(this.watch);
+    this.lastCatalog = "";
+    const tick = async () => {
+      if (this.watching) return;
+      this.watching = true;
+      try {
+        const res = await this.fetch("/s/");
+        if (!res.ok) return;
+        const catalog = await res.text();
+        if (catalog !== this.lastCatalog) {
+          const first = this.lastCatalog === "";
+          this.lastCatalog = catalog;
+          if (!first)
+            this.current = {
+              ...this.current,
+              catalogVersion: (this.current.catalogVersion ?? 0) + 1,
+            };
+        }
+      } catch {
+        // A transport fault: the next tick tries again.
+      } finally {
+        this.watching = false;
+      }
+    };
+    void tick();
+    this.watch = setInterval(() => void tick(), HUB_WATCH_MS);
+  }
+  private watching = false;
 
   private connecting(step: GuestConnecting | undefined): void {
     if (this.current.connecting === step) return;

@@ -336,7 +336,10 @@ export const scenarios: Scenario[] = [
         commands: ["StartSharing"],
         device: "desktop",
         render: () => (
-          <SharerDemo sharing={false} guests={guests.map((g) => ({ ...g, online: false }))} />
+          <SharerDemo
+            sharing={false}
+            guests={guests.map((g) => ({ ...g, status: "away" as const }))}
+          />
         ),
       },
     ],

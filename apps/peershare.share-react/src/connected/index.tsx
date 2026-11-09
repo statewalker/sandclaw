@@ -106,11 +106,13 @@ export function SharerScreen({ proxy }: SharerScreenProps = {}) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const services = snapshot.sharer.services;
 
-  // The mesh says who joined, not who is connected now: no presence is claimed.
+  // The hub's view of each Guest: online or away from its heartbeats, or left / revoked.
   const guests: Guest[] = snapshot.guests.map((g) => ({
     peerId: g.peerId,
     name: `Guest ${g.peerId.slice(-6)}`,
     joinedAt: new Date(g.joinedAt),
+    status: g.status,
+    ...(g.endedAt != null ? { endedAt: new Date(g.endedAt) } : {}),
   }));
 
   return (
@@ -174,13 +176,16 @@ export function GuestScreen({ link, sharerName, frameFor }: GuestScreenProps) {
   const revoked = guest.stage === "revoked";
   // Revoked is shown in the Viewer, in place of the service: the Guest was in it.
   const joined = guest.stage === "joined" || guest.stage === "machine-offline" || revoked;
+  // The Sharer's list changed (added, renamed, paused…): the Guest's watch moved the version.
+  const catalogVersion = guest.catalogVersion ?? 0;
   useEffect(() => {
+    void catalogVersion;
     if (!joined || revoked) return;
     void call(ListSharedServices, undefined).then((entries) => {
       setCatalog(entries);
       setSelected((current) => current ?? entries.find((e) => e.isDefault)?.id ?? entries[0]?.id);
     });
-  }, [joined, revoked, call]);
+  }, [joined, revoked, call, catalogVersion]);
 
   // A tab in the background shows it in its title too.
   useEffect(() => {

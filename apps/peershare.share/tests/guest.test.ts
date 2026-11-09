@@ -79,6 +79,18 @@ afterAll(async () => {
   await app?.close();
 });
 
+/** The Guest who joined last and is still a member. */
+async function newestGuest(): Promise<string> {
+  const members = (await dirk.call(ListGuests, undefined)).filter(
+    (g) => g.status === "online" || g.status === "away",
+  );
+  return members.sort((a, b) => a.joinedAt - b.joinedAt).at(-1)?.peerId as string;
+}
+
+async function statusOf(peerId: string) {
+  return (await dirk.call(ListGuests, undefined)).find((g) => g.peerId === peerId)?.status;
+}
+
 /** A Guest's browser: its own runtime and its own stores. */
 function guest(mesh: MeshInit = meshFor(relay.addr)) {
   const g = onMesh(mesh);
@@ -149,19 +161,19 @@ describe("M5 — lifecycle", () => {
     const fetchFoo = () => guestFetchOf(claudia)("fooservice", new Request("http://service/"));
     expect((await fetchFoo()).status).toBe(200);
 
-    const guests = await dirk.call(ListGuests, undefined);
-    const peerId = guests.at(-1)?.peerId as string;
+    const peerId = await newestGuest();
     await dirk.call(RevokeGuest, { peerId });
 
     expect([401, 403]).toContain((await fetchFoo()).status);
-    expect((await dirk.call(ListGuests, undefined)).map((g) => g.peerId)).not.toContain(peerId);
+    // Dirk still sees her, as revoked.
+    expect(await statusOf(peerId)).toBe("revoked");
   });
 
   it("Revoke: Claudia is told, within a heartbeat, without making a request; her identity is forgotten", async () => {
     const mesh = meshFor(relay.addr);
     const claudia = guest(mesh);
     await claudia.call(Join, { link: (await dirk.call(Invite, undefined)).url });
-    const peerId = (await dirk.call(ListGuests, undefined)).at(-1)?.peerId as string;
+    const peerId = await newestGuest();
 
     await dirk.call(RevokeGuest, { peerId });
 
@@ -187,7 +199,7 @@ describe("M5 — lifecycle", () => {
     expect(await again.call(ListSharedServices, undefined)).toHaveLength(1);
   });
 
-  it("Close session forgets her: nothing to resume, Dirk no longer lists her, and the link is spent", async () => {
+  it("Close session forgets her: nothing to resume, Dirk sees she left, and the link is spent", async () => {
     const mesh = meshFor(relay.addr);
     const tab = guest(mesh);
     const { url } = await dirk.call(Invite, undefined);
@@ -199,7 +211,7 @@ describe("M5 — lifecycle", () => {
     expect(peerId).toBeDefined();
 
     expect(await tab.call(CloseSession, undefined)).toEqual({ stage: "no-link" });
-    expect((await dirk.call(ListGuests, undefined)).map((g) => g.peerId)).not.toContain(peerId);
+    expect(await statusOf(peerId as string)).toBe("left");
     expect(await tab.call(Resume, undefined)).toEqual({ stage: "no-link" });
     expect(await tab.call(Join, { link: url })).toMatchObject({ stage: "invite-used" });
   });
@@ -234,6 +246,36 @@ describe("M5 — Dirk stops, and comes back after a reload", () => {
     expect(status).toBe(200);
     expect(await claudia.call(GetGuest, undefined)).toMatchObject({ stage: "joined" });
   });
+
+  it("the invite link again after Dirk stopped and restarted (Try again, a reload): she is back in, not 'invite used'", async () => {
+    const dirkMesh = meshFor(relay.addr);
+    const pairing = () => ({ base: bridge.origin, token: TOKEN });
+    const store = (await import("./harness.js")).memoryStore();
+    const before = onMesh(dirkMesh, { store, bridge: pairing });
+    await before.call(SetName, { name: "Dirk" });
+    await before.call(StartSharing, undefined);
+    const claudiaMesh = meshFor(relay.addr);
+    const claudia = guest(claudiaMesh);
+    const { url } = await before.call(Invite, undefined);
+    expect(await claudia.call(Join, { link: url })).toMatchObject({ stage: "joined" });
+
+    // Dirk stops sharing: her page sees he is off, and Try again joins with the same link.
+    await before.call(StopSharing, undefined);
+    before.dispose();
+    expect(await claudia.call(Join, { link: url })).toMatchObject({ stage: "machine-offline" });
+
+    // Dirk shares again.
+    const after = onMesh(dirkMesh, { store, bridge: pairing });
+    others.push({ dispose: () => void after.call(StopSharing, undefined) });
+    await after.call(StartSharing, undefined);
+
+    // Try again with the same link: her saved membership, not the spent invite.
+    expect(await claudia.call(Join, { link: url })).toMatchObject({ stage: "joined" });
+    // A reload: a new runtime over the same stores, opened on the same link.
+    claudia.dispose();
+    const reloaded = guest(claudiaMesh);
+    expect(await reloaded.call(Join, { link: url })).toMatchObject({ stage: "joined" });
+  }, 60_000);
 });
 
 describe("M5 — Dirk sees who joined", () => {
@@ -252,6 +294,57 @@ describe("M5 — Dirk sees who joined", () => {
     const joinedAt = model?.getSnapshot().guests.at(-1)?.joinedAt ?? 0;
     expect(Math.abs(Date.now() - joinedAt)).toBeLessThan(60_000);
   });
+});
+
+describe("Claudia sees Dirk's status", () => {
+  it("without a request of hers: Dirk goes offline, comes back, and shares something new", async () => {
+    const dirkMesh = meshFor(relay.addr);
+    const pairing = () => ({ base: bridge.origin, token: TOKEN });
+    const store = (await import("./harness.js")).memoryStore();
+    const before = onMesh(dirkMesh, { store, bridge: pairing });
+    await before.call(SetName, { name: "Dirk" });
+    await before.call(AddService, { name: "app", kind: "bridged", target: app.origin });
+    await before.call(StartSharing, undefined);
+    const claudia = guest();
+    await claudia.call(Join, { link: (await before.call(Invite, undefined)).url });
+    const stage = async () => (await claudia.call(GetGuest, undefined)).stage;
+    const poll = { timeout: 20_000, interval: 250 };
+
+    await before.call(StopSharing, undefined);
+    before.dispose();
+    await expect.poll(stage, poll).toBe("machine-offline");
+
+    const after = onMesh(dirkMesh, { store, bridge: pairing });
+    others.push({ dispose: () => void after.call(StopSharing, undefined) });
+    await after.call(StartSharing, undefined);
+    await expect.poll(stage, poll).toBe("joined");
+
+    const version = (await claudia.call(GetGuest, undefined)).catalogVersion ?? 0;
+    await after.call(AddService, { name: "wiki", kind: "bridged", target: app.origin });
+    await expect
+      .poll(async () => (await claudia.call(GetGuest, undefined)).catalogVersion ?? 0, poll)
+      .toBeGreaterThan(version);
+    expect((await claudia.call(ListSharedServices, undefined)).map((s) => s.name)).toEqual([
+      "app",
+      "wiki",
+    ]);
+  }, 90_000);
+});
+
+describe("Dirk sees each Guest's status", () => {
+  it("a Guest whose tab is gone (no Close session) turns from online to away", async () => {
+    const claudia = guest();
+    await claudia.call(Join, { link: (await dirk.call(Invite, undefined)).url });
+    const peerId = await newestGuest();
+    // Online from its first heartbeat after joining (every 5 s).
+    await expect.poll(() => statusOf(peerId), { timeout: 10_000, interval: 250 }).toBe("online");
+
+    // The tab closes: its node stops, and no heartbeat comes any more.
+    claudia.dispose();
+
+    // The hub's presence lasts 15 s and is swept every 5 s.
+    await expect.poll(() => statusOf(peerId), { timeout: 30_000, interval: 500 }).toBe("away");
+  }, 40_000);
 });
 
 describe("M9 — live connections", () => {
