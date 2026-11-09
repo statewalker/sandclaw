@@ -156,4 +156,19 @@ describe("GuestScreen", () => {
     });
     expect(screen.getByRole("tab", { name: "Notes" })).toBeTruthy();
   });
+
+  it("the share link sits beside the invite page: /peer-share/invite → /peer-share/", async () => {
+    const { rt } = standInPeerShare();
+    render(
+      <PeerShareProvider rt={rt}>
+        <GuestScreen
+          link="https://x.example/peer-share/invite#join=x&from=Dirk"
+          sharerName="Dirk"
+        />
+      </PeerShareProvider>,
+    );
+    expect(screen.getByRole("link", { name: /Share your own/ }).getAttribute("href")).toBe(
+      "/peer-share/",
+    );
+  });
 });

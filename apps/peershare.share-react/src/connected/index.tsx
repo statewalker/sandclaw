@@ -178,14 +178,17 @@ export function GuestScreen({ link, sharerName, frameFor }: GuestScreenProps) {
   const joined = guest.stage === "joined" || guest.stage === "machine-offline" || revoked;
   // The Sharer's list changed (added, renamed, paused…): the Guest's watch moved the version.
   const catalogVersion = guest.catalogVersion ?? 0;
+  const stageNow = guest.stage;
   useEffect(() => {
     void catalogVersion;
+    void stageNow;
     if (!joined || revoked) return;
     void call(ListSharedServices, undefined).then((entries) => {
       setCatalog(entries);
       setSelected((current) => current ?? entries.find((e) => e.isDefault)?.id ?? entries[0]?.id);
     });
-  }, [joined, revoked, call, catalogVersion]);
+    // The stage too: back from machine-offline, the list may have changed or been empty.
+  }, [joined, revoked, call, catalogVersion, stageNow]);
 
   // A tab in the background shows it in its title too.
   useEffect(() => {
@@ -198,6 +201,15 @@ export function GuestScreen({ link, sharerName, frameFor }: GuestScreenProps) {
   }, [revoked]);
 
   const name = guest.sharerName ?? sharerName;
+  // PeerShare's sharing page sits beside the invite page: `/invite` → `/`,
+  // `/peer-share/invite` → `/peer-share/`.
+  const shareHref = (() => {
+    try {
+      return new URL(link).pathname.replace(/invite\/?$/, "") || "/";
+    } catch {
+      return "/";
+    }
+  })();
 
   if (!joined) {
     const stage: GuestStage = closed
@@ -214,6 +226,7 @@ export function GuestScreen({ link, sharerName, frameFor }: GuestScreenProps) {
         sharerName={name}
         stage={stage}
         connecting={guest.connecting}
+        shareHref={shareHref}
         onJoin={async () => {
           setJoining(true);
           const answer = await call(Join, { link });
@@ -233,6 +246,7 @@ export function GuestScreen({ link, sharerName, frameFor }: GuestScreenProps) {
       selected={selected ?? services[0]?.id ?? ""}
       presence={guest.stage === "machine-offline" ? "offline" : "online"}
       revoked={revoked}
+      shareHref={shareHref}
       onSelect={setSelected}
       onCloseSession={async () => {
         await call(CloseSession, undefined);

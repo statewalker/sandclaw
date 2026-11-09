@@ -221,10 +221,12 @@ export function GuestsCard({ guests, canInvite, onInvite, onRevoke }: GuestsCard
           <p className="text-muted-foreground px-4 pt-3 text-xs font-medium">Earlier</p>
           <ul>
             {earlier.map((guest) => (
-              <li key={guest.peerId} className="flex items-center gap-3 px-4 py-2 opacity-70">
+              <li key={guest.peerId} className="flex items-center gap-3 px-4 py-2">
                 <NameAvatar name={guest.name} />
                 <span className="grid min-w-0 flex-1">
-                  <span className="truncate text-sm font-medium">{guest.name}</span>
+                  <span className="text-muted-foreground truncate text-sm font-medium">
+                    {guest.name}
+                  </span>
                   <span className="text-muted-foreground text-xs">
                     {guest.status === "revoked" ? "Revoked by you" : "Left the session"}
                     {guest.endedAt != null && ` · ${clock(guest.endedAt)}`}
@@ -257,8 +259,9 @@ function RevokeButton({ name, onConfirm }: { name: string; onConfirm: () => void
         <AlertDialogHeader>
           <AlertDialogTitle>Revoke {name}?</AlertDialogTitle>
           <AlertDialogDescription>
-            {name} loses access at once: open pages stop loading, live connections close, and their
-            page tells them you removed their access. To let them back in, send a new invite.
+            {name} loses access at once: open pages stop loading and live connections close. Their
+            page tells them their access was removed, at once if it is open, or when they come back.
+            To let them back in, send a new invite.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

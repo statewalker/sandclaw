@@ -101,3 +101,13 @@ describe("a join says what it is doing", () => {
     expect(screen.queryByRole("button", { name: "Decline" })).toBeNull();
   });
 });
+
+describe("turning the Default off says where it goes", () => {
+  it("names the service that becomes the default", () => {
+    const a = service("a", true);
+    const b = service("b", false);
+    render(<ServiceForm services={[a, b]} self={a} initial={{ ...a }} onSubmit={() => {}} />);
+    fireEvent.click(screen.getByRole("switch"));
+    expect(screen.getByText("Turned off, b becomes the default.")).toBeTruthy();
+  });
+});

@@ -216,18 +216,21 @@ export function GuestLanding({
               `Join ${name}`
             )}
           </Button>
-          {joining && connecting != null ? (
-            <p
-              className="text-muted-foreground min-h-9 text-center text-xs leading-relaxed"
-              role="status"
-            >
-              {connectingText[connecting]}
-            </p>
-          ) : (
+          {!(joining && connecting != null) && (
             <Button variant="ghost" disabled={joining} onClick={onDecline}>
               Decline
             </Button>
           )}
+          {/* Mounted empty, so screen readers announce each step as it appears. */}
+          <p
+            className={cn(
+              "text-muted-foreground text-center text-xs leading-relaxed",
+              joining && connecting != null ? "min-h-9" : "sr-only",
+            )}
+            role="status"
+          >
+            {joining && connecting != null ? connectingText[connecting] : ""}
+          </p>
         </div>
       </Card>
     </Centered>

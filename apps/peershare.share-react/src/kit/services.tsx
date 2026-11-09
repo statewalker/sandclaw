@@ -275,6 +275,11 @@ export function ServiceForm({
   const [draft, setDraft] = useState(initial);
   // Exactly one service is the Default: with no other service, this one has to be it.
   const onlyOne = !services.some((s) => s.id !== self?.id);
+  // Turning the Default off hands it on: to the first other service, as the logic does.
+  const handedTo =
+    self?.isDefault === true && !draft.isDefault
+      ? services.find((s) => s.id !== self.id)?.name
+      : undefined;
   const [submitted, setSubmitted] = useState<DraftCheck>();
   // What the address alone says, while typing: the kind, or nothing yet.
   const live = draft.target.trim() === "" ? undefined : validateDraft({ ...draft, name: "x" }, []);
@@ -365,7 +370,9 @@ export function ServiceForm({
           <span className="text-muted-foreground text-xs">
             {onlyOne
               ? "Guests see it first. Your only service is always the default."
-              : "Guests see it first. Only one service is the default."}
+              : handedTo != null
+                ? `Turned off, ${handedTo} becomes the default.`
+                : "Guests see it first. Only one service is the default."}
           </span>
         </span>
         <Switch

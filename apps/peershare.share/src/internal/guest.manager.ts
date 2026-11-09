@@ -7,7 +7,12 @@
 import { generateKeyPair } from "@libp2p/crypto/keys";
 import type { Ed25519PrivateKey } from "@libp2p/interface";
 import { createMounts } from "@statewalker/httpeers-core";
-import { type MemberHandle, type MemberState, startMember } from "@statewalker/httpeers-member";
+import {
+  type MemberHandle,
+  MemberJoinError,
+  type MemberState,
+  startMember,
+} from "@statewalker/httpeers-member";
 import {
   type CatalogEntry,
   decodeInvite,
@@ -38,6 +43,13 @@ const STEP: Record<MemberState, GuestConnecting | undefined> = {
  * without a click, that the Sharer went offline, came back, or changed what it shares.
  */
 export const HUB_WATCH_MS = 5_000;
+
+/** startMember's refusals that mean the hub does not list this key as a member any more. */
+function noLongerAMember(error: unknown): boolean {
+  if (!(error instanceof MemberJoinError)) return false;
+  // Resumed without an invite, or with a spent one: the hub refused the membership.
+  return error.reason === "not-a-member" || error.reason === "invitation-refused";
+}
 
 export class GuestManager {
   private member: MemberHandle | undefined;
@@ -70,21 +82,27 @@ export class GuestManager {
     const saved = await this.mesh.guestStore.load();
     const identity: GuestIdentity =
       saved != null && saved.sharerPeerId === invite.sharerPeerId
-        ? { ...saved, sharerName: invite.sharerName || saved.sharerName }
+        ? {
+            ...saved,
+            sharerName: invite.sharerName || saved.sharerName,
+            // The newest link names the relays to use: they may have moved since. The
+            // Sharer is proven by its key (Noise), whichever relay carries the bytes.
+            relayAddrs: invite.relayAddrs,
+          }
         : {
             privateKey: await generateKeyPair("Ed25519"),
             sharerPeerId: invite.sharerPeerId,
             sharerName: invite.sharerName,
             relayAddrs: invite.relayAddrs,
           };
-    return this.enter(identity, invite.invitationId);
+    return this.enter(identity, invite.invitationId, saved?.privateKey === identity.privateKey);
   }
 
   /** Back in with the saved identity, without an Invite. */
   async resume(): Promise<GuestState> {
     const identity = await this.mesh.guestStore.load();
     if (identity == null) return this.state();
-    return this.enter(identity);
+    return this.enter(identity, undefined, true);
   }
 
   async catalog(): Promise<CatalogEntry[]> {
@@ -131,21 +149,46 @@ export class GuestManager {
   async leave(): Promise<void> {
     clearInterval(this.watch);
     this.watch = undefined;
+    // Answers still on their way belong to the session that is ending: they must not set
+    // the stage of whatever comes next (Close session, revoked, a new join).
+    this.generation++;
     const member = this.member;
     this.member = undefined;
     await member?.stop().catch(() => {});
   }
 
-  private async enter(identity: GuestIdentity, invitationId?: string): Promise<GuestState> {
+  /**
+   * One Join or Resume at a time: the page resumes on load while the Guest may already click
+   * Join, and two at once would run one key on two nodes, the first never stopped.
+   */
+  private enter(identity: GuestIdentity, invitationId?: string, saved = false) {
+    const run = this.entering.then(() => this.enterNow(identity, invitationId, saved));
+    this.entering = run.catch(() => {});
+    return run;
+  }
+  private entering: Promise<unknown> = Promise.resolve();
+
+  private async enterNow(
+    identity: GuestIdentity,
+    invitationId: string | undefined,
+    saved: boolean,
+  ): Promise<GuestState> {
     await this.leave();
     try {
       this.member = await this.start(identity.privateKey, identity, invitationId);
     } catch (error) {
-      const stage = joinOutcome(error);
       this.connecting(undefined);
+      const who = { sharerName: identity.sharerName, sharerPeerId: identity.sharerPeerId };
+      // A saved key the hub no longer knows: revoked while this page was closed (or the
+      // Sharer's hub was reset). Its link, if any, is spent. Say so, and forget the key.
+      if (saved && noLongerAMember(error)) {
+        await this.mesh.guestStore.clear();
+        this.current = { stage: "revoked", ...who };
+        return this.state();
+      }
       // A refused Invite leaves the Guest where it was; an offline Sharer
       // keeps the identity, so the Guest can come back (rung 10).
-      return { stage, sharerName: identity.sharerName, sharerPeerId: identity.sharerPeerId };
+      return { stage: joinOutcome(error), ...who };
     }
     await this.mesh.guestStore.save(identity);
     this.current = {
@@ -201,12 +244,14 @@ export class GuestManager {
   private startWatch(): void {
     clearInterval(this.watch);
     this.lastCatalog = "";
+    const generation = this.generation;
+    let watching = false;
     const tick = async () => {
-      if (this.watching) return;
-      this.watching = true;
+      if (watching) return;
+      watching = true;
       try {
         const res = await this.fetch("/s/");
-        if (!res.ok) return;
+        if (!res.ok || generation !== this.generation) return;
         const catalog = await res.text();
         if (catalog !== this.lastCatalog) {
           const first = this.lastCatalog === "";
@@ -220,13 +265,13 @@ export class GuestManager {
       } catch {
         // A transport fault: the next tick tries again.
       } finally {
-        this.watching = false;
+        watching = false;
       }
     };
     void tick();
     this.watch = setInterval(() => void tick(), HUB_WATCH_MS);
   }
-  private watching = false;
+  private generation = 0;
 
   private connecting(step: GuestConnecting | undefined): void {
     if (this.current.connecting === step) return;
@@ -240,7 +285,10 @@ export class GuestManager {
     if (member == null || sharer == null) {
       return new Response("not joined", { status: 409 });
     }
+    const generation = this.generation;
     const res = await member.fetch(new Request(`http://local/peers/${sharer}${path}`, init));
+    // Left (or left and came back) meanwhile: this answer says nothing about the stage now.
+    if (generation !== this.generation || member !== this.member) return res;
     if (await isSharerOffline(res)) this.current = { ...this.current, stage: "machine-offline" };
     else if (this.current.stage === "machine-offline")
       this.current = { ...this.current, stage: "joined" };

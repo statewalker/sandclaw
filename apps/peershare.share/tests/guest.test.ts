@@ -296,6 +296,66 @@ describe("M5 — Dirk sees who joined", () => {
   });
 });
 
+describe("coming back with a saved identity", () => {
+  it("revoked while her tab was closed: on her return she is told, not 'invite used', and the key is gone", async () => {
+    const mesh = meshFor(relay.addr);
+    const tab = guest(mesh);
+    const { url } = await dirk.call(Invite, undefined);
+    await tab.call(Join, { link: url });
+    const peerId = await newestGuest();
+    tab.dispose(); // the tab closes; the identity stays saved
+
+    await dirk.call(RevokeGuest, { peerId });
+
+    // The page opens again: Resume with the saved key.
+    const back = guest(mesh);
+    expect(await back.call(Resume, undefined)).toMatchObject({ stage: "revoked" });
+    expect(await mesh.guestStore.load()).toBeUndefined();
+    // And the old link, from a fresh start: the spent invite, as before.
+    expect(await guest(mesh).call(Join, { link: url })).toMatchObject({ stage: "invite-used" });
+  }, 60_000);
+
+  it("revoked while away, then Join on her old link: told she was removed", async () => {
+    const mesh = meshFor(relay.addr);
+    const tab = guest(mesh);
+    const { url } = await dirk.call(Invite, undefined);
+    await tab.call(Join, { link: url });
+    const peerId = await newestGuest();
+    tab.dispose();
+    await dirk.call(RevokeGuest, { peerId });
+
+    expect(await guest(mesh).call(Join, { link: url })).toMatchObject({ stage: "revoked" });
+    expect(await mesh.guestStore.load()).toBeUndefined();
+  }, 60_000);
+
+  it("the newest link's relays are used: a saved identity with a relay that moved still gets in", async () => {
+    const mesh = meshFor(relay.addr);
+    const tab = guest(mesh);
+    const { url } = await dirk.call(Invite, undefined);
+    await tab.call(Join, { link: url });
+    tab.dispose();
+    // Her saved identity names a relay that is gone.
+    const saved = await mesh.guestStore.load();
+    await mesh.guestStore.save({
+      ...(saved as NonNullable<typeof saved>),
+      relayAddrs: [
+        "/ip4/127.0.0.1/tcp/1/ws/p2p/12D3KooWGZkMZ7kCq6tPVBv2TuyQ3pNzHUvWr7cAu5GLGqfgkdLk",
+      ],
+    });
+
+    expect(await guest(mesh).call(Join, { link: url })).toMatchObject({ stage: "joined" });
+  }, 60_000);
+
+  it("after Close session, an answer still on its way does not bring the Viewer back", async () => {
+    const tab = guest();
+    await tab.call(Join, { link: (await dirk.call(Invite, undefined)).url });
+    expect(await tab.call(CloseSession, undefined)).toEqual({ stage: "no-link" });
+    // A watch tick would come within 5 s.
+    await new Promise((r) => setTimeout(r, 6_000));
+    expect(await tab.call(GetGuest, undefined)).toEqual({ stage: "no-link" });
+  }, 30_000);
+});
+
 describe("Claudia sees Dirk's status", () => {
   it("without a request of hers: Dirk goes offline, comes back, and shares something new", async () => {
     const dirkMesh = meshFor(relay.addr);
