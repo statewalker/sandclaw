@@ -17,6 +17,7 @@ import {
   wikiNatureOf,
   wireWikiProject,
 } from "../../src/index.js";
+import { ScanLock } from "../../src/runtime/scan-lock.js";
 import { makeStubLlm, seedWikiConfig } from "../util/stub-llm.js";
 
 const DIM = 2;
@@ -321,12 +322,50 @@ describe("wiki builders — incremental behaviour", () => {
     expect(second?.failures).toHaveLength(1);
     expect(t.calls).toEqual([]);
 
+    // An explicit retry runs it again (and it still fails).
+    const retried = await scan.run({ retryFailed: true });
+    expect(t.calls.filter((c) => c.name === "summarize-document").map((c) => c.uri)).toContain(
+      "b.md",
+    );
+    expect(retried?.failures).toHaveLength(1);
+
     // Fixed + changed: retried and indexed.
     t.failSummarize.delete("b.md");
     await writeFile(filesApi, "proj/b.md", "Bravo v2.");
     const third = await scan.run();
     expect(third?.failures).toEqual([]);
     expect(await project.requireAdapter(WikiTopicIndex).get("bravo")).toBeDefined();
+  });
+
+  it("alternating writers (tabs/CLI) continue from each other's persisted build state", async () => {
+    const project = await openProject();
+    const tabA = wikiNatureOf(project).scan();
+    await tabA.run();
+
+    // Another writer (a second tab) over the same files indexes a new document.
+    const other = new Workspace().setFileSystem(filesApi);
+    registerWiki(other, { llm: t.llm });
+    const otherProject = await other.getProject("proj");
+    if (!otherProject) throw new Error("no project");
+    await writeFile(filesApi, "proj/c.md", "Charlie.");
+    const tabB = wikiNatureOf(otherProject).scan();
+    expect((await tabB.run())?.scanned.changed).toBe(1);
+
+    // Tab A reloads the store when it takes the lease: nothing is left to do.
+    const again = await tabA.run();
+    expect(again?.scanned.changed).toBe(0);
+    expect(again?.executed).toBe(0);
+  });
+
+  it("skips scan and restart while another writer holds the lease", async () => {
+    const project = await openProject();
+    const scan = wikiNatureOf(project).scan();
+    const lock = new ScanLock(filesApi, "proj/.project/state/scan.lock", { holderId: "other" });
+    expect(await lock.tryAcquire()).toBe(true);
+    expect(await scan.run()).toBeUndefined();
+    expect(await scan.restartFrom("Embedder")).toBeUndefined();
+    await lock.release();
+    expect(await scan.restartFrom("Embedder")).toEqual(["Embedder", "SearchIndexer"]);
   });
 
   it("records the source hash in raw.meta.json and stamps it onto the page artifacts", async () => {

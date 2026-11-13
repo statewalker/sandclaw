@@ -280,6 +280,8 @@ export async function buildTree(
 export function summarizeBuilder(opts: { force?: boolean } = {}): RegisteredBuilder {
   return {
     id: SUMMARIZE_BUILDER_ID,
+    // A schema change re-runs every task (the hash gate re-derives stale artifacts).
+    version: KNOWLEDGE_SCHEMA_VERSION,
     inputs: [CONTENT_SIGNAL],
     outputs: [SUMMARIZED_SIGNAL],
     async run(ctx, project) {

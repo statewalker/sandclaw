@@ -13,6 +13,7 @@ import {
   ProjectAdapter,
   type RegisteredBuilder,
   type Resource,
+  SOURCES_COLLECTION,
   type Workspace,
 } from "@statewalker/workspace.core";
 import { tryReadJson, writeJsonAtomic } from "../util/io.js";
@@ -306,6 +307,21 @@ export class SearchAdapter extends ProjectAdapter {
     await this.maybePersist();
   }
 
+  /** The uris of every page the index holds blocks for (full-text and vector). */
+  async indexedPages(): Promise<string[]> {
+    const index = await this.ensureIndex(this.allSubs());
+    const uris = new Set<string>();
+    for await (const path of ftsAccess.get(index).getDocumentPaths()) {
+      uris.add(fromDocumentPath(path));
+    }
+    if (this.hasVectors) {
+      for await (const path of vecAccess.get(index).getDocumentPaths()) {
+        uris.add(fromDocumentPath(path));
+      }
+    }
+    return [...uris].sort();
+  }
+
   /** Remove a source's blocks from the index. Persists (throttled). */
   async removePage(uri: string): Promise<void> {
     const index = await this.ensureIndex(this.allSubs());
@@ -399,7 +415,8 @@ interface SearchIndexerState {
  * rows that changed since the last run — re-indexing added/changed pages and removing
  * pages whose row disappeared (a removed source retracts its whole chain) — then forces
  * the final index serialization the throttle may have skipped. Without a saved state
- * (first run, or after `restartFrom("SearchIndexer")`) every listed page is re-indexed.
+ * (first run, or after `restartFrom("SearchIndexer")`) every listed page is re-indexed and
+ * every indexed page that is not listed — and whose source was scanned or is gone — is removed.
  * A page that fails to (re-)index is logged and skipped — it is retried when its row
  * changes again — so one bad document never blocks the index. Generic — the blocks come
  * from the injected provider on the `SearchAdapter`.
@@ -411,6 +428,8 @@ export function searchBuilder(opts: { inputSignal: string }): RegisteredBuilder 
     kind: "reduce",
     incremental: true,
     inputs: [inputSignal],
+    // A full pass checks whether an unlisted indexed page was scanned.
+    reads: inputSignal === SOURCES_COLLECTION ? [] : [SOURCES_COLLECTION],
     outputs: [],
     async run(ctx, project) {
       const search = project.requireAdapter(SearchAdapter);
@@ -423,8 +442,19 @@ export function searchBuilder(opts: { inputSignal: string }): RegisteredBuilder 
         else changed.add(c.key);
       }
       if (state === undefined) {
+        // Full pass: index every listed page and drop every indexed page not listed.
         changed.clear();
         for (const row of await ctx.list(inputSignal)) changed.add(row.key);
+        // An unlisted page is dropped only when it is really gone: scanned without reaching
+        // this stage (its `sources` row exists), or deleted. One not scanned yet (a scan
+        // batch still to come, e.g. the first build after an upgrade) stays searchable.
+        for (const uri of await search.indexedPages()) {
+          if (changed.has(uri)) continue;
+          const scanned = (await ctx.get(SOURCES_COLLECTION, uri)) !== undefined;
+          const exists =
+            (await project.workspace.files.stats(project.resolveProjectPath(uri))) != null;
+          if (scanned || !exists) removed.add(uri);
+        }
         for (const uri of changed) removed.delete(uri);
       }
       for (const uri of changed) {

@@ -339,6 +339,11 @@ async function referencedDocs(project: Project): Promise<Set<string>> {
   return uris;
 }
 
+/** Whether the source file of a project-relative uri exists. */
+async function sourceExists(project: Project, uri: string): Promise<boolean> {
+  return (await project.workspace.files.stats(project.resolveProjectPath(uri))) != null;
+}
+
 /** What the reorganizer carries between runs: the `generated` stamp of the last tree it wrote. */
 interface ReorganizeState {
   generated: string | null;
@@ -363,6 +368,8 @@ export function reorganizeBuilder(): RegisteredBuilder {
     kind: "reduce",
     incremental: true,
     inputs: [DOC_TOPICS_EMBEDDED_SIGNAL],
+    // A full pass checks whether a referenced document was scanned.
+    reads: [SOURCES_COLLECTION],
     outputs: [TOPIC_TREE_SIGNAL],
     async run(ctx, project) {
       const log = loggerOf(project, REORGANIZE_BUILDER_ID);
@@ -374,7 +381,15 @@ export function reorganizeBuilder(): RegisteredBuilder {
           touched.add(row.key);
           present.add(row.key);
         }
-        for (const uri of await referencedDocs(project)) touched.add(uri);
+        // A document the indexes reference but no row lists is stripped only when it is
+        // really gone: scanned without producing topics (its `sources` row exists), or
+        // deleted. One not scanned yet (a scan batch still to come, e.g. the first build
+        // after an upgrade) keeps its references until it flows through.
+        for (const uri of await referencedDocs(project)) {
+          if (present.has(uri)) continue;
+          const scanned = (await ctx.get(SOURCES_COLLECTION, uri)) !== undefined;
+          if (scanned || !(await sourceExists(project, uri))) touched.add(uri);
+        }
       } else {
         for (const c of await ctx.changes(DOC_TOPICS_EMBEDDED_SIGNAL)) {
           touched.add(c.key);

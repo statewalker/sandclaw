@@ -7,7 +7,7 @@ import {
   SOURCES_COLLECTION,
   Workspace,
 } from "@statewalker/workspace.core";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   registerContentExtraction,
   registerSearch,
@@ -47,10 +47,11 @@ const SECTIONS: Record<string, SearchBlock[]> = {
 const blocks = async (_resource: Resource, uri: string): Promise<SearchBlock[]> =>
   SECTIONS[uri] ?? [];
 
-function newRepository() {
-  const filesApi = new MemFilesApi({
+function newRepository(
+  filesApi = new MemFilesApi({
     initialFiles: { "proj/a.md": "# A", "proj/b.md": "# B" },
-  });
+  }),
+) {
   const repository = new Workspace().setFileSystem(filesApi);
   registerContentExtraction(repository);
   registerSearch(repository, {
@@ -219,6 +220,57 @@ describe("SearchAdapter", () => {
     // Without the rev-based reload the reader's memoised index would miss "delta".
     const hits = await readerAdapter.search({ query: "delta", modes: ["fts"] });
     expect(hits.find((r) => r.uri === "a.md")).toBeDefined();
+  });
+});
+
+async function openProj(workspace: Workspace) {
+  const project = await workspace.getProject("proj");
+  if (!project) throw new Error("no project");
+  return project;
+}
+
+describe("SearchIndexer full pass (no saved state)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /** Index proj/ in one session, then start a new session over a FRESH build store. */
+  async function rebuiltAfterReset(
+    filesApi: MemFilesApi,
+    between: () => Promise<void>,
+    scanBatch?: number,
+  ) {
+    const first = await openProj(newRepository(filesApi));
+    first
+      .requireAdapter(ProjectBuilder)
+      .registerBuilder(searchBuilder({ inputSignal: SOURCES_COLLECTION }));
+    await first.requireAdapter(ProjectBuilder).run();
+    await filesApi.remove("proj/.project/state/build");
+    await between();
+    const project = await openProj(newRepository(filesApi));
+    const builder = project.requireAdapter(ProjectBuilder).configureScanBatch(scanBatch);
+    builder.registerBuilder(searchBuilder({ inputSignal: SOURCES_COLLECTION }));
+    return { project, builder };
+  }
+
+  it("drops indexed pages whose source is gone", async () => {
+    const filesApi = new MemFilesApi({ initialFiles: { "proj/a.md": "# A", "proj/b.md": "# B" } });
+    const { project, builder } = await rebuiltAfterReset(filesApi, () =>
+      filesApi.remove("proj/b.md").then(() => undefined),
+    );
+    await builder.run();
+    const search = project.requireAdapter(SearchAdapter);
+    expect(await search.indexedPages()).toEqual(["a.md"]);
+    expect((await search.search({ query: "charlie", modes: ["fts"] })).map((r) => r.uri)).toEqual(
+      [],
+    );
+  });
+
+  it("keeps pages of a scan batch still to come searchable", async () => {
+    const filesApi = new MemFilesApi({ initialFiles: { "proj/a.md": "# A", "proj/b.md": "# B" } });
+    const { project, builder } = await rebuiltAfterReset(filesApi, async () => {}, 1);
+    const removed = vi.spyOn(SearchAdapter.prototype, "removePage");
+    await builder.run();
+    expect(removed).not.toHaveBeenCalled();
+    expect(await project.requireAdapter(SearchAdapter).indexedPages()).toEqual(["a.md", "b.md"]);
   });
 });
 

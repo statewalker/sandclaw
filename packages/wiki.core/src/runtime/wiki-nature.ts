@@ -30,6 +30,11 @@ export class WikiEmbeddingFrozenError extends Error {
 export interface WikiScanRunOptions {
   /** Called after each committed batch of tasks (all of one builder). */
   onProgress?: (progress: RunProgress) => void;
+  /**
+   * Retry the tasks that failed in earlier runs (default `false`: a failed document waits
+   * until something it reads changes).
+   */
+  retryFailed?: boolean;
 }
 
 /** A running scan, exposing the underlying `ProjectBuilder` controls the indexer panel needs. */
@@ -44,9 +49,13 @@ export interface WikiScanHandle {
   run(opts?: WikiScanRunOptions): Promise<ProjectBuildResult | undefined>;
   /** Current build status: queued tasks per stage and the dead-letter count. */
   status(): Promise<BuildStatus>;
-  /** Re-run a stage and everything downstream of it (e.g. `"Embedder"` after an embedding change). */
-  restartFrom(stage: string): Promise<void>;
-  /** Request the current `run()` to stop after the in-flight batch. */
+  /**
+   * Re-run a stage and everything downstream of it on the next run (e.g. `"Embedder"`
+   * after an embedding change), holding the scan lease. Resolves with the restarted stage
+   * ids, or `undefined` when another writer holds the lease (nothing restarted).
+   */
+  restartFrom(stage: string): Promise<string[] | undefined>;
+  /** Request the run in progress (if any) to stop after the in-flight batch. */
   stop(): void;
 }
 
@@ -125,59 +134,71 @@ export class WikiNature extends ProjectAdapter {
     const filesApi = this.filesApi;
     const lockPath = this.lockPath();
     const log = loggerOf(this.project, "WikiScan");
-    const abort = new AbortController();
+    /** The controller of the run in progress (`stop()` aborts it). */
+    let current: AbortController | undefined;
+    /**
+     * Run `fn` holding the project's scan lease (heartbeated), or resolve `undefined` when
+     * another writer (tab/CLI) holds it. The build store is single-writer and the writers
+     * alternate, so it is reloaded from disk right after the lease is taken.
+     */
+    const withLease = async <T>(what: string, fn: () => Promise<T>): Promise<T | undefined> => {
+      await config.load();
+      const lock = new ScanLock(filesApi, lockPath, { holderId: HOLDER_ID });
+      if (!(await lock.tryAcquire())) {
+        log.debug(`${what} skipped: lease held by another writer`);
+        return undefined;
+      }
+      const renew = setInterval(() => void lock.renew(), DEFAULT_RENEW_MS);
+      try {
+        await builder.reopen();
+        return await fn();
+      } finally {
+        clearInterval(renew);
+        await lock.release();
+      }
+    };
     return {
-      run: async (runOpts: WikiScanRunOptions = {}) => {
-        await config.load();
-        // Best-effort per-project lease: skip when another writer (tab/CLI) is already
-        // indexing this project; otherwise hold + heartbeat the lease for the build.
-        const lock = new ScanLock(filesApi, lockPath, { holderId: HOLDER_ID });
-        if (!(await lock.tryAcquire())) {
-          log.debug("scan skipped: lease held by another writer");
-          return undefined;
-        }
-        log.debug("scan started", {
-          holderId: HOLDER_ID,
-          embeddings: config.hasEmbeddings,
-        });
-        const renew = setInterval(() => void lock.renew(), DEFAULT_RENEW_MS);
-        try {
-          // A failed document is not retried on every scan (an LLM step would fail the
-          // same way again): it waits until its input changes.
-          const result = await builder.run({
-            retryFailed: false,
-            failOnError: false,
-            signal: abort.signal,
-            onProgress: runOpts.onProgress,
+      run: (runOpts: WikiScanRunOptions = {}) =>
+        withLease("scan", async () => {
+          const abort = new AbortController();
+          current = abort;
+          log.debug("scan started", {
+            holderId: HOLDER_ID,
+            embeddings: config.hasEmbeddings,
           });
-          // Report the failures when this run parked new ones; failures kept from earlier
-          // runs are not re-logged on every (polling) scan.
-          if (result.deadLettered > 0) {
-            for (const f of result.failures) {
-              log.error("build task failed; skipping", {
-                builder: f.builder,
-                uri: f.key,
-                attempts: f.attempts,
-                error: f.error,
-              });
+          try {
+            // By default a failed document is not retried on every scan (an LLM step would
+            // fail the same way again): it waits until its input changes.
+            const result = await builder.run({
+              retryFailed: runOpts.retryFailed ?? false,
+              failOnError: false,
+              signal: abort.signal,
+              onProgress: runOpts.onProgress,
+            });
+            // Report the failures when this run parked new ones; failures kept from earlier
+            // runs are not re-logged on every (polling) scan.
+            if (result.deadLettered > 0) {
+              for (const f of result.failures) {
+                log.error("build task failed; skipping", {
+                  builder: f.builder,
+                  uri: f.key,
+                  attempts: f.attempts,
+                  error: f.error,
+                });
+              }
+            } else if (result.failures.length > 0) {
+              log.debug("documents still failing", { failed: result.failures.length });
             }
-          } else if (result.failures.length > 0) {
-            log.debug("documents still failing", { failed: result.failures.length });
+            return result;
+          } finally {
+            if (current === abort) current = undefined;
+            log.debug("scan finished", { stopped: abort.signal.aborted });
           }
-          return result;
-        } finally {
-          clearInterval(renew);
-          await lock.release();
-          log.debug("scan finished", { stopped: abort.signal.aborted });
-        }
-      },
+        }),
       status: () => builder.status(),
-      restartFrom: async (stage) => {
-        await config.load();
-        await restartWikiFrom(builder, stage);
-      },
+      restartFrom: (stage) => withLease("restart", () => restartWikiFrom(builder, stage)),
       stop: () => {
-        abort.abort();
+        current?.abort();
       },
     };
   }

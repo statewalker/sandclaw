@@ -193,7 +193,7 @@ const id = await snapshots.saveAnswer(answer, "What is X?");
 
 ```sh
 # wiki <root> <command> <project> [args…]
-pnpm --filter @statewalker/wiki.core start /my/vault scan notes              # run the build pipeline ("force" re-runs every stage)
+pnpm --filter @statewalker/wiki.core start /my/vault scan notes              # run the build pipeline ("force" re-derives every page, "retry" retries failed documents)
 pnpm --filter @statewalker/wiki.core start /my/vault status notes            # queued tasks per builder + failed (dead-letter) tasks
 pnpm --filter @statewalker/wiki.core start /my/vault query notes "what is X" # routed, cited answer
 pnpm --filter @statewalker/wiki.core start /my/vault search notes "vector index" --mode hybrid --top-k 20
@@ -259,7 +259,8 @@ Two things that trip people up:
 
 - **Scans are batched.** `wireWikiProject` scans changed sources 16 at a time and runs each batch through the whole pipeline before the next, so the topic/outlier indexes and the search index are written mid-build and already-indexed documents are searchable while a large build is running. The tasks of one builder batch run 8 at a time (`configureEngine({ concurrency: 8 })`), so LLM and embedding calls overlap.
 - **Artifacts live under the project system folder** (`<project>/.project/nature.wiki.json` for the wiki config, `<project>/.project/pages/<uri>/` per page, `<project>/.project/index/` for global indexes and the search index, `<project>/.project/snapshots/` for saved answers and reports). The project key is the resource path's first segment.
-- **A bad document is isolated, not fatal.** A per-page stage that throws is retried, then parked as a dead letter (its previous outputs kept) while the rest of the pipeline converges; `scan().run()` and the CLI run with `retryFailed: false`, so a failed document is not retried until something it reads (its source) changes, and they report the failures instead of rejecting.
+- **A bad document is isolated, not fatal.** A per-page stage that throws is retried, then parked as a dead letter (its previous outputs kept) while the rest of the pipeline converges; `scan().run()` and the CLI run with `retryFailed: false` by default (`scan().run({ retryFailed: true })`, `scan <project> retry`), so a failed document is not retried until something it reads (its source) changes, and they report the failures instead of rejecting.
+- **One writer at a time.** The build state (`.project/state/build`) is a single-writer store. `scan().run()` and `scan().restartFrom()` take the project's scan lease and reload the store from disk first, so browser tabs and the CLI alternate safely.
 - **Per-section facts live in the summary, not a separate graph.** The summarizer emits each section's `details` (exhaustive markdown facts) and `tables` (structured `{caption, columns, rows}`) in the same pass; query evidence is drawn from `summary` / `details` / `tables`. A separate entity/triple graph would need a second LLM pass over the same raw text and repeats subjects in every statement; one pass with three non-overlapping fields is cheaper and keeps tables structured.
 - **Topic-index bounds are configurable.** `topicFanout` (default 10), `topicLeafCap` (default 25) and `documentChapterFanout` (default 8) are read from `nature.wiki.json`.
 - **Snapshots are frozen and temporally versioned** — never auto-updated, never re-ingested as sources; re-running a subject creates a new dated snapshot.

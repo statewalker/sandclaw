@@ -202,6 +202,10 @@ const WIKI_SCAN_BATCH_SIZE = 16;
  * reduce stages (reorganizer, search indexer) have a single task anyway. */
 const WIKI_BUILD_CONCURRENCY = 8;
 
+/** Tasks committed per engine batch: small, so `stop()` (checked between batches) takes
+ * effect soon and an interrupted build loses little work. */
+const WIKI_BUILD_BATCH_SIZE = 16;
+
 /** Attach the wiki builders to a project's `ProjectBuilder` and return it. The wiki's
  * `.indexignore` matcher is injected into the generic source scan (recompiled per run).
  * Source scanning is batched so the global indexes are persisted incrementally, and the
@@ -209,7 +213,10 @@ const WIKI_BUILD_CONCURRENCY = 8;
 export function wireWikiProject(project: Project, opts: WikiBuildOptions = {}): ProjectBuilder {
   const builder = project.requireAdapter(ProjectBuilder);
   builder.configureScanBatch(WIKI_SCAN_BATCH_SIZE);
-  builder.configureEngine({ concurrency: WIKI_BUILD_CONCURRENCY });
+  builder.configureEngine({
+    concurrency: WIKI_BUILD_CONCURRENCY,
+    batchSize: WIKI_BUILD_BATCH_SIZE,
+  });
   builder.configureSourceIgnore(() => buildIndexIgnore(project.workspace.files, project.path));
   // The per-project builder step: attach the nature's builders (per-call `opts` such as
   // `force` are threaded here, so builders are built per wiring rather than shared).

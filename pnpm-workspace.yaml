@@ -43,7 +43,7 @@ catalog:
   "@statewalker/ai-local-models.core": "^0.5.0"
   "@statewalker/ai-local-models.view.react": "^0.2.0"
   "@statewalker/content-extractors": "^0.2.1"
-  "@statewalker/explorer.core": "^0.5.0"
+  "@statewalker/explorer.core": "^0.6.0"
   "@statewalker/explorer.view.react": "^0.2.0"
   "@statewalker/fsm": ^0.38.1
   "@statewalker/fsm-validator": ^0.2.0
@@ -53,17 +53,17 @@ catalog:
   "@statewalker/indexer-vector": ^0.1.0
   "@statewalker/inline.core": "^0.4.0"
   "@statewalker/inline.view.react": "^0.2.0"
-  "@statewalker/mime.core": "^0.5.0"
+  "@statewalker/mime.core": "^0.6.0"
   "@statewalker/mime.view.image": "^0.2.0"
   "@statewalker/mime.view.markdown": "^0.2.0"
   "@statewalker/mime.view.pdf": "^0.2.0"
   "@statewalker/mime.view.video": "^0.2.0"
-  "@statewalker/platform.browser": "^0.5.0"
-  "@statewalker/platform.core": "^0.5.0"
-  "@statewalker/platform.node": "^0.5.0"
-  "@statewalker/render.core": "^0.5.0"
+  "@statewalker/platform.browser": "^0.6.0"
+  "@statewalker/platform.core": "^0.6.0"
+  "@statewalker/platform.node": "^0.6.0"
+  "@statewalker/render.core": "^0.6.0"
   "@statewalker/render.view.react": "^0.2.0"
-  "@statewalker/settings.core": "^0.5.0"
+  "@statewalker/settings.core": "^0.6.0"
   "@statewalker/settings.view.react": "^0.2.0"
   "@statewalker/shared-adapters": ^0.1.0
   "@statewalker/shared-baseclass": ^0.1.0
@@ -72,7 +72,7 @@ catalog:
   "@statewalker/shared-logger-pino": ^0.1.0
   "@statewalker/shared-registry": ^0.1.0
   "@statewalker/shared-slots": ^0.2.0
-  "@statewalker/shell.core": "^0.5.0"
+  "@statewalker/shell.core": "^0.6.0"
   "@statewalker/shell.view.react": "^0.2.0"
   "@statewalker/ui.view.react": "^0.2.0"
   "@statewalker/ui.view.shadcn": ^0.1.1
@@ -82,7 +82,7 @@ catalog:
   "@statewalker/webrun-files-mem": ^0.10.0
   "@statewalker/webrun-files-node": ^0.10.0
   "@statewalker/webrun-files-s3": ^0.10.3
-  "@statewalker/workspace.browser": "^0.5.0"
+  "@statewalker/workspace.browser": "^0.6.0"
   "@statewalker/workspace.core": "^0.6.0"
   "@statewalker/workspace.view.react": "^0.2.0"
   "@storybook/addon-docs": ^10.6.2

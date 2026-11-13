@@ -90,6 +90,8 @@ function metaFingerprint(meta: DocumentMeta) {
 export function metaBuilder(opts: { force?: boolean } = {}): RegisteredBuilder {
   return {
     id: META_BUILDER_ID,
+    // A schema change re-runs every task (the hash gate re-derives stale artifacts).
+    version: KNOWLEDGE_SCHEMA_VERSION,
     inputs: [SUMMARIZED_SIGNAL],
     outputs: [META_SIGNAL],
     async run(ctx, project) {

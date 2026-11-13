@@ -21,6 +21,8 @@ export const EMBEDDED_SIGNAL = "embedded";
 export function embedderBuilder(opts: { force?: boolean } = {}): RegisteredBuilder {
   return {
     id: EMBED_BUILDER_ID,
+    // A schema change re-runs every task (the hash gate re-derives stale artifacts).
+    version: KNOWLEDGE_SCHEMA_VERSION,
     inputs: [SUMMARIZED_SIGNAL],
     outputs: [EMBEDDED_SIGNAL],
     async run(ctx, project) {

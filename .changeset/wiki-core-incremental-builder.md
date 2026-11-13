@@ -11,7 +11,11 @@ artifacts in `dispose`, and `IndexReorganizer` and `SearchIndexer` are increment
 that see removed rows as changes (the `meta-removed-topics` tombstones and
 `META_REMOVED_TOPICS_SIGNAL` are gone). A failing document is no longer swallowed: it is retried,
 then kept as a dead letter with its previous outputs. `WikiScanHandle.run()` now returns a promise of
-the build result (`failures` included) and takes `{ onProgress }`; `status()` reports queued tasks per
-stage; `restartFrom(stage)` re-runs a stage and its downstream (`restartWikiFrom`, `wikiStagesFrom`).
+the build result (`failures` included) and takes `{ onProgress, retryFailed }`; `status()` reports
+queued tasks per stage; `restartFrom(stage)` re-runs a stage and its downstream (`restartWikiFrom`,
+`wikiStagesFrom`) under the scan lease. Scans and restarts reload the build store after taking the
+scan lease, so tabs and the CLI can alternate as writers. The CLI gains `scan <project> retry`, and
+`scan <project> force` re-derives every page. Summarizer, MetaExtractor and Embedder carry
+`KNOWLEDGE_SCHEMA_VERSION` as their builder version.
 Builder state moves to `.project/state/build`: the first scan after upgrading re-checks every
 document (hash-gated stages skip their LLM calls).
