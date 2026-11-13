@@ -16,6 +16,7 @@ import {
   SOURCES_COLLECTION,
   type Workspace,
 } from "@statewalker/workspace.core";
+import { isSourceGone, settleDeferred } from "../util/deferred-sources.js";
 import { tryReadJson, writeJsonAtomic } from "../util/io.js";
 import { FilesIndexerPersistence } from "./files-persistence.js";
 
@@ -405,9 +406,13 @@ export function registerSearch(workspace: Workspace, deps: SearchDeps): () => vo
   });
 }
 
-/** What the search indexer carries between runs: its presence marks "index built". */
+/**
+ * What the search indexer carries between runs: its presence marks "index built";
+ * `deferred` lists indexed pages a full pass kept because they were not scanned yet.
+ */
 interface SearchIndexerState {
   built: true;
+  deferred?: string[];
 }
 
 /**
@@ -437,23 +442,28 @@ export function searchBuilder(opts: { inputSignal: string }): RegisteredBuilder 
       const state = ctx.state as SearchIndexerState | undefined;
       const changed = new Set<string>();
       const removed = new Set<string>();
+      let deferred: string[] = [];
       for (const c of await ctx.changes(inputSignal)) {
         if (c.value === undefined) removed.add(c.key);
         else changed.add(c.key);
       }
-      if (state === undefined) {
+      if (state !== undefined) {
+        // Deferred pages scanned since without reaching this stage (or deleted): remove.
+        const settled = await settleDeferred(ctx, project, inputSignal, state.deferred ?? []);
+        for (const uri of settled.gone) removed.add(uri);
+        deferred = settled.pending;
+      } else {
         // Full pass: index every listed page and drop every indexed page not listed.
         changed.clear();
         for (const row of await ctx.list(inputSignal)) changed.add(row.key);
         // An unlisted page is dropped only when it is really gone: scanned without reaching
         // this stage (its `sources` row exists), or deleted. One not scanned yet (a scan
-        // batch still to come, e.g. the first build after an upgrade) stays searchable.
+        // batch still to come, e.g. the first build after an upgrade) stays searchable and
+        // is re-checked on later runs.
         for (const uri of await search.indexedPages()) {
           if (changed.has(uri)) continue;
-          const scanned = (await ctx.get(SOURCES_COLLECTION, uri)) !== undefined;
-          const exists =
-            (await project.workspace.files.stats(project.resolveProjectPath(uri))) != null;
-          if (scanned || !exists) removed.add(uri);
+          if (await isSourceGone(ctx, project, uri)) removed.add(uri);
+          else deferred.push(uri);
         }
         for (const uri of changed) removed.delete(uri);
       }
@@ -484,7 +494,7 @@ export function searchBuilder(opts: { inputSignal: string }): RegisteredBuilder 
       }
       // Drained: force the final serialization the throttle may have skipped.
       await search.persist();
-      ctx.setState({ built: true } satisfies SearchIndexerState);
+      ctx.setState({ built: true, deferred } satisfies SearchIndexerState);
     },
   };
 }

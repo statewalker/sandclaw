@@ -13,6 +13,7 @@ import {
   wikiConfigOf,
 } from "../llm/index.js";
 import { toBatch } from "../util/batch.js";
+import { isSourceGone, settleDeferred } from "../util/deferred-sources.js";
 import { DOC_TOPICS_EMBEDDED_SIGNAL } from "./doc-topic-embedder.js";
 import { WikiOutlierIndex, WikiTopicIndex } from "./indexes.js";
 import { WikiPageMeta } from "./page-adapters.js";
@@ -339,14 +340,13 @@ async function referencedDocs(project: Project): Promise<Set<string>> {
   return uris;
 }
 
-/** Whether the source file of a project-relative uri exists. */
-async function sourceExists(project: Project, uri: string): Promise<boolean> {
-  return (await project.workspace.files.stats(project.resolveProjectPath(uri))) != null;
-}
-
-/** What the reorganizer carries between runs: the `generated` stamp of the last tree it wrote. */
+/**
+ * What the reorganizer carries between runs: the `generated` stamp of the last tree it
+ * wrote, and the referenced documents a full pass deferred (not scanned yet).
+ */
 interface ReorganizeState {
   generated: string | null;
+  deferred?: string[];
 }
 
 /**
@@ -368,7 +368,7 @@ export function reorganizeBuilder(): RegisteredBuilder {
     kind: "reduce",
     incremental: true,
     inputs: [DOC_TOPICS_EMBEDDED_SIGNAL],
-    // A full pass checks whether a referenced document was scanned.
+    // A full pass (and its deferred documents) checks whether a document was scanned.
     reads: [SOURCES_COLLECTION],
     outputs: [TOPIC_TREE_SIGNAL],
     async run(ctx, project) {
@@ -376,6 +376,7 @@ export function reorganizeBuilder(): RegisteredBuilder {
       const state = ctx.state as ReorganizeState | undefined;
       const touched = new Set<string>();
       const present = new Set<string>();
+      let deferred: string[] = [];
       if (state === undefined) {
         for (const row of await ctx.list(DOC_TOPICS_EMBEDDED_SIGNAL)) {
           touched.add(row.key);
@@ -384,17 +385,26 @@ export function reorganizeBuilder(): RegisteredBuilder {
         // A document the indexes reference but no row lists is stripped only when it is
         // really gone: scanned without producing topics (its `sources` row exists), or
         // deleted. One not scanned yet (a scan batch still to come, e.g. the first build
-        // after an upgrade) keeps its references until it flows through.
+        // after an upgrade) keeps its references and is re-checked on later runs.
         for (const uri of await referencedDocs(project)) {
           if (present.has(uri)) continue;
-          const scanned = (await ctx.get(SOURCES_COLLECTION, uri)) !== undefined;
-          if (scanned || !(await sourceExists(project, uri))) touched.add(uri);
+          if (await isSourceGone(ctx, project, uri)) touched.add(uri);
+          else deferred.push(uri);
         }
       } else {
         for (const c of await ctx.changes(DOC_TOPICS_EMBEDDED_SIGNAL)) {
           touched.add(c.key);
           if (c.value !== undefined) present.add(c.key);
         }
+        // Deferred documents scanned since without producing topics (or deleted): strip.
+        const settled = await settleDeferred(
+          ctx,
+          project,
+          DOC_TOPICS_EMBEDDED_SIGNAL,
+          state.deferred ?? [],
+        );
+        for (const uri of settled.gone) touched.add(uri);
+        deferred = settled.pending;
       }
       let generated = state?.generated ?? null;
       if (touched.size > 0) {
@@ -417,7 +427,7 @@ export function reorganizeBuilder(): RegisteredBuilder {
       }
       // Re-emit the last stamp when nothing was touched (an unchanged row: no cleanup run).
       if (generated !== null) ctx.emit(TOPIC_TREE_SIGNAL, "topics.json", generated);
-      ctx.setState({ generated } satisfies ReorganizeState);
+      ctx.setState({ generated, deferred } satisfies ReorganizeState);
     },
   };
 }

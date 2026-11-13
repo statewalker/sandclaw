@@ -77,7 +77,9 @@ async function session(files: MemFilesApi) {
   const leaves = (index: TopicIndex) =>
     Object.values(index.nodes).filter((n) => !isCategory(n)).length;
   const readLeaves = async () => leaves(await project.requireAdapter(WikiTopicIndex).read());
-  return { builder, leaves, readLeaves };
+  const hasLeaf = async (key: string) =>
+    !!(await project.requireAdapter(WikiTopicIndex).read()).nodes[key];
+  return { builder, leaves, readLeaves, hasLeaf };
 }
 
 describe("reorganizer on a fresh build store (upgrade)", () => {
@@ -115,5 +117,25 @@ describe("reorganizer on a fresh build store (upgrade)", () => {
     expect(await second.readLeaves()).toBe(DOCS);
     // Hash-gated stages and key-matched attribution: no LLM work at all.
     expect(calls).toEqual([]);
+  });
+
+  it("strips a deferred document once it is scanned without producing topics", async () => {
+    const files = new MemFilesApi({ initialFiles: {} });
+    for (let i = 0; i < DOCS; i++) {
+      await files.write(`proj/d${String(i).padStart(2, "0")}.md`, [
+        new TextEncoder().encode(`doc ${i}`),
+      ]);
+    }
+    const first = await session(files);
+    await first.builder.run();
+    expect(await first.readLeaves()).toBe(DOCS);
+
+    // Upgrade, and the last document (scanned in the last batch) became empty: no rows.
+    await files.remove("proj/.project/state/build");
+    await files.write("proj/d39.md", [new TextEncoder().encode("")]);
+    const second = await session(files);
+    await second.builder.run();
+    expect(await second.readLeaves()).toBe(DOCS - 1);
+    expect(await second.hasLeaf("k-d39md")).toBe(false);
   });
 });

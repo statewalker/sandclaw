@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import {
   ProjectBuilder,
+  type RegisteredBuilder,
   type Resource,
   SOURCES_COLLECTION,
   Workspace,
@@ -271,6 +272,37 @@ describe("SearchIndexer full pass (no saved state)", () => {
     await builder.run();
     expect(removed).not.toHaveBeenCalled();
     expect(await project.requireAdapter(SearchAdapter).indexedPages()).toEqual(["a.md", "b.md"]);
+  });
+
+  it("drops a deferred page once it is scanned without reaching the indexer", async () => {
+    const filesApi = new MemFilesApi({ initialFiles: { "proj/a.md": "# A", "proj/b.md": "# B" } });
+    // A stage in front of the indexer that (in the second session) stops passing b.md on.
+    let skip = new Set<string>();
+    const filter: RegisteredBuilder = {
+      id: "Filter",
+      inputs: [SOURCES_COLLECTION],
+      outputs: ["listed"],
+      async run(ctx) {
+        const row = await ctx.get(SOURCES_COLLECTION, ctx.key);
+        if (row !== undefined && !skip.has(ctx.key)) ctx.emit("listed", ctx.key, row);
+      },
+    };
+    const session = async (scanBatch?: number) => {
+      const project = await openProj(newRepository(filesApi));
+      const builder = project.requireAdapter(ProjectBuilder).configureScanBatch(scanBatch);
+      builder.registerBuilder(filter);
+      builder.registerBuilder(searchBuilder({ inputSignal: "listed" }));
+      return { project, builder };
+    };
+    await (await session()).builder.run();
+
+    // Fresh build store, one source per scan batch: b.md is deferred by the full pass
+    // (not scanned yet), then scanned without a `listed` row → removed.
+    await filesApi.remove("proj/.project/state/build");
+    skip = new Set(["b.md"]);
+    const { project, builder } = await session(1);
+    await builder.run();
+    expect(await project.requireAdapter(SearchAdapter).indexedPages()).toEqual(["a.md"]);
   });
 });
 

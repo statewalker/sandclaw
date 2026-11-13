@@ -35,9 +35,12 @@ function tracker() {
   const topicByUri = new Map<string, string>();
   // Documents whose summarization throws (an unparseable / poisoned source).
   const failSummarize = new Set<string>();
+  // While set, summarization waits for it (to hold a run in progress).
+  const gate: { hold?: Promise<void> } = {};
   const generateObject: LlmApi["generateObject"] = async (spec) => {
     const input = spec.input as { uri?: string; rawLines?: [number, string][] };
     calls.push({ name: spec.name, uri: input.uri });
+    if (spec.name === "summarize-document" && gate.hold) await gate.hold;
     if (spec.name === "summarize-document" && failSummarize.has(input.uri ?? "")) {
       throw new Error(`cannot summarize ${input.uri}`);
     }
@@ -106,7 +109,7 @@ function tracker() {
     }
   };
   const llm = makeStubLlm({ generateObject, embed });
-  return { llm, calls, topicByUri, failSummarize };
+  return { llm, calls, topicByUri, failSummarize, gate };
 }
 
 async function writeFile(filesApi: FilesApi, path: string, text: string): Promise<void> {
@@ -366,6 +369,37 @@ describe("wiki builders — incremental behaviour", () => {
     expect(await scan.restartFrom("Embedder")).toBeUndefined();
     await lock.release();
     expect(await scan.restartFrom("Embedder")).toEqual(["Embedder", "SearchIndexer"]);
+  });
+
+  it("overlapping operations share the lease; it is released when the last one ends", async () => {
+    const project = await openProject();
+    const scan = wikiNatureOf(project).scan();
+    const lockFile = "proj/.project/state/scan.lock";
+    let open = () => {};
+    t.gate.hold = new Promise<void>((r) => {
+      open = r;
+    });
+    const running = scan.run();
+    while (!t.calls.some((c) => c.name === "summarize-document")) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    // A restart while the run works: same holder → shares the lease (not skipped)…
+    expect(await scan.restartFrom("Embedder")).toEqual(["Embedder", "SearchIndexer"]);
+    // …and finishing first does not release it under the running scan.
+    expect(await filesApi.exists(lockFile)).toBe(true);
+    t.gate.hold = undefined;
+    open();
+    expect((await running)?.failures).toEqual([]);
+    expect(await filesApi.exists(lockFile)).toBe(false);
+  });
+
+  it("stop() before the run has taken the lease still stops it", async () => {
+    const project = await openProject();
+    const scan = wikiNatureOf(project).scan();
+    const running = scan.run();
+    scan.stop();
+    expect(await running).toBeUndefined();
+    expect(t.calls).toEqual([]);
   });
 
   it("records the source hash in raw.meta.json and stamps it onto the page artifacts", async () => {

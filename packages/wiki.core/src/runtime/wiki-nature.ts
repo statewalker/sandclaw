@@ -13,7 +13,7 @@ import type { QueryProgress } from "../query/index.js";
 import { WikiQuery } from "../query/index.js";
 import { tryReadJson } from "../util/io.js";
 import { restartWikiFrom, type WikiBuildOptions, wireWikiProject } from "./register-wiki.js";
-import { DEFAULT_RENEW_MS, ScanLock } from "./scan-lock.js";
+import { isScanLeaseShared, withSharedScanLease } from "./scan-lock.js";
 
 /** Identifies this JS context (tab / CLI process) as a scan-lock holder. One per module load. */
 const HOLDER_ID = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -42,8 +42,8 @@ export interface WikiScanHandle {
   /**
    * Drive the build to convergence; stops early (between batches) after `stop()`.
    * Resolves with the run's result, or `undefined` when skipped because another writer
-   * holds the scan lease. Tasks that keep failing (a bad document) do not reject the run:
-   * they are logged, reported in `result.failures`, keep their previous outputs, and are
+   * holds the scan lease (or `stop()` was called before the run started). Tasks that keep
+   * failing (a bad document) do not reject the run: they are logged, reported in `result.failures`, keep their previous outputs, and are
    * not retried until something they read changes.
    */
   run(opts?: WikiScanRunOptions): Promise<ProjectBuildResult | undefined>;
@@ -134,39 +134,43 @@ export class WikiNature extends ProjectAdapter {
     const filesApi = this.filesApi;
     const lockPath = this.lockPath();
     const log = loggerOf(this.project, "WikiScan");
-    /** The controller of the run in progress (`stop()` aborts it). */
-    let current: AbortController | undefined;
+    /** Controllers of the runs in progress, set before the lease is taken (`stop()` aborts them). */
+    const runs = new Set<AbortController>();
     /**
      * Run `fn` holding the project's scan lease (heartbeated), or resolve `undefined` when
-     * another writer (tab/CLI) holds it. The build store is single-writer and the writers
-     * alternate, so it is reloaded from disk right after the lease is taken.
+     * another writer (tab/CLI) holds it. Overlapping operations of this JS context share one
+     * acquisition. The build store is single-writer and the writers alternate, so it is
+     * reloaded from disk once the lease is taken.
      */
     const withLease = async <T>(what: string, fn: () => Promise<T>): Promise<T | undefined> => {
       await config.load();
-      const lock = new ScanLock(filesApi, lockPath, { holderId: HOLDER_ID });
-      if (!(await lock.tryAcquire())) {
-        log.debug(`${what} skipped: lease held by another writer`);
-        return undefined;
-      }
-      const renew = setInterval(() => void lock.renew(), DEFAULT_RENEW_MS);
-      try {
-        await builder.reopen();
-        return await fn();
-      } finally {
-        clearInterval(renew);
-        await lock.release();
-      }
+      let held = false;
+      const result = await withSharedScanLease(
+        filesApi,
+        lockPath,
+        { holderId: HOLDER_ID },
+        builder,
+        () => builder.reopen(),
+        () => {
+          held = true;
+          return fn();
+        },
+      );
+      if (!held) log.debug(`${what} skipped: lease held by another writer`);
+      return result;
     };
     return {
-      run: (runOpts: WikiScanRunOptions = {}) =>
-        withLease("scan", async () => {
-          const abort = new AbortController();
-          current = abort;
-          log.debug("scan started", {
-            holderId: HOLDER_ID,
-            embeddings: config.hasEmbeddings,
-          });
-          try {
+      run: async (runOpts: WikiScanRunOptions = {}) => {
+        // Registered before the lease is taken, so a `stop()` meanwhile still applies.
+        const abort = new AbortController();
+        runs.add(abort);
+        try {
+          return await withLease("scan", async () => {
+            if (abort.signal.aborted) return undefined;
+            log.debug("scan started", {
+              holderId: HOLDER_ID,
+              embeddings: config.hasEmbeddings,
+            });
             // By default a failed document is not retried on every scan (an LLM step would
             // fail the same way again): it waits until its input changes.
             const result = await builder.run({
@@ -190,15 +194,21 @@ export class WikiNature extends ProjectAdapter {
               log.debug("documents still failing", { failed: result.failures.length });
             }
             return result;
-          } finally {
-            if (current === abort) current = undefined;
-            log.debug("scan finished", { stopped: abort.signal.aborted });
-          }
-        }),
-      status: () => builder.status(),
+          });
+        } finally {
+          runs.delete(abort);
+          log.debug("scan finished", { stopped: abort.signal.aborted });
+        }
+      },
+      status: async () => {
+        // Read what another writer persisted — unless an operation of ours holds the lease
+        // (then our store is current, and reopening would wait for our run).
+        if (!isScanLeaseShared(filesApi, lockPath)) await builder.reopen();
+        return builder.status();
+      },
       restartFrom: (stage) => withLease("restart", () => restartWikiFrom(builder, stage)),
       stop: () => {
-        current?.abort();
+        for (const abort of runs) abort.abort();
       },
     };
   }
