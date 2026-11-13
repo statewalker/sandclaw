@@ -8,10 +8,13 @@ import {
   type LlmApi,
   ResourceTextContentCache,
   registerWiki,
+  restartWikiFrom,
+  SearchAdapter,
   WikiPageEmbeddings,
   WikiPageMeta,
   WikiPageSummary,
   WikiTopicIndex,
+  wikiNatureOf,
   wireWikiProject,
 } from "../../src/index.js";
 import { makeStubLlm, seedWikiConfig } from "../util/stub-llm.js";
@@ -29,9 +32,14 @@ function tracker() {
   const calls: { name: string; uri?: string }[] = [];
   // Per-uri topic key, mutable so a test can drop a topic on re-ingest.
   const topicByUri = new Map<string, string>();
+  // Documents whose summarization throws (an unparseable / poisoned source).
+  const failSummarize = new Set<string>();
   const generateObject: LlmApi["generateObject"] = async (spec) => {
     const input = spec.input as { uri?: string; rawLines?: [number, string][] };
     calls.push({ name: spec.name, uri: input.uri });
+    if (spec.name === "summarize-document" && failSummarize.has(input.uri ?? "")) {
+      throw new Error(`cannot summarize ${input.uri}`);
+    }
     const out = (o: unknown) => ({
       output: o as never,
       usage: { inputTokens: 0, outputTokens: 0 },
@@ -97,7 +105,7 @@ function tracker() {
     }
   };
   const llm = makeStubLlm({ generateObject, embed });
-  return { llm, calls, topicByUri };
+  return { llm, calls, topicByUri, failSummarize };
 }
 
 async function writeFile(filesApi: FilesApi, path: string, text: string): Promise<void> {
@@ -139,9 +147,7 @@ describe("wiki builders — incremental behaviour", () => {
 
   async function scan(project: Awaited<ReturnType<typeof openProject>>) {
     const builder = wireWikiProject(project);
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
     return builder;
   }
 
@@ -187,9 +193,15 @@ describe("wiki builders — incremental behaviour", () => {
           | undefined
       )?.references.map((r) => r.uri),
     ).toEqual(["b.md#bravo"]);
+    const search = project.requireAdapter(SearchAdapter);
+    const hits = async () =>
+      (await search.search({ query: "Bravo", modes: ["fts"] })).map((m) => m.uri);
+    expect(await hits()).toContain("b.md");
 
     await filesApi.remove("proj/b.md");
     await scan(project);
+    // The removal retracted the page's chain, so the search indexer dropped it.
+    expect(await hits()).not.toContain("b.md");
 
     // Page artifacts gone, and the topic the source contributed is pruned.
     const resource = await project.getProjectResource("b.md");
@@ -237,14 +249,12 @@ describe("wiki builders — incremental behaviour", () => {
     const builder = wireWikiProject(project);
     await builder.restartFrom("Summarizer");
     t.calls.length = 0;
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
     // Re-triggered, but the source hash is unchanged → the summarizer does no work.
     expect(t.calls.filter((c) => c.name === "summarize-document")).toEqual([]);
   });
 
-  it("invalidating Summarizer rebuilds a deleted downstream artifact without LLM (emit-on-skip)", async () => {
+  it("invalidating Summarizer rebuilds a deleted downstream artifact without LLM (restart + downstream)", async () => {
     const project = await openProject();
     await scan(project);
     const resource = await project.getProjectResource("a.md");
@@ -258,14 +268,12 @@ describe("wiki builders — incremental behaviour", () => {
     // Delete the embeddings artifact, then invalidate Summarizer (+ downstream).
     await filesApi.remove("proj/.project/pages/a.md/embeddings.fx.2.json");
     const builder = wireWikiProject(project);
-    await builder.restartFrom("Summarizer");
+    expect(await restartWikiFrom(builder, "Summarizer")).toContain("Embedder");
     t.calls.length = 0;
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
 
-    // No LLM: summaries/meta are fresh and hash-skip. But the Summarizer re-emits
-    // `summarized`, so the Embedder re-runs and recreates the deleted embeddings.
+    // No LLM: summaries/meta are fresh and hash-skip. But the downstream Embedder is
+    // restarted too, so it re-runs and recreates the deleted embeddings.
     expect(t.calls.filter((c) => c.name === "summarize-document")).toEqual([]);
     expect(t.calls.filter((c) => c.name === "extract-document-meta")).toEqual([]);
     expect(await resource?.requireAdapter(WikiPageEmbeddings).getMeta("fx", DIM)).toBeDefined();
@@ -278,9 +286,7 @@ describe("wiki builders — incremental behaviour", () => {
     const builder = wireWikiProject(project, { force: true });
     await builder.restartFrom("Summarizer");
     t.calls.length = 0;
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
     expect(
       t.calls
         .filter((c) => c.name === "summarize-document")
@@ -297,6 +303,30 @@ describe("wiki builders — incremental behaviour", () => {
     await writeFile(filesApi, "proj/a.md", "Acme.");
     await scan(project);
     expect(t.calls.filter((c) => c.name === "summarize-document")).toEqual([]);
+  });
+
+  it("a failing document is reported, keeps the rest building, and is retried only on change", async () => {
+    const project = await openProject();
+    t.failSummarize.add("b.md");
+    const scan = wikiNatureOf(project).scan();
+    const first = await scan.run();
+    expect(first?.failures.map((f) => [f.builder, f.key])).toEqual([["Summarizer", "b.md"]]);
+    // a.md went through the whole pipeline regardless.
+    expect(await project.requireAdapter(WikiTopicIndex).get("alpha")).toBeDefined();
+    expect(await project.requireAdapter(WikiTopicIndex).get("bravo")).toBeUndefined();
+
+    // Not retried while its source is unchanged (an LLM step would fail the same way).
+    t.calls.length = 0;
+    const second = await scan.run();
+    expect(second?.failures).toHaveLength(1);
+    expect(t.calls).toEqual([]);
+
+    // Fixed + changed: retried and indexed.
+    t.failSummarize.delete("b.md");
+    await writeFile(filesApi, "proj/b.md", "Bravo v2.");
+    const third = await scan.run();
+    expect(third?.failures).toEqual([]);
+    expect(await project.requireAdapter(WikiTopicIndex).get("bravo")).toBeDefined();
   });
 
   it("records the source hash in raw.meta.json and stamps it onto the page artifacts", async () => {

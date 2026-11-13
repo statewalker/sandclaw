@@ -136,9 +136,7 @@ async function setup(opts: { embed?: boolean } = {}) {
     );
   };
   const run = async () => {
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
   };
   const index = () => project.requireAdapter(WikiTopicIndex).read();
   const leafKeys = async () =>
@@ -152,7 +150,7 @@ async function setup(opts: { embed?: boolean } = {}) {
   };
   const nodeVectors = () =>
     project.requireAdapter(WikiTopicNodeEmbeddings).getVectors("fixture", 2);
-  return { t, write, run, index, leafKeys, refsOf, nodeVectors };
+  return { t, project, builder, write, run, index, leafKeys, refsOf, nodeVectors };
 }
 
 describe("topic attribution onto the index DAG", () => {
@@ -251,6 +249,26 @@ describe("topic attribution onto the index DAG", () => {
     const before = JSON.stringify(await h.index());
     await h.run(); // nothing changed
     expect(JSON.stringify(await h.index())).toBe(before);
+  });
+
+  it("restarting the reorganizer re-attributes every document and strips stale references", async () => {
+    h.t.topicsByUri.set("a.md", [{ key: "p", name: "P", description: "d" }]);
+    await h.write("proj/a.md", "a");
+    await h.run();
+    // Corrupt the index with a reference to a document that is not in the corpus.
+    const index = await h.index();
+    const node = index.nodes.p;
+    if (!node || isCategory(node)) throw new Error("no leaf p");
+    node.references.push({ uri: "gone.md#p" });
+    await h.project.requireAdapter(WikiTopicIndex).write(index);
+    expect(await h.refsOf("p")).toEqual(["a.md#p", "gone.md#p"]);
+
+    // No saved state after a restart → a full pass over the current documents.
+    await h.builder.restartFrom("IndexReorganizer");
+    h.t.calls.length = 0;
+    await h.run();
+    expect(await h.refsOf("p")).toEqual(["a.md#p"]);
+    expect(h.t.calls).not.toContain("extract-document-meta"); // upstream untouched
   });
 
   it("indexes a large topic set in bounded rounds (no whole-index LLM call)", async () => {

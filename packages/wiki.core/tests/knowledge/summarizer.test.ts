@@ -87,23 +87,13 @@ describe("summarizeBuilder", () => {
       id: "summarized-sink",
       inputs: [SUMMARIZED_SIGNAL],
       outputs: [],
-      // biome-ignore lint/correctness/useYield: a sink records updates and emits nothing
-      async *handler(p) {
-        const b = p.requireAdapter(ProjectBuilder);
-        for await (const u of b.readUpdates({
-          signal: SUMMARIZED_SIGNAL,
-          cell: "summarized-sink",
-        })) {
-          summarizedUris.push(u.uri);
-          await u.handled();
-        }
-        return true;
+      // A sink records the rows it sees and emits nothing.
+      run(ctx) {
+        summarizedUris.push(ctx.key);
       },
     });
 
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
 
     // The summarizer received the document's numbered raw lines.
     const input = capturedInput as {

@@ -1,17 +1,18 @@
 import { joinPath as concatPath } from "@statewalker/webrun-files";
 import {
-  type BuildProgress,
   type BuildStatus,
   DEFAULT_SYSTEM_FOLDER,
   loggerOf,
   type Project,
   ProjectAdapter,
+  type ProjectBuildResult,
+  type RunProgress,
 } from "@statewalker/workspace.core";
 import { type WikiConfigData, WikiLlmConfiguration } from "../llm/index.js";
 import type { QueryProgress } from "../query/index.js";
 import { WikiQuery } from "../query/index.js";
 import { tryReadJson } from "../util/io.js";
-import { type WikiBuildOptions, wireWikiProject } from "./register-wiki.js";
+import { restartWikiFrom, type WikiBuildOptions, wireWikiProject } from "./register-wiki.js";
 import { DEFAULT_RENEW_MS, ScanLock } from "./scan-lock.js";
 
 /** Identifies this JS context (tab / CLI process) as a scan-lock holder. One per module load. */
@@ -25,15 +26,27 @@ export class WikiEmbeddingFrozenError extends Error {
   }
 }
 
+/** Options of one `WikiScanHandle.run()`. */
+export interface WikiScanRunOptions {
+  /** Called after each committed batch of tasks (all of one builder). */
+  onProgress?: (progress: RunProgress) => void;
+}
+
 /** A running scan, exposing the underlying `ProjectBuilder` controls the indexer panel needs. */
 export interface WikiScanHandle {
-  /** Drive the build to convergence, yielding progress. Stops early after `stop()`. */
-  run(): AsyncGenerator<BuildProgress>;
-  /** Current per-stage build status. */
+  /**
+   * Drive the build to convergence; stops early (between batches) after `stop()`.
+   * Resolves with the run's result, or `undefined` when skipped because another writer
+   * holds the scan lease. Tasks that keep failing (a bad document) do not reject the run:
+   * they are logged, reported in `result.failures`, keep their previous outputs, and are
+   * not retried until something they read changes.
+   */
+  run(opts?: WikiScanRunOptions): Promise<ProjectBuildResult | undefined>;
+  /** Current build status: queued tasks per stage and the dead-letter count. */
   status(): Promise<BuildStatus>;
-  /** Re-run from a stage (e.g. `"Embedder"` after an embedding change). */
+  /** Re-run a stage and everything downstream of it (e.g. `"Embedder"` after an embedding change). */
   restartFrom(stage: string): Promise<void>;
-  /** Request the current `run()` to stop after the in-flight step. */
+  /** Request the current `run()` to stop after the in-flight batch. */
   stop(): void;
 }
 
@@ -112,16 +125,16 @@ export class WikiNature extends ProjectAdapter {
     const filesApi = this.filesApi;
     const lockPath = this.lockPath();
     const log = loggerOf(this.project, "WikiScan");
-    let stopped = false;
+    const abort = new AbortController();
     return {
-      run: async function* run(): AsyncGenerator<BuildProgress> {
+      run: async (runOpts: WikiScanRunOptions = {}) => {
         await config.load();
         // Best-effort per-project lease: skip when another writer (tab/CLI) is already
         // indexing this project; otherwise hold + heartbeat the lease for the build.
         const lock = new ScanLock(filesApi, lockPath, { holderId: HOLDER_ID });
         if (!(await lock.tryAcquire())) {
           log.debug("scan skipped: lease held by another writer");
-          return;
+          return undefined;
         }
         log.debug("scan started", {
           holderId: HOLDER_ID,
@@ -129,23 +142,42 @@ export class WikiNature extends ProjectAdapter {
         });
         const renew = setInterval(() => void lock.renew(), DEFAULT_RENEW_MS);
         try {
-          for await (const progress of builder.run()) {
-            yield progress;
-            if (stopped) break;
+          // A failed document is not retried on every scan (an LLM step would fail the
+          // same way again): it waits until its input changes.
+          const result = await builder.run({
+            retryFailed: false,
+            failOnError: false,
+            signal: abort.signal,
+            onProgress: runOpts.onProgress,
+          });
+          // Report the failures when this run parked new ones; failures kept from earlier
+          // runs are not re-logged on every (polling) scan.
+          if (result.deadLettered > 0) {
+            for (const f of result.failures) {
+              log.error("build task failed; skipping", {
+                builder: f.builder,
+                uri: f.key,
+                attempts: f.attempts,
+                error: f.error,
+              });
+            }
+          } else if (result.failures.length > 0) {
+            log.debug("documents still failing", { failed: result.failures.length });
           }
+          return result;
         } finally {
           clearInterval(renew);
           await lock.release();
-          log.debug("scan finished", { stopped });
+          log.debug("scan finished", { stopped: abort.signal.aborted });
         }
       },
       status: () => builder.status(),
       restartFrom: async (stage) => {
         await config.load();
-        await builder.restartFrom(stage);
+        await restartWikiFrom(builder, stage);
       },
       stop: () => {
-        stopped = true;
+        abort.abort();
       },
     };
   }

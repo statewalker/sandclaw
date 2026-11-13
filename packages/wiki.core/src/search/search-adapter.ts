@@ -11,10 +11,8 @@ import {
   loggerOf,
   type Project,
   ProjectAdapter,
-  ProjectBuilder,
   type RegisteredBuilder,
   type Resource,
-  SOURCES_REMOVED_SIGNAL,
   type Workspace,
 } from "@statewalker/workspace.core";
 import { tryReadJson, writeJsonAtomic } from "../util/io.js";
@@ -391,60 +389,72 @@ export function registerSearch(workspace: Workspace, deps: SearchDeps): () => vo
   });
 }
 
+/** What the search indexer carries between runs: its presence marks "index built". */
+interface SearchIndexerState {
+  built: true;
+}
+
 /**
- * The index builder: on each `inputSignal` update re-indexes that page's blocks;
- * on `sources:removed`, removes its blocks. Generic — the blocks come from the
- * injected provider on the `SearchAdapter`.
+ * The index builder: an incremental reduce builder over `inputSignal`. Each run folds the
+ * rows that changed since the last run — re-indexing added/changed pages and removing
+ * pages whose row disappeared (a removed source retracts its whole chain) — then forces
+ * the final index serialization the throttle may have skipped. Without a saved state
+ * (first run, or after `restartFrom("SearchIndexer")`) every listed page is re-indexed.
+ * A page that fails to (re-)index is logged and skipped — it is retried when its row
+ * changes again — so one bad document never blocks the index. Generic — the blocks come
+ * from the injected provider on the `SearchAdapter`.
  */
 export function searchBuilder(opts: { inputSignal: string }): RegisteredBuilder {
   const { inputSignal } = opts;
   return {
     id: "SearchIndexer",
-    inputs: [inputSignal, SOURCES_REMOVED_SIGNAL],
+    kind: "reduce",
+    incremental: true,
+    inputs: [inputSignal],
     outputs: [],
-    // biome-ignore lint/correctness/useYield: maintains an index; emits no signal
-    async *handler(project) {
-      const builder = project.requireAdapter(ProjectBuilder);
+    async run(ctx, project) {
       const search = project.requireAdapter(SearchAdapter);
       const log = loggerOf(project, "SearchIndexer");
-      for await (const u of builder.readUpdates({
-        signal: inputSignal,
-        cell: "SearchIndexer",
-      })) {
+      const state = ctx.state as SearchIndexerState | undefined;
+      const changed = new Set<string>();
+      const removed = new Set<string>();
+      for (const c of await ctx.changes(inputSignal)) {
+        if (c.value === undefined) removed.add(c.key);
+        else changed.add(c.key);
+      }
+      if (state === undefined) {
+        changed.clear();
+        for (const row of await ctx.list(inputSignal)) changed.add(row.key);
+        for (const uri of changed) removed.delete(uri);
+      }
+      for (const uri of changed) {
         try {
-          const resource = await project.getProjectResource(u.uri);
+          const resource = await project.getProjectResource(uri);
           if (resource) {
-            log.debug("indexing page", { uri: u.uri });
-            await search.indexPage(resource, u.uri);
+            log.debug("indexing page", { uri });
+            await search.indexPage(resource, uri);
           }
         } catch (error) {
           log.error("indexing failed; skipping document", {
-            uri: u.uri,
+            uri,
             error: error instanceof Error ? error.message : String(error),
           });
         }
-        await u.handled();
-        if (!(await builder.yieldControl())) return false;
       }
-      for await (const u of builder.readUpdates({
-        signal: SOURCES_REMOVED_SIGNAL,
-        cell: "SearchIndexer",
-      })) {
+      for (const uri of removed) {
         try {
-          log.debug("removing page", { uri: u.uri });
-          await search.removePage(u.uri);
+          log.debug("removing page", { uri });
+          await search.removePage(uri);
         } catch (error) {
           log.error("removal failed; skipping document", {
-            uri: u.uri,
+            uri,
             error: error instanceof Error ? error.message : String(error),
           });
         }
-        await u.handled();
-        if (!(await builder.yieldControl())) return false;
       }
       // Drained: force the final serialization the throttle may have skipped.
       await search.persist();
-      return true;
+      ctx.setState({ built: true } satisfies SearchIndexerState);
     },
   };
 }

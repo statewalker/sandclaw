@@ -170,9 +170,7 @@ describe.each(["mem", "node"] as const)("registerWiki end-to-end (%s FilesApi)",
     await writeFile(filesApi, "proj/a.md", "Acme is a company.");
 
     const builder = wireWikiProject(project);
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
 
     // The page was summarized and the global topic index aggregated.
     const resource = await project.getProjectResource("a.md");
@@ -185,7 +183,8 @@ describe.each(["mem", "node"] as const)("registerWiki end-to-end (%s FilesApi)",
 
     // Status reports no pending work after a full scan.
     const status = await builder.status();
-    expect(status.builders.every((b) => b.pending === 0)).toBe(true);
+    expect(status.queued).toEqual({});
+    expect(status.deadLetters).toBe(0);
 
     // A query returns a grounded, cited answer.
     const answer = await project.requireAdapter(WikiQuery).ask("What is Acme?").complete();
@@ -217,12 +216,11 @@ describe("registerWiki text-only (no embedding model)", () => {
     await writeFile(filesApi, "proj/a.md", "Acme is a company.");
 
     const builder = wireWikiProject(project);
-    for await (const _ of builder.run()) {
-      // drain — must complete despite embed() throwing
-    }
+    await builder.run();
 
     const status = await builder.status();
-    expect(status.builders.every((b) => b.pending === 0)).toBe(true);
+    expect(status.queued).toEqual({});
+    expect(status.deadLetters).toBe(0);
 
     // The full-text-only query still returns a grounded, cited answer.
     const answer = await project.requireAdapter(WikiQuery).ask("What is Acme?").complete();

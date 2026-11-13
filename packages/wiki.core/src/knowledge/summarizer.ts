@@ -1,10 +1,4 @@
-import {
-  type BuilderUpdate,
-  type EmittedUpdate,
-  loggerOf,
-  ProjectBuilder,
-  type RegisteredBuilder,
-} from "@statewalker/workspace.core";
+import { loggerOf, type RegisteredBuilder } from "@statewalker/workspace.core";
 import { CONTENT_SIGNAL } from "../content/index.js";
 import {
   BuildTracer,
@@ -14,7 +8,6 @@ import {
   type WikiLlmConfiguration,
   wikiConfigOf,
 } from "../llm/index.js";
-import { toBatch } from "../util/batch.js";
 import {
   ResourceTextContentCache,
   WikiPageSummary,
@@ -33,14 +26,11 @@ import {
 } from "./schemas.js";
 import { type DocumentSummary, KNOWLEDGE_SCHEMA_VERSION, type SummaryNode } from "./types.js";
 
-/** Signal emitted for each page whose L2 summary (Sections) is available/changed. */
+/** Collection with one fingerprint row per page whose summary is available (keyed by uri). */
 export const SUMMARIZED_SIGNAL = "summarized";
 
 /** Cell id of the summarizer builder. */
 export const SUMMARIZE_BUILDER_ID = "Summarizer";
-
-/** Documents summarized in parallel per batch. */
-const SUMMARIZE_BATCH_SIZE = 8;
 
 /** Max characters of raw text fed to one sectioning block (context-window proxy). */
 const SECTION_BLOCK_CHARS = 24_000;
@@ -279,128 +269,105 @@ export async function buildTree(
 }
 
 /**
- * The summarizer builder: consumes `content`, sections each page block-by-block, builds its
- * outline, writes the `DocumentSummary` via `WikiPageSummary`, and emits `summarized`.
+ * The summarizer builder: a map builder over `content` that sections each page
+ * block-by-block, builds its outline, writes the `DocumentSummary` via
+ * `WikiPageSummary`, and emits a `summarized/<uri>` fingerprint
+ * (`{ hash, v, generated }`). A hash-skip (valid summary already on disk) re-emits the
+ * same fingerprint, so downstream stages are cut off; a re-summarization changes
+ * `generated` and re-feeds them. A failure is logged and rethrown (the task
+ * dead-letters, its previous output is kept).
  */
 export function summarizeBuilder(opts: { force?: boolean } = {}): RegisteredBuilder {
   return {
     id: SUMMARIZE_BUILDER_ID,
     inputs: [CONTENT_SIGNAL],
     outputs: [SUMMARIZED_SIGNAL],
-    async *handler(project) {
-      const builder = project.requireAdapter(ProjectBuilder);
+    async run(ctx, project) {
+      const uri = ctx.key;
+      if ((await ctx.get(CONTENT_SIGNAL, uri)) === undefined) return;
       const log = loggerOf(project, SUMMARIZE_BUILDER_ID);
-      const llm = llmOf(project);
       const cfg = wikiConfigOf(project);
       const tracer = new BuildTracer(log, SUMMARIZE_BUILDER_ID, buildSessionOf(project));
-      const tracedLlm = tracer.wrap(llm);
-      const system = fillCorpusPurpose(SUMMARIZER_SYSTEM_PROMPT, cfg.corpusPurpose);
-      const chapterSystem = fillCorpusPurpose(AGGREGATE_CHAPTERS_SYSTEM_PROMPT, cfg.corpusPurpose);
-      const source = builder.readUpdates({
-        signal: CONTENT_SIGNAL,
-        cell: SUMMARIZE_BUILDER_ID,
-      });
-      for await (const batch of toBatch(source, SUMMARIZE_BATCH_SIZE)) {
-        for (const emitted of await Promise.all(batch.map(handleEntry))) yield* emitted;
-        if (!(await builder.yieldControl())) return false;
-      }
-      tracer.totals();
-      return true;
-
-      async function handleEntry(u: BuilderUpdate): Promise<EmittedUpdate[]> {
-        const out: EmittedUpdate[] = [];
-        try {
-          const resource = await project.getProjectResource(u.uri);
-          if (resource) {
-            // Materialise raw.txt + raw.meta.json and learn the current source hash.
-            const { text, hash } = await resource
-              .requireAdapter(ResourceTextContentCache)
-              .refresh({ force: opts.force });
-            const existing = await resource.requireAdapter(WikiPageSummary).get();
-            const fresh =
-              !!existing &&
-              existing.sourceHash === hash &&
-              existing.schemaVersion === KNOWLEDGE_SCHEMA_VERSION;
-            let produced = false;
-            // Skip the (costly) summarization when the source is unchanged.
-            if (text && (opts.force || !fresh)) {
-              const draftAdapter = resource.requireAdapter(WikiPageSummaryDraft);
-              // Resume from a prior interrupted run when its checkpoint matches the current source.
-              const draft = await draftAdapter.get();
-              const resume =
-                draft &&
-                draft.sourceHash === hash &&
-                draft.schemaVersion === KNOWLEDGE_SCHEMA_VERSION
-                  ? draft
-                  : undefined;
-              log.info(resume ? "resuming summarization" : "summarizing", {
-                uri: u.uri,
-                ...(resume
-                  ? {
-                      fromLine: resume.nextStart,
-                      sections: resume.sections.length,
-                    }
-                  : {}),
-              });
-              const { title, baseSummary, sections } = await sectionizeDocument(
-                tracedLlm,
-                cfg,
-                system,
-                u.uri,
-                text,
-                SECTION_BLOCK_CHARS,
-                {
-                  resume,
-                  // Dump the checkpoint after each block so an interruption resumes here.
-                  onBlock: (cp) =>
-                    draftAdapter.write({
-                      sourceHash: hash,
-                      schemaVersion: KNOWLEDGE_SCHEMA_VERSION,
-                      ...cp,
-                    }),
-                },
-              );
-              const root = await buildTree(
-                tracedLlm,
-                cfg,
-                chapterSystem,
-                title,
-                baseSummary,
-                sections,
-              );
-              const docSummary: DocumentSummary = {
-                ...root,
-                uri: u.uri,
-                generated: new Date().toISOString(),
-                sourceHash: hash,
-                schemaVersion: KNOWLEDGE_SCHEMA_VERSION,
-              };
-              await resource.requireAdapter(WikiPageSummary).write(docSummary);
-              await draftAdapter.clear(); // checkpoint no longer needed
-              produced = true;
-            }
-            // Emit on a hash-skip too (when a valid summary already exists), so a
-            // re-run re-feeds downstream (meta/graph/embedder) without re-summarizing.
-            if (produced || fresh) {
-              out.push({
-                signal: SUMMARIZED_SIGNAL,
-                uri: u.uri,
-                stamp: u.stamp,
-              });
-            }
-          }
-        } catch (error) {
-          // Isolate a bad document (e.g. unparseable PDF): log and skip it rather
-          // than blocking the whole pipeline. `handled()` below marks it done so it
-          // is not retried until its source changes.
-          log.error("summarize failed; skipping document", {
-            uri: u.uri,
-            error: error instanceof Error ? error.message : String(error),
+      const tracedLlm = tracer.wrap(llmOf(project));
+      try {
+        const resource = await project.getProjectResource(uri);
+        if (!resource) return;
+        // Materialise raw.txt + raw.meta.json and learn the current source hash.
+        const { text, hash } = await resource
+          .requireAdapter(ResourceTextContentCache)
+          .refresh({ force: opts.force });
+        const existing = await resource.requireAdapter(WikiPageSummary).get();
+        const fresh =
+          !!existing &&
+          existing.sourceHash === hash &&
+          existing.schemaVersion === KNOWLEDGE_SCHEMA_VERSION;
+        let generated = fresh ? existing.generated : undefined;
+        // Skip the (costly) summarization when the source is unchanged.
+        if (text && (opts.force || !fresh)) {
+          const system = fillCorpusPurpose(SUMMARIZER_SYSTEM_PROMPT, cfg.corpusPurpose);
+          const chapterSystem = fillCorpusPurpose(
+            AGGREGATE_CHAPTERS_SYSTEM_PROMPT,
+            cfg.corpusPurpose,
+          );
+          const draftAdapter = resource.requireAdapter(WikiPageSummaryDraft);
+          // Resume from a prior interrupted run when its checkpoint matches the current source.
+          const draft = await draftAdapter.get();
+          const resume =
+            draft && draft.sourceHash === hash && draft.schemaVersion === KNOWLEDGE_SCHEMA_VERSION
+              ? draft
+              : undefined;
+          log.info(resume ? "resuming summarization" : "summarizing", {
+            uri,
+            ...(resume ? { fromLine: resume.nextStart, sections: resume.sections.length } : {}),
           });
-        } finally {
-          await u.handled();
+          const { title, baseSummary, sections } = await sectionizeDocument(
+            tracedLlm,
+            cfg,
+            system,
+            uri,
+            text,
+            SECTION_BLOCK_CHARS,
+            {
+              resume,
+              // Dump the checkpoint after each block so an interruption resumes here.
+              onBlock: (cp) =>
+                draftAdapter.write({
+                  sourceHash: hash,
+                  schemaVersion: KNOWLEDGE_SCHEMA_VERSION,
+                  ...cp,
+                }),
+            },
+          );
+          const root = await buildTree(tracedLlm, cfg, chapterSystem, title, baseSummary, sections);
+          const docSummary: DocumentSummary = {
+            ...root,
+            uri,
+            generated: new Date().toISOString(),
+            sourceHash: hash,
+            schemaVersion: KNOWLEDGE_SCHEMA_VERSION,
+          };
+          await resource.requireAdapter(WikiPageSummary).write(docSummary);
+          await draftAdapter.clear(); // checkpoint no longer needed
+          generated = docSummary.generated;
+          tracer.totals({ uri });
         }
-        return out;
+        // Emit on a hash-skip too (when a valid summary already exists): the same
+        // fingerprint as before, so downstream stages are cut off.
+        if (generated !== undefined) {
+          ctx.emit(SUMMARIZED_SIGNAL, uri, {
+            hash,
+            v: KNOWLEDGE_SCHEMA_VERSION,
+            generated,
+          });
+        }
+      } catch (error) {
+        // A bad document (e.g. unparseable PDF) dead-letters (previous output kept)
+        // instead of blocking the rest of the pipeline.
+        log.error("summarize failed", {
+          uri,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
       }
     },
   };

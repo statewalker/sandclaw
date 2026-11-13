@@ -70,11 +70,11 @@ describe("wiki project binding in chat-mini.app", () => {
     expect(await waitFor(() => wikiToolNames(slots).length > 0)).toBe(true);
     expect(wikiToolNames(slots).sort()).toEqual(["wiki_ask", "wiki_search"]);
 
-    // Each content folder is bound → its scan loop runs (writes scanner state).
+    // Each content folder is bound → its scan loop runs (writes the build state).
     // (A scan with the stub provider runs the scanner + content stages; full
     // index correctness is covered by the @statewalker/wiki package tests.)
     const scanned = (proj: string) =>
-      filesApi.stats(`${proj}/.project/state/scanner.json`).then((s) => s != null);
+      filesApi.stats(`${proj}/.project/state/build`).then((s) => s != null);
     expect(await waitFor(() => scanned("wiki-proj"))).toBe(true);
 
     // A plain top-level folder is now activated: its wiki nature is materialized and
@@ -106,7 +106,7 @@ describe("wiki project binding in chat-mini.app", () => {
     // The registry/tools come up even though the workspace is still closed,
     // but nothing is scanned yet (bindNewWikis early-returns while closed).
     expect(await waitFor(() => wikiToolNames(slots).length > 0)).toBe(true);
-    const scanned = () => filesApi.stats("proj/.project/state/scanner.json").then((s) => s != null);
+    const scanned = () => filesApi.stats("proj/.project/state/build").then((s) => s != null);
     expect(await scanned()).toBe(false);
 
     // Opening the workspace fires onLoad → bindNewWikis → scanning activates.

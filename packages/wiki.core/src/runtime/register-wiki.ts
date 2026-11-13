@@ -197,15 +197,61 @@ export function createWikiBuilders(opts: WikiBuildOptions = {}): RegisteredBuild
  * next batch is scanned, making already-indexed documents searchable mid-build. */
 const WIKI_SCAN_BATCH_SIZE = 16;
 
+/** Tasks of one builder batch run concurrently (engine-wide). Matches the per-document
+ * parallelism the LLM stages (summarizer, meta, tables, embedders) used before; the
+ * reduce stages (reorganizer, search indexer) have a single task anyway. */
+const WIKI_BUILD_CONCURRENCY = 8;
+
 /** Attach the wiki builders to a project's `ProjectBuilder` and return it. The wiki's
  * `.indexignore` matcher is injected into the generic source scan (recompiled per run).
- * Source scanning is batched so the global indexes are persisted incrementally. */
+ * Source scanning is batched so the global indexes are persisted incrementally, and the
+ * tasks of a batch run concurrently (LLM/embedding calls overlap). */
 export function wireWikiProject(project: Project, opts: WikiBuildOptions = {}): ProjectBuilder {
   const builder = project.requireAdapter(ProjectBuilder);
-  builder.configureYield({ scanBatchSize: WIKI_SCAN_BATCH_SIZE });
+  builder.configureScanBatch(WIKI_SCAN_BATCH_SIZE);
+  builder.configureEngine({ concurrency: WIKI_BUILD_CONCURRENCY });
   builder.configureSourceIgnore(() => buildIndexIgnore(project.workspace.files, project.path));
   // The per-project builder step: attach the nature's builders (per-call `opts` such as
   // `force` are threaded here, so builders are built per wiring rather than shared).
   applyNature(project, { builders: () => createWikiBuilders(opts) });
   return builder;
+}
+
+/**
+ * Builder ids downstream of `stage` in the wiki pipeline (`stage` first, then every
+ * builder that transitively reads its outputs), in pipeline order.
+ */
+export function wikiStagesFrom(stage: string): string[] {
+  const builders = createWikiBuilders();
+  const result = new Set<string>([stage]);
+  const produced = new Set<string>();
+  for (const b of builders) if (b.id === stage) for (const o of b.outputs) produced.add(o);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const b of builders) {
+      if (result.has(b.id)) continue;
+      if ([...b.inputs, ...(b.reads ?? [])].some((c) => produced.has(c))) {
+        result.add(b.id);
+        for (const o of b.outputs) produced.add(o);
+        grew = true;
+      }
+    }
+  }
+  const order = builders.map((b) => b.id);
+  return [...result].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+}
+
+/**
+ * Re-run a wiki stage AND everything downstream of it on the next run (`restartFrom`
+ * each). A plain `ProjectBuilder.restartFrom(stage)` re-runs only that stage, and its
+ * downstream only where its outputs change; this also re-derives downstream artifacts
+ * when the stage's outputs are unchanged (e.g. a deleted embeddings file after
+ * invalidating `Summarizer`). Hash-gated stages still skip their LLM calls. Returns the
+ * restarted stage ids.
+ */
+export async function restartWikiFrom(builder: ProjectBuilder, stage: string): Promise<string[]> {
+  const stages = wikiStagesFrom(stage);
+  for (const id of stages) await builder.restartFrom(id);
+  return stages;
 }

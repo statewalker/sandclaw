@@ -4,7 +4,7 @@ import { MemFilesApi } from "@statewalker/webrun-files-mem";
 import {
   ProjectBuilder,
   type Resource,
-  SOURCES_SIGNAL,
+  SOURCES_COLLECTION,
   Workspace,
 } from "@statewalker/workspace.core";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -73,10 +73,8 @@ describe("SearchAdapter", () => {
     const workspace = repository;
     const project = (await workspace.getProject("proj"))!;
     const builder = project.requireAdapter(ProjectBuilder);
-    builder.registerBuilder(searchBuilder({ inputSignal: SOURCES_SIGNAL }));
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    builder.registerBuilder(searchBuilder({ inputSignal: SOURCES_COLLECTION }));
+    await builder.run();
     return project.requireAdapter(SearchAdapter);
   }
 

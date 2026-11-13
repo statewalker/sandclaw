@@ -2,7 +2,7 @@
 
 ## What it is
 
-`@statewalker/wiki.core` turns a project's raw source documents into a queryable, LLM-curated wiki. It layers a build pipeline and a set of Project/Resource adapters onto the class-keyed `workspace → project → resource` model from `@statewalker/workspace.core`: an ingestion pipeline (extract → summarize → declare topics/outliers → extract tables → embed → reorganize global indexes → index for search) wired as signal-driven `ProjectBuilder` cells, a hybrid full-text + vector search adapter, an FSM-driven query retrieval router that returns grounded, cited answers, generated thematic "sites", AI-SDK tools and commands, and a host-neutral CLI that drives all of it over any `FilesApi`.
+`@statewalker/wiki.core` turns a project's raw source documents into a queryable, LLM-curated wiki. It layers a build pipeline and a set of Project/Resource adapters onto the class-keyed `workspace → project → resource` model from `@statewalker/workspace.core`: an ingestion pipeline (extract → summarize → declare topics/outliers → extract tables → embed → reorganize global indexes → index for search) wired as incremental `ProjectBuilder` builders over collections, a hybrid full-text + vector search adapter, an FSM-driven query retrieval router that returns grounded, cited answers, generated thematic "sites", AI-SDK tools and commands, and a host-neutral CLI that drives all of it over any `FilesApi`.
 
 ## Why it exists
 
@@ -38,7 +38,7 @@ The root barrel (`src/index.ts`) re-exports these internal modules. The grouping
 | `llm` | `LlmProjectAdapter` / `LlmApi` / `LlmProvider` (generic Vercel-AI-SDK access), `WikiLlmConfiguration` (per-project stage → model policy, read from `.project/nature.wiki.json`), `llmOf` / `wikiConfigOf` resolvers, build-session telemetry (`WikiBuildSession`, `buildSessionOf`, `BuildTracer`), and pricing helpers (`costOf`, `sumCosts`, `roundUsd`). |
 | `search` | `SearchAdapter` + `searchBuilder` + `registerSearch`: project-level hybrid (FTS + vector) search (wiki-free). |
 | `query` | `WikiQuery` (the `ask(question)` adapter), `QueryProgress` (observable run), `Answer` / `EvidenceSection` / `AnswerTopic` types, and `WikiSnapshotsAdapter` (frozen saved answers/reports). |
-| `runtime` | `registerWiki`, `wikiNature`, `wireWikiProject`, `createWikiBuilders` (composition root); `WikiNature` / `wikiNatureOf` (per-project façade: `exists`, `initialize`, `reconfigure`, `scan`, `query`); `runWikiCli` (host-neutral CLI); `resolveProvidersFromEnv`; `buildIndexIgnore`. |
+| `runtime` | `registerWiki`, `wikiNature`, `wireWikiProject`, `createWikiBuilders` (composition root); `restartWikiFrom` / `wikiStagesFrom` (restart a stage + its downstream); `WikiNature` / `wikiNatureOf` (per-project façade: `exists`, `initialize`, `reconfigure`, `scan`, `query`); `runWikiCli` (host-neutral CLI); `resolveProvidersFromEnv`; `buildIndexIgnore`. |
 | `site` | `WikiToc` / `wikiTocOf` (table-of-contents files), `WikiSite` / `wikiSiteOf` (generated thematic sites), `createWikiSiteTools` (AI-SDK tools `suggest_toc`, `save_toc`, `generate_site`), and the `OpenWikiSiteCommand` (`wiki:open-site`) contract that `@statewalker/wiki.view.react` handles. |
 | `tools` | `createWikiTools` (AI-SDK tools `wiki_search`, `wiki_ask`), `registerWikiCommands` with `WikiSearchCommand` (`wiki:search`), `WikiAskCommand` (`wiki:ask`), `WikiReclusterTopicsCommand` (`wiki:recluster-topics`), the `wikiSearch` / `wikiAsk` operations, and `resolveWikiMasks`. |
 
@@ -79,7 +79,8 @@ if (!(await wiki.exists())) {
 }
 
 // 4. Run the build pipeline.
-for await (const _progress of wiki.scan().run()) { /* progress */ }
+const result = await wiki.scan().run({ onProgress: (p) => console.log(p.builder, p.executed) });
+// result?.failures: documents that keep failing (kept as dead letters, retried when they change)
 
 // 5. Ask a question: grounded, cited answer.
 const progress = await wiki.query("What is X?");
@@ -99,25 +100,24 @@ Errors you will see:
 - `embedding is frozen: the index was built with "<model>"/<dim>; re-index with scan().restartFrom("Embedder") before changing it`: `reconfigure()` changed the embedding model or dimensionality.
 - `wiki search: no embedding model configured (text-only project)`: a vector search reached a project without `embedModel`. The search adapter normally drops vector mode for such projects.
 - `generateObject(<name>) did not match schema (finishReason=…); output: …`: the model returned invalid structured output twice in a row.
-- A scan that returns immediately with no progress: another tab or process holds the project's scan lease (`.project/state/scan.lock`). It logs `scan skipped: lease held by another writer` at debug level only.
+- A scan that resolves `undefined` immediately: another tab or process holds the project's scan lease (`.project/state/scan.lock`). It logs `scan skipped: lease held by another writer` at debug level only.
 
 ### How data flows through the pipeline
 
 ```
 sources ─▶ Extractor ─▶ Summarizer ─▶ MetaExtractor ─▶ DocTopicEmbedder ─▶ IndexReorganizer
-              (content)   (summarized)      (meta)      (doc-topics-embedded)   (topic DAG + outliers)
-                              │                                                  │      │
-                              │                            (on removal) IndexPruner ◀───┤
-                              │                                       TopicCleanup ◀────┘
-                              │                                      (merge near-dups; topic-tree)
-                              ├─▶ TableExtractor (sections flagged as holding tables)
+   │          (content)   (summarized)      (meta)      (doc-topics-embedded)   (topic DAG + outliers)
+   │                          │                                                  │
+   └─▶ IndexPruner            │                                     TopicCleanup ◀┘
+       (on removal: drop      │                                    (topic-tree; merge near-dups)
+        page artifacts)       ├─▶ TableExtractor (sections flagged as holding tables)
                               └─▶ Embedder ─▶ SearchIndexer ─▶ wiki-search index (FTS + vector)
                                   (embedded)
 
 query ─▶ WikiQuery.ask ─▶ QUERY_FSM ─▶ Answer { text, citations, topics, outliers, caveats }
 ```
 
-Each builder is a `RegisteredBuilder` consuming an input signal and emitting an output signal; the engine (`ProjectBuilder`) only re-runs a stage when its inputs changed. Stages skip their costly LLM call when the source SHA-256 is unchanged (and re-emit downstream so a re-run after invalidation rebuilds derived artifacts without re-summarizing).
+Each builder is a `RegisteredBuilder` on the `@statewalker/webrun-builder` engine (`ProjectBuilder`). The per-document stages are *map* builders (one task per source uri) that write their artifacts to disk and emit a small JSON fingerprint row (`summarized/<uri>` = `{ hash, v, generated }`, …) into the collection the next stage reads; the engine only re-runs a task when a row it read changed, and re-emitting an equal fingerprint cuts the cascade off. Stages skip their costly LLM call when the source SHA-256 is unchanged (re-emitting the same fingerprint). A removed source retracts its whole chain: `IndexPruner` deletes its page artifacts, and the reorganizer and search indexer (incremental *reduce* builders) see the retraction as a change. `restartWikiFrom(builder, stage)` (and `scan().restartFrom(stage)`) re-runs a stage and everything downstream of it.
 
 ## Examples
 
@@ -194,7 +194,7 @@ const id = await snapshots.saveAnswer(answer, "What is X?");
 ```sh
 # wiki <root> <command> <project> [args…]
 pnpm --filter @statewalker/wiki.core start /my/vault scan notes              # run the build pipeline ("force" re-runs every stage)
-pnpm --filter @statewalker/wiki.core start /my/vault status notes            # per-builder pending counts
+pnpm --filter @statewalker/wiki.core start /my/vault status notes            # queued tasks per builder + failed (dead-letter) tasks
 pnpm --filter @statewalker/wiki.core start /my/vault query notes "what is X" # routed, cited answer
 pnpm --filter @statewalker/wiki.core start /my/vault search notes "vector index" --mode hybrid --top-k 20
 pnpm --filter @statewalker/wiki.core start /my/vault restart notes Embedder  # restart from a stage
@@ -221,11 +221,11 @@ Two things that trip people up:
 
 ### Algorithms worth knowing
 
-- **Hash-gated incremental builds.** Each source's raw text is cached (`raw.txt` + `raw.meta.json`) with the SHA-256 of the original bytes. Summarizer/Meta/Embedder compare that hash against the `sourceHash` stamped on their last artifact and skip the LLM call when unchanged — but still emit their output signal on a hash-skip, so invalidating one stage re-feeds downstream without re-running upstream LLM stages.
+- **Hash-gated incremental builds.** Each source's raw text is cached (`raw.txt` + `raw.meta.json`) with the SHA-256 of the original bytes. Summarizer/Meta/Embedder compare that hash against the `sourceHash` stamped on their last artifact and skip the LLM call when unchanged — re-emitting the same fingerprint row on a hash-skip, so downstream stages are cut off; `restartWikiFrom` re-runs a stage and its downstream (rebuilding derived artifacts) without re-running upstream LLM calls.
 - **Section embeddings in Arrow sidecars.** Per-document embeddings split metadata (`embeddings.<model>.<dim>.json`) from the dense vectors (`embeddings.<model>.<dim>.arrow`, a `FixedSizeList<Float32>[dim]` column via `@uwdata/flechette`) — JSON float arrays are too large. Model + dimensionality are in the filename so switching models never collides. The Arrow file is written first and the JSON marker last, so a crash never leaves metadata pointing at missing vectors.
 - **The topic index is a bounded-fan-out DAG.** `WikiTopicIndex` stores `{ roots, nodes }` where each node is either a *category* (internal, `childKeys`, no refs) or an *index topic* (leaf, `references`, no children). A leaf may have several parent categories and a document reference may sit under several leaves (many-to-many, acyclic). The flat `leaves()` view is what retrieval and the CLI iterate; `roots()`/`children()` expose the hierarchy and back `WikiToc.suggest()`. Backward compatibility: a flat `{ topics: [] }` artifact is detected on read and lifted to a DAG (every topic becomes an index topic under `roots`), so no migration step is needed.
 
-- **Semantic attribution scales by construction — no LLM call sees the whole index.** On any document-topics-embedded change, removed declaration, or removed source, the reorganizer strips the touched documents' references (keeping now-empty leaves so a re-ingest folds back into the *same* stable key) and attributes each document topic: a key/alias match attaches mechanically (no LLM); otherwise the document topic's embedding retrieves a small candidate set of index nodes and one bounded `generateObject` round adjudicates (attach to ≥1 index topic / coin under a category); a coverage backstop coins any leftover so every document topic lands on ≥1 index topic. With no embed model it degrades to key/alias match + bounded root-descent. Candidates are batched (`ATTRIBUTE_BATCH_SIZE`) so a large rebuild never overflows the context window. Document-topic vectors come from the `sourceHash`-gated `DocTopicEmbedder`; index-node vectors are maintained inline by the writers into a project-level store so a coined node is an attribution candidate in the same cycle.
+- **Semantic attribution scales by construction — no LLM call sees the whole index.** On any change of the `doc-topics-embedded` rows (a document added, re-declared — the row carries its topic keys — or removed), the incremental reorganizer strips the touched documents' references (keeping now-empty leaves so a re-ingest folds back into the *same* stable key) and attributes each document topic: a key/alias match attaches mechanically (no LLM); otherwise the document topic's embedding retrieves a small candidate set of index nodes and one bounded `generateObject` round adjudicates (attach to ≥1 index topic / coin under a category); a coverage backstop coins any leftover so every document topic lands on ≥1 index topic. With no embed model it degrades to key/alias match + bounded root-descent. Candidates are batched (`ATTRIBUTE_BATCH_SIZE`) so a large rebuild never overflows the context window. Document-topic vectors come from the `sourceHash`-gated `DocTopicEmbedder`; index-node vectors are maintained inline by the writers into a project-level store so a coined node is an attribution candidate in the same cycle.
 
 - **Local in-place splits keep nodes bounded.** A category over the fan-out `B` (`topicFanout`) is split into sub-categories; an index topic over the reference cap `R` (`topicLeafCap`) is refined and promoted in place to a category partitioning its references. Both are heuristic — declined (node left oversized) when the LLM finds no honest sub-grouping.
 
@@ -257,9 +257,9 @@ Two things that trip people up:
 
 ### Constraints and edge cases
 
-- **Scans are batched.** `wireWikiProject` scans changed sources 16 at a time and runs each batch through the whole pipeline before the next, so the topic/outlier indexes and the search index are written mid-build and already-indexed documents are searchable while a large build is running.
+- **Scans are batched.** `wireWikiProject` scans changed sources 16 at a time and runs each batch through the whole pipeline before the next, so the topic/outlier indexes and the search index are written mid-build and already-indexed documents are searchable while a large build is running. The tasks of one builder batch run 8 at a time (`configureEngine({ concurrency: 8 })`), so LLM and embedding calls overlap.
 - **Artifacts live under the project system folder** (`<project>/.project/nature.wiki.json` for the wiki config, `<project>/.project/pages/<uri>/` per page, `<project>/.project/index/` for global indexes and the search index, `<project>/.project/snapshots/` for saved answers and reports). The project key is the resource path's first segment.
-- **A bad document is isolated, not fatal.** Every per-page stage logs and skips on error (and marks the input handled so it is not retried until its source changes) rather than failing the whole pipeline.
+- **A bad document is isolated, not fatal.** A per-page stage that throws is retried, then parked as a dead letter (its previous outputs kept) while the rest of the pipeline converges; `scan().run()` and the CLI run with `retryFailed: false`, so a failed document is not retried until something it reads (its source) changes, and they report the failures instead of rejecting.
 - **Per-section facts live in the summary, not a separate graph.** The summarizer emits each section's `details` (exhaustive markdown facts) and `tables` (structured `{caption, columns, rows}`) in the same pass; query evidence is drawn from `summary` / `details` / `tables`. A separate entity/triple graph would need a second LLM pass over the same raw text and repeats subjects in every statement; one pass with three non-overlapping fields is cheaper and keeps tables structured.
 - **Topic-index bounds are configurable.** `topicFanout` (default 10), `topicLeafCap` (default 25) and `documentChapterFanout` (default 8) are read from `nature.wiki.json`.
 - **Snapshots are frozen and temporally versioned** — never auto-updated, never re-ingested as sources; re-running a subject creates a new dated snapshot.
@@ -267,7 +267,7 @@ Two things that trip people up:
 
 ### What it depends on, and why
 
-- `@statewalker/workspace.core` — the `Workspace`/`Project`/`Resource` model, `ResourceAdapter`/`ProjectAdapter`, and the `ProjectBuilder` build adapter (a `BuildEngine<Project>` from `@statewalker/webrun-builder`) the whole pipeline rides on.
+- `@statewalker/workspace.core` — the `Workspace`/`Project`/`Resource` model, `ResourceAdapter`/`ProjectAdapter`, and the `ProjectBuilder` build adapter (the incremental `@statewalker/webrun-builder` engine over collections, state persisted under `.project/state/build`) the whole pipeline rides on.
 - `@statewalker/content-extractors` — mime-aware text extraction registry (`createDefaultRegistry`) behind `ContentAdapter`.
 - `@statewalker/indexer-api` / `-fulltext` / `-vector` / `-mem-flexsearch` — the FTS + vector index abstractions and the in-memory FlexSearch backend behind `SearchAdapter`.
 - `@statewalker/fsm` (+ `-validator` in tests) — the query retrieval state machine.

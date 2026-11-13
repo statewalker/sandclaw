@@ -57,7 +57,7 @@ export function deriveWikiConfig(aiConfig: AiConfig): WikiConfigData {
 }
 
 /**
- * Per-wiki polling scan loop: drive `scan().run()` to convergence, then wait the
+ * Per-wiki polling scan loop: run `scan().run()` to convergence, then wait the
  * interval and repeat. Chaining the next tick only after the previous run completes
  * inherently prevents overlapping runs. Returns a stop function.
  */
@@ -72,9 +72,14 @@ function startScanLoop(
   const tick = async (): Promise<void> => {
     if (stopped || isStopped()) return;
     try {
-      for await (const _ of nature.scan().run()) {
-        if (stopped || isStopped()) return;
-      }
+      const scan = nature.scan();
+      // Stop between batches once the loop is stopped.
+      await scan.run({
+        onProgress: () => {
+          if (stopped || isStopped()) scan.stop();
+        },
+      });
+      if (stopped || isStopped()) return;
     } catch (err) {
       log.error("scan failed", {
         project: name,
