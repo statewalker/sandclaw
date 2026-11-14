@@ -22,7 +22,7 @@ on:
 
 jobs:
   site:
-    uses: statewalker/.github/.github/workflows/publish-site.yml@main
+    uses: statewalker/statewalker-ci/.github/workflows/publish-site.yml@main
     with:
       domain: peershare-demo.httpeers.net
       path: apps/peershare.app/example-site
