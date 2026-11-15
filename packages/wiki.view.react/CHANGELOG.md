@@ -1,5 +1,15 @@
 # @statewalker/wiki.view.react
 
+## 0.1.3
+
+### Patch Changes
+
+- Release of the changes since the last published version:
+  
+  - zod ^4.6.5 -> ^4.6.6
+- Updated dependencies
+  - @statewalker/wiki.core@0.1.3
+
 ## 0.1.2
 
 ### Patch Changes
