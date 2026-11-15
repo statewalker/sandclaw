@@ -1,11 +1,8 @@
 import {
-  type BuilderUpdate,
-  type EmittedUpdate,
   loggerOf,
   type Project,
-  ProjectBuilder,
   type RegisteredBuilder,
-  SOURCES_REMOVED_SIGNAL,
+  SOURCES_COLLECTION,
 } from "@statewalker/workspace.core";
 import {
   BuildTracer,
@@ -18,7 +15,6 @@ import {
 import { toBatch } from "../util/batch.js";
 import { DOC_TOPICS_EMBEDDED_SIGNAL } from "./doc-topic-embedder.js";
 import { WikiOutlierIndex, WikiTopicIndex } from "./indexes.js";
-import { META_REMOVED_TOPICS_SIGNAL } from "./meta.js";
 import { WikiPageMeta } from "./page-adapters.js";
 import { pageDirPath } from "./page-paths.js";
 import {
@@ -45,9 +41,6 @@ export const REORGANIZE_BUILDER_ID = "IndexReorganizer";
 export const PRUNE_BUILDER_ID = "IndexPruner";
 /** Emitted (project-wide) after the topic DAG changes; drives automatic cleanup. */
 export const TOPIC_TREE_SIGNAL = "topic-tree";
-
-/** Orphaned artifact directories pruned in parallel per batch. */
-const PRUNE_BATCH_SIZE = 16;
 
 /**
  * Max document-topic candidates placed per attribution LLM round, so a large
@@ -320,7 +313,7 @@ async function reorganizeOutliers(
   await project.requireAdapter(WikiOutlierIndex).write({ generated, outliers });
 }
 
-/** Read the current meta of every touched document that still exists. */
+/** Read the current meta of the given documents (those whose meta exists). */
 async function readTouchedMetas(
   project: Project,
   touched: ReadonlySet<string>,
@@ -334,101 +327,108 @@ async function readTouchedMetas(
   return metas;
 }
 
+/** Every document the topic and outlier indexes still reference. */
+async function indexedDocUris(project: Project): Promise<Set<string>> {
+  const uris = new Set<string>();
+  const index = await project.requireAdapter(WikiTopicIndex).read();
+  for (const node of Object.values(index.nodes)) {
+    if (node.kind === "topic") for (const r of node.references) uris.add(refDocUri(r.uri));
+  }
+  const outliers = await project.requireAdapter(WikiOutlierIndex).read();
+  for (const o of outliers.outliers) for (const r of o.references) uris.add(refDocUri(r.uri));
+  return uris;
+}
+
+/** The reorganizer's incremental state: when the indexes were last rebuilt. */
+interface ReorganizeState {
+  generated: string;
+}
+
 /**
- * The reorganizer: on any document-topics-embedded change, removed declaration, or
- * removed source, drains those updates and attributes only the touched documents'
- * topics onto the global topic DAG (and folds outliers). Each touched document's
- * prior references are stripped first; candidates that don't key/alias match go
- * through embedding-candidate retrieval + an LLM adjudication round, then local
- * in-place splits keep nodes bounded. Emits `topic-tree` so cleanup can run.
+ * The reorganizer, an incremental reduce over `doc-topics-embedded`: attributes only the
+ * documents whose row changed since its last run (new, re-derived or removed) onto the
+ * global topic DAG, and folds their outliers. Each touched document's prior references are
+ * stripped first — so a removed document, or a topic a document no longer declares, leaves
+ * the index; candidates that don't key/alias match go through embedding-candidate retrieval +
+ * an LLM adjudication round, then local in-place splits keep nodes bounded. Without state
+ * (the first run, or after `restartFrom`) it re-attributes every document, and strips the
+ * ones the indexes reference but that are gone. Emits one `topic-tree` row, valued by when
+ * the indexes were last rebuilt, so cleanup runs after each change.
  */
 export function reorganizeBuilder(): RegisteredBuilder {
-  const inputs = [DOC_TOPICS_EMBEDDED_SIGNAL, META_REMOVED_TOPICS_SIGNAL, SOURCES_REMOVED_SIGNAL];
   return {
     id: REORGANIZE_BUILDER_ID,
-    inputs,
+    kind: "reduce",
+    incremental: true,
+    inputs: [DOC_TOPICS_EMBEDDED_SIGNAL],
     outputs: [TOPIC_TREE_SIGNAL],
-    async *handler(project) {
-      const builder = project.requireAdapter(ProjectBuilder);
+    async run(ctx, project) {
       const log = loggerOf(project, REORGANIZE_BUILDER_ID);
-      const llm = llmOf(project);
-      const cfg = wikiConfigOf(project);
-      const tracer = new BuildTracer(log, REORGANIZE_BUILDER_ID, buildSessionOf(project));
-      const tracedLlm = tracer.wrap(llm);
-      const pending: BuilderUpdate[] = [];
+      const state = ctx.state as ReorganizeState | undefined;
+      // `touched`: the documents to re-attribute; `present`: those of them still in the
+      // input. A removed document's artifacts may still be on disk (the pruner deletes them
+      // independently), so only present documents contribute their meta.
       const touched = new Set<string>();
-      let stamp = 0;
-      for (const signal of inputs) {
-        for await (const u of builder.readUpdates({
-          signal,
-          cell: REORGANIZE_BUILDER_ID,
-        })) {
-          pending.push(u);
-          touched.add(refDocUri(u.uri));
-          stamp = Math.max(stamp, u.stamp);
+      const present = new Set<string>();
+      if (state) {
+        for (const c of await ctx.changes(DOC_TOPICS_EMBEDDED_SIGNAL)) {
+          touched.add(c.key);
+          if (c.value !== undefined) present.add(c.key);
+        }
+      } else {
+        for (const row of await ctx.list(DOC_TOPICS_EMBEDDED_SIGNAL)) {
+          touched.add(row.key);
+          present.add(row.key);
+        }
+        for (const uri of await indexedDocUris(project)) touched.add(uri);
+      }
+      let generated = state?.generated;
+      if (touched.size > 0) {
+        const cfg = wikiConfigOf(project);
+        const tracer = new BuildTracer(log, REORGANIZE_BUILDER_ID, buildSessionOf(project));
+        const metas = await readTouchedMetas(project, present);
+        generated = new Date().toISOString();
+        try {
+          const { leftovers } = await attributeTopics(
+            project,
+            metas,
+            touched,
+            tracer.wrap(llmOf(project)),
+            cfg,
+            generated,
+          );
+          await reorganizeOutliers(project, metas, touched, generated);
+          log.info("reorganized indexes", { touched: touched.size, leftovers });
+        } finally {
+          tracer.totals();
         }
       }
-      if (pending.length > 0) {
-        // Attribute first; only then mark the inputs handled, so an interrupted run
-        // re-triggers attribution rather than silently skipping it.
-        const metas = await readTouchedMetas(project, touched);
-        const generated = new Date().toISOString();
-        const { leftovers } = await attributeTopics(
-          project,
-          metas,
-          touched,
-          tracedLlm,
-          cfg,
-          generated,
-        );
-        await reorganizeOutliers(project, metas, touched, generated);
-        log.info("reorganized indexes", { touched: touched.size, leftovers });
-        const emitted: EmittedUpdate = {
-          signal: TOPIC_TREE_SIGNAL,
-          uri: "topics.json",
-          stamp,
-        };
-        yield emitted;
-        for (const u of pending) await u.handled();
-      }
-      tracer.totals();
-      await builder.yieldControl();
-      return true;
+      // A failure above throws: the engine retries the task with the same changes, and the
+      // state below is saved only by a successful run.
+      ctx.setState({ generated: generated ?? "" });
+      // Re-emitted on every run (a row the task stops emitting is retracted).
+      if (generated) ctx.emit(TOPIC_TREE_SIGNAL, "topics.json", generated);
     },
   };
 }
 
 /**
- * The pruner: on source removal, deletes that source's orphaned per-page artifact
- * directory under the project system folder.
+ * The pruner: one task per `sources` row, doing nothing while the source exists. When the
+ * source is removed (deleted, or newly ignored), its `dispose` deletes the source's orphaned
+ * per-page artifact directory under the project system folder.
  */
 export function pruneBuilder(): RegisteredBuilder {
   return {
     id: PRUNE_BUILDER_ID,
-    inputs: [SOURCES_REMOVED_SIGNAL],
+    inputs: [SOURCES_COLLECTION],
     outputs: [],
-    async *handler(project) {
-      const builder = project.requireAdapter(ProjectBuilder);
-      const log = loggerOf(project, PRUNE_BUILDER_ID);
-      const source = builder.readUpdates({
-        signal: SOURCES_REMOVED_SIGNAL,
-        cell: PRUNE_BUILDER_ID,
-      });
-      for await (const batch of toBatch(source, PRUNE_BATCH_SIZE)) {
-        await Promise.all(batch.map(handleEntry));
-        if (!(await builder.yieldControl())) return false;
-      }
-      return true;
-
-      async function handleEntry(u: BuilderUpdate): Promise<void> {
-        try {
-          log.debug("pruning artifacts", { uri: u.uri });
-          await project.workspace.files.remove(pageDirPath(project.root, u.uri));
-        } catch {
-          // already gone — fine
-        } finally {
-          await u.handled();
-        }
+    run() {},
+    async dispose(uri, _outputs, project) {
+      loggerOf(project, PRUNE_BUILDER_ID).debug("pruning artifacts", { uri });
+      try {
+        await project.workspace.files.remove(pageDirPath(project.root, uri));
+      } catch {
+        // already gone — fine
       }
     },
   };

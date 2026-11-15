@@ -15,7 +15,6 @@ export {
 } from "./indexes.js";
 export {
   META_BUILDER_ID,
-  META_REMOVED_TOPICS_SIGNAL,
   META_SIGNAL,
   metaBuilder,
   normalizeMeta,

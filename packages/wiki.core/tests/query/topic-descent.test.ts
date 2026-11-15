@@ -212,9 +212,7 @@ async function buildBase(config: WikiConfigData, searchStub?: SearchStub): Promi
   builder.registerBuilder(contentBuilder());
   builder.registerBuilder(summarizeBuilder());
   builder.registerBuilder(metaBuilder());
-  for await (const _ of builder.run()) {
-    // drain
-  }
+  await builder.run();
   return project;
 }
 

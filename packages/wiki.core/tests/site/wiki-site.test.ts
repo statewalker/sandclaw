@@ -149,9 +149,7 @@ async function buildProject(): Promise<Project> {
     dimensionality: DIM,
   });
   const builder = wireWikiProject(project);
-  for await (const _ of builder.run()) {
-    // drain the index build
-  }
+  await builder.run();
   return project;
 }
 

@@ -131,9 +131,7 @@ describe("meta builder", () => {
     builder.registerBuilder(contentBuilder());
     builder.registerBuilder(summarizeBuilder());
     builder.registerBuilder(metaBuilder());
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
     const resource = (await project.getProjectResource("a.md"))!;
     const meta = await resource.requireAdapter(WikiPageMeta).get();
     expect(meta?.topics.map((t) => t.key)).toEqual(["company-founders"]);
@@ -158,9 +156,7 @@ describe("meta builder", () => {
     builder.registerBuilder(contentBuilder());
     builder.registerBuilder(summarizeBuilder());
     builder.registerBuilder(metaBuilder());
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
     const section = (metaInput as { summary: { sections: Record<string, unknown>[] } }).summary
       .sections[0];
     expect(section).toMatchObject({

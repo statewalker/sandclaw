@@ -76,9 +76,7 @@ describe("reorganizer + pruner", () => {
     builder.registerBuilder(reorganizeBuilder());
     builder.registerBuilder(pruneBuilder());
 
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
 
     // Both docs declared `company-founders` → one global topic, referencing each
     // document's specific topic declaration (`<uri>#<topicKey>`).
@@ -92,9 +90,7 @@ describe("reorganizer + pruner", () => {
 
     // Remove one source; the next run detects the deletion, reorganizes, and prunes.
     await filesApi.remove("proj/b.md");
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
 
     const after = (await project.requireAdapter(WikiTopicIndex).get("company-founders")) as
       | { references: { uri: string }[] }

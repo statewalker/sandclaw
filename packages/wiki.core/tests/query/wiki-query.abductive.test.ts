@@ -207,9 +207,7 @@ async function buildProject() {
   builder.registerBuilder(docTopicEmbedderBuilder());
   builder.registerBuilder(reorganizeBuilder());
   builder.registerBuilder(searchBuilder({ inputSignal: "summarized" }));
-  for await (const _ of builder.run()) {
-    // drain
-  }
+  await builder.run();
   return project;
 }
 

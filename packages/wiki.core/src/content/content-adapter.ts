@@ -4,26 +4,19 @@ import {
   type ExtractorRegistry,
 } from "@statewalker/content-extractors";
 import {
-  type BuilderUpdate,
-  type EmittedUpdate,
   loggerOf,
-  ProjectBuilder,
   type RegisteredBuilder,
   type Resource,
   ResourceAdapter,
-  SOURCES_SIGNAL,
+  SOURCES_COLLECTION,
   type Workspace,
 } from "@statewalker/workspace.core";
-import { toBatch } from "../util/batch.js";
 
 /** Signal emitted for each resource whose text content is available/changed. */
 export const CONTENT_SIGNAL = "content";
 
 /** Cell id of the content-extraction builder. */
 export const CONTENT_BUILDER_ID = "Extractor";
-
-/** Resources whose content is extracted in parallel per batch. */
-const CONTENT_BATCH_SIZE = 16;
 
 export interface ContentExtractionOptions {
   /** Maps a resource path to a text extractor. Defaults to `createDefaultRegistry()`. */
@@ -83,44 +76,36 @@ export function registerContentExtraction(
 }
 
 /**
- * The content-extraction builder: consumes `sources` and emits `content` for each
- * changed extractable resource, skipping resources with no registered extractor.
+ * The content-extraction builder: one task per `sources` row (a project file). Emits a
+ * `content` row for an extractable resource, valued by the source fingerprint, so the
+ * downstream stages re-run when the file changes; a resource with no registered extractor
+ * emits nothing.
  */
 export function contentBuilder(): RegisteredBuilder {
   return {
     id: CONTENT_BUILDER_ID,
-    inputs: [SOURCES_SIGNAL],
+    inputs: [SOURCES_COLLECTION],
     outputs: [CONTENT_SIGNAL],
-    async *handler(project) {
-      const builder = project.requireAdapter(ProjectBuilder);
+    async run(ctx, project) {
+      const uri = ctx.key;
+      const fingerprint = await ctx.get(SOURCES_COLLECTION, uri);
+      if (fingerprint === undefined) return;
       const log = loggerOf(project, CONTENT_BUILDER_ID);
-      const source = builder.readUpdates({
-        signal: SOURCES_SIGNAL,
-        cell: CONTENT_BUILDER_ID,
-      });
-      for await (const batch of toBatch(source, CONTENT_BATCH_SIZE)) {
-        for (const emitted of await Promise.all(batch.map(handleEntry))) yield* emitted;
-        if (!(await builder.yieldControl())) return false;
-      }
-      return true;
-
-      async function handleEntry(u: BuilderUpdate): Promise<EmittedUpdate[]> {
-        const out: EmittedUpdate[] = [];
-        try {
-          const resource = await project.getProjectResource(u.uri);
-          if (resource?.getAdapter(ContentAdapter)) {
-            log.debug("extracting content", { uri: u.uri });
-            out.push({ signal: CONTENT_SIGNAL, uri: u.uri, stamp: u.stamp });
-          }
-        } catch (error) {
-          log.error("content detection failed; skipping document", {
-            uri: u.uri,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        } finally {
-          await u.handled();
+      try {
+        const resource = await project.getProjectResource(uri);
+        if (resource?.getAdapter(ContentAdapter)) {
+          log.debug("extracting content", { uri });
+          ctx.emit(CONTENT_SIGNAL, uri, fingerprint);
         }
-        return out;
+      } catch (error) {
+        // Isolate a bad document: log it, so the run carries on; the task runs again when
+        // the file changes.
+        log.error("content detection failed; skipping document", {
+          uri,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Keep the page in the later stages: they keep what they derived before.
+        ctx.emit(CONTENT_SIGNAL, uri, fingerprint);
       }
     },
   };
