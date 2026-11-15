@@ -1,5 +1,13 @@
 # @statewalker/wiki.core
 
+## 0.4.0
+
+### Minor Changes
+
+- Release of the changes since the last published version:
+  
+  - @statewalker/indexer-mem-flexsearch ^0.2.0 -> ^0.4.0
+
 ## 0.3.0
 
 ### Minor Changes
