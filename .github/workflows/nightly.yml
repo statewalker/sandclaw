@@ -1,0 +1,21 @@
+name: Nightly
+
+# The browser and end-to-end suites the per-PR CI does not run (root `test:nightly`), every night
+# and on demand. A failure opens one `bug` + `ci-baseline` issue here, or comments on the open one
+# (statewalker/statewalker-ci's nightly.yml).
+on:
+  schedule:
+    - cron: "41 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  nightly:
+    uses: statewalker/statewalker-ci/.github/workflows/nightly.yml@main
+    with:
+      # Chromium for peershare.app's e2e-browser suite (playwright lives in that app). Docker, which
+      # file-mounts.core's S3 integration suite and the deploy scenario use, is on the runner already.
+      setup: pnpm --filter @statewalker/peershare.app exec playwright install --with-deps chromium
