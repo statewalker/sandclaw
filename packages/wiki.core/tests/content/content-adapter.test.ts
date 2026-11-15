@@ -57,23 +57,12 @@ describe("ContentAdapter", () => {
       id: "sink",
       inputs: [CONTENT_SIGNAL],
       outputs: [],
-      // biome-ignore lint/correctness/useYield: a sink records updates and emits nothing
-      async *handler(p) {
-        const b = p.requireAdapter(ProjectBuilder);
-        for await (const u of b.readUpdates({
-          signal: CONTENT_SIGNAL,
-          cell: "sink",
-        })) {
-          emitted.push(u.uri);
-          await u.handled();
-        }
-        return true;
+      run(ctx) {
+        emitted.push(ctx.key);
       },
     });
 
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
 
     expect(emitted.sort()).toEqual(["a.md"]); // logo.png produced no content
   });

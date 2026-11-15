@@ -14,6 +14,7 @@ import {
   EMBEDDED_SIGNAL,
   embedderBuilder,
   metaBuilder,
+  orphanSweepBuilder,
   pruneBuilder,
   registerKnowledgeAdapters,
   reorganizeBuilder,
@@ -59,7 +60,11 @@ export interface WikiDeps {
 
 /** Per-run build options (distinct from the stable model configuration). */
 export interface WikiBuildOptions {
-  /** Re-run every build stage even when the source hash is unchanged. */
+  /**
+   * Re-derive every artifact even when the source hash is unchanged. The builders apply it
+   * to the tasks that run; `restartWikiBuilders` (which `WikiNature.scan` and the CLI call
+   * with `force`) queues every task so that all of them do.
+   */
   force?: boolean;
 }
 
@@ -188,6 +193,7 @@ export function createWikiBuilders(opts: WikiBuildOptions = {}): RegisteredBuild
     reorganizeBuilder(),
     topicCleanupBuilder(),
     pruneBuilder(),
+    orphanSweepBuilder(),
     searchBuilder({ inputSignal: EMBEDDED_SIGNAL }),
   ];
 }
@@ -197,15 +203,28 @@ export function createWikiBuilders(opts: WikiBuildOptions = {}): RegisteredBuild
  * next batch is scanned, making already-indexed documents searchable mid-build. */
 const WIKI_SCAN_BATCH_SIZE = 16;
 
+/** Tasks of one builder run concurrently (documents summarized / embedded in parallel). */
+const WIKI_TASK_CONCURRENCY = 8;
+
 /** Attach the wiki builders to a project's `ProjectBuilder` and return it. The wiki's
  * `.indexignore` matcher is injected into the generic source scan (recompiled per run).
  * Source scanning is batched so the global indexes are persisted incrementally. */
 export function wireWikiProject(project: Project, opts: WikiBuildOptions = {}): ProjectBuilder {
   const builder = project.requireAdapter(ProjectBuilder);
-  builder.configureYield({ scanBatchSize: WIKI_SCAN_BATCH_SIZE });
+  builder.configureScanBatch(WIKI_SCAN_BATCH_SIZE);
+  builder.configureEngine({ concurrency: WIKI_TASK_CONCURRENCY });
   builder.configureSourceIgnore(() => buildIndexIgnore(project.workspace.files, project.path));
   // The per-project builder step: attach the nature's builders (per-call `opts` such as
   // `force` are threaded here, so builders are built per wiring rather than shared).
   applyNature(project, { builders: () => createWikiBuilders(opts) });
   return builder;
+}
+
+/**
+ * Queue every task of every registered builder, so the next run re-runs all of them (with
+ * `force`, re-deriving every artifact). A plain `restartFrom(id)` re-runs one builder; the
+ * builders below it re-run only where its outputs change.
+ */
+export async function restartWikiBuilders(builder: ProjectBuilder): Promise<void> {
+  for (const id of builder.registeredBuilders()) await builder.restartFrom(id);
 }

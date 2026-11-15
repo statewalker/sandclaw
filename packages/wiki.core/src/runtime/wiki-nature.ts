@@ -1,17 +1,17 @@
 import { joinPath as concatPath } from "@statewalker/webrun-files";
 import {
-  type BuildProgress,
   type BuildStatus,
   DEFAULT_SYSTEM_FOLDER,
   loggerOf,
   type Project,
   ProjectAdapter,
+  type ProjectBuildStep,
 } from "@statewalker/workspace.core";
 import { type WikiConfigData, WikiLlmConfiguration } from "../llm/index.js";
 import type { QueryProgress } from "../query/index.js";
 import { WikiQuery } from "../query/index.js";
 import { tryReadJson } from "../util/io.js";
-import { type WikiBuildOptions, wireWikiProject } from "./register-wiki.js";
+import { restartWikiBuilders, type WikiBuildOptions, wireWikiProject } from "./register-wiki.js";
 import { DEFAULT_RENEW_MS, ScanLock } from "./scan-lock.js";
 
 /** Identifies this JS context (tab / CLI process) as a scan-lock holder. One per module load. */
@@ -27,11 +27,17 @@ export class WikiEmbeddingFrozenError extends Error {
 
 /** A running scan, exposing the underlying `ProjectBuilder` controls the indexer panel needs. */
 export interface WikiScanHandle {
-  /** Drive the build to convergence, yielding progress. Stops early after `stop()`. */
-  run(): AsyncGenerator<BuildProgress>;
-  /** Current per-stage build status. */
+  /**
+   * Drive the build to convergence, yielding each source scan and each committed batch of a
+   * stage. Stops early after `stop()`; the next run continues from the queue.
+   */
+  run(): AsyncGenerator<ProjectBuildStep>;
+  /** Current build status: queued tasks per stage, and dead letters. */
   status(): Promise<BuildStatus>;
-  /** Re-run from a stage (e.g. `"Embedder"` after an embedding change). */
+  /**
+   * Re-run a stage's tasks (e.g. `"Embedder"` after an embedding change); the stages below it
+   * re-run only where its outputs change.
+   */
   restartFrom(stage: string): Promise<void>;
   /** Request the current `run()` to stop after the in-flight step. */
   stop(): void;
@@ -114,7 +120,7 @@ export class WikiNature extends ProjectAdapter {
     const log = loggerOf(this.project, "WikiScan");
     let stopped = false;
     return {
-      run: async function* run(): AsyncGenerator<BuildProgress> {
+      run: async function* run(): AsyncGenerator<ProjectBuildStep> {
         await config.load();
         // Best-effort per-project lease: skip when another writer (tab/CLI) is already
         // indexing this project; otherwise hold + heartbeat the lease for the build.
@@ -129,8 +135,9 @@ export class WikiNature extends ProjectAdapter {
         });
         const renew = setInterval(() => void lock.renew(), DEFAULT_RENEW_MS);
         try {
-          for await (const progress of builder.run()) {
-            yield progress;
+          if (opts.force) await restartWikiBuilders(builder);
+          for await (const step of builder.steps()) {
+            yield step;
             if (stopped) break;
           }
         } finally {

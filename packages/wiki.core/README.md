@@ -2,7 +2,7 @@
 
 ## What it is
 
-`@statewalker/wiki.core` turns a project's raw source documents into a queryable, LLM-curated wiki. It layers a build pipeline and a set of Project/Resource adapters onto the class-keyed `workspace → project → resource` model from `@statewalker/workspace.core`: an ingestion pipeline (extract → summarize → declare topics/outliers → extract tables → embed → reorganize global indexes → index for search) wired as signal-driven `ProjectBuilder` cells, a hybrid full-text + vector search adapter, an FSM-driven query retrieval router that returns grounded, cited answers, generated thematic "sites", AI-SDK tools and commands, and a host-neutral CLI that drives all of it over any `FilesApi`.
+`@statewalker/wiki.core` turns a project's raw source documents into a queryable, LLM-curated wiki. It layers a build pipeline and a set of Project/Resource adapters onto the class-keyed `workspace → project → resource` model from `@statewalker/workspace.core`: an ingestion pipeline (extract → summarize → declare topics/outliers → extract tables → embed → reorganize global indexes → index for search) wired as incremental `ProjectBuilder` builders, a hybrid full-text + vector search adapter, an FSM-driven query retrieval router that returns grounded, cited answers, generated thematic "sites", AI-SDK tools and commands, and a host-neutral CLI that drives all of it over any `FilesApi`.
 
 ## Why it exists
 
@@ -105,19 +105,33 @@ Errors you will see:
 
 ```
 sources ─▶ Extractor ─▶ Summarizer ─▶ MetaExtractor ─▶ DocTopicEmbedder ─▶ IndexReorganizer
-              (content)   (summarized)      (meta)      (doc-topics-embedded)   (topic DAG + outliers)
-                              │                                                  │      │
-                              │                            (on removal) IndexPruner ◀───┤
-                              │                                       TopicCleanup ◀────┘
-                              │                                      (merge near-dups; topic-tree)
-                              ├─▶ TableExtractor (sections flagged as holding tables)
-                              └─▶ Embedder ─▶ SearchIndexer ─▶ wiki-search index (FTS + vector)
-                                  (embedded)
+   │         (content)   (summarized)      (meta)      (doc-topics-embedded)  (topic DAG + outliers)
+   │                          │                                                       │
+   │                          │                                      TopicCleanup ◀───┘
+   │                          │                                     (merge near-dups; topic-tree)
+   │                          ├─▶ TableExtractor (sections flagged as holding tables)
+   │                          └─▶ Embedder ─▶ SearchIndexer ─▶ wiki-search index (FTS + vector)
+   │                              (embedded)
+   ├─▶ IndexPruner (on removal: deletes the page's artifact folder)
+   └─▶ OrphanSweeper (without state: sweeps pages whose source is gone)
 
 query ─▶ WikiQuery.ask ─▶ QUERY_FSM ─▶ Answer { text, citations, topics, outliers, caveats }
 ```
 
-Each builder is a `RegisteredBuilder` consuming an input signal and emitting an output signal; the engine (`ProjectBuilder`) only re-runs a stage when its inputs changed. Stages skip their costly LLM call when the source SHA-256 is unchanged (and re-emit downstream so a re-run after invalidation rebuilds derived artifacts without re-summarizing).
+The pipeline runs on the `@statewalker/webrun-builder` engine behind `ProjectBuilder`. Each stage is a `RegisteredBuilder` over collections of rows keyed by the document's project path: `sources` (one row per file, written by the scan), then `content`, `summarized`, `meta`, … Most stages are map builders: one task per document, which runs again only when its input row changes, and emits a small row (the artifact's `sourceHash` and `generated` time) for the next stage. The artifacts themselves stay files under `.project/pages/<path>/`. `IndexReorganizer` and `SearchIndexer` are incremental reduces: one task that folds only the documents whose row changed (added, re-derived or removed). Removing a source (or matching it in `.indexignore`) retracts its rows down the pipeline: the reorganizer strips its topic references, the search indexer removes its blocks, and the pruner deletes its artifact folder.
+
+Stages skip their costly LLM call when the source SHA-256 is unchanged, and re-emit the same row, so the stages below them do not re-run. A document whose stage fails is logged and skipped; its previous artifacts stay in place downstream. `restartFrom(stage)` re-runs one stage's tasks; the stages below it re-run only where its outputs change, so restart each stage to rebuild by name (for example `Embedder` after deleting embeddings). `force` re-derives every artifact for the tasks that run; `restartWikiBuilders(builder)` (which `scan({ force: true })` and the CLI's `scan … force` call) queues them all.
+
+### Upgrading from 0.1 (migration and rollback)
+
+0.2 moves to `@statewalker/workspace.core` 0.7, whose build engine keeps its state in `.project/state/build` (rows, queue, traces). The 0.1 engine's state files (`.project/state/*.json`: transactions, updates, scanner state) are no longer read; you may delete them. There is no state migration. The first scan after the upgrade starts from an empty build state and runs every stage over every document:
+
+- Pages whose artifacts match their source hash and schema version (`summary.json`, `meta.json`, embeddings) are kept as they are: no summarization, meta or embedding call for them.
+- The topic index is re-attributed for every document (topic attribution may call the LLM for topics that match no existing index topic by key), and the search index is re-indexed from the artifacts.
+- Pages without valid artifacts are processed in full, as before.
+- A source deleted (or ignored) before that first scan never reaches the new engine: the `OrphanSweeper` stage deletes its artifact folder and removes it from the search index, and the reorganizer strips its topic references. Documents the scan has not reached yet keep their place in the indexes, so an interrupted first scan does not shrink them.
+
+To roll back, stay on (or return to) `@statewalker/wiki.core` 0.1.x with `@statewalker/workspace.core` 0.5.x. The 0.1 engine ignores `.project/state/build`: it continues from its own state files if they are still there (its scan re-detects the files changed since, by modification time), or rebuilds them, reusing the page artifacts by source hash in the same way. Page and index artifacts keep the same format in both versions, so either reads what the other wrote.
 
 ## Examples
 
@@ -194,11 +208,11 @@ const id = await snapshots.saveAnswer(answer, "What is X?");
 ```sh
 # wiki <root> <command> <project> [args…]
 pnpm --filter @statewalker/wiki.core start /my/vault scan notes              # run the build pipeline ("force" re-runs every stage)
-pnpm --filter @statewalker/wiki.core start /my/vault status notes            # per-builder pending counts
+pnpm --filter @statewalker/wiki.core start /my/vault status notes            # queued tasks per builder, failed tasks
 pnpm --filter @statewalker/wiki.core start /my/vault query notes "what is X" # routed, cited answer
 pnpm --filter @statewalker/wiki.core start /my/vault search notes "vector index" --mode hybrid --top-k 20
-pnpm --filter @statewalker/wiki.core start /my/vault restart notes Embedder  # restart from a stage
-pnpm --filter @statewalker/wiki.core start /my/vault invalidate notes Embedder  # reset a stage + downstream
+pnpm --filter @statewalker/wiki.core start /my/vault restart notes Embedder  # re-run one stage's tasks on the next scan
+pnpm --filter @statewalker/wiki.core start /my/vault invalidate notes Summarizer Embedder  # the same, for several stages
 ```
 
 Flags: `--format <none|json|yaml>` (data channel; default `json`), `--log-level <fatal|error|warn|info|debug|trace>`. For `search`: `--mode <fts|vector|hybrid>`, `--detail <short|normal|full>`, `--top-k <n>` (default 20), `--vector <q>`, and repeated `--fts <q>`. The structured result goes to stdout; progress, status, and per-model/per-stage cost stats go to stderr. Providers and models come from the environment via `resolveProvidersFromEnv`: `WIKI_PROVIDER` = `openai` (default, needs `OPENAI_API_KEY`) or `google` (needs `GOOGLE_GENERATIVE_AI_API_KEY`), plus `WIKI_MODEL`, `WIKI_MODEL_FAST`, `WIKI_MODEL_STRONG`, `WIKI_EMBED_MODEL`, `WIKI_EMBED_DIM`. On the first `scan` these seed the project's `.project/nature.wiki.json`; later runs read that file.
@@ -221,7 +235,7 @@ Two things that trip people up:
 
 ### Algorithms worth knowing
 
-- **Hash-gated incremental builds.** Each source's raw text is cached (`raw.txt` + `raw.meta.json`) with the SHA-256 of the original bytes. Summarizer/Meta/Embedder compare that hash against the `sourceHash` stamped on their last artifact and skip the LLM call when unchanged — but still emit their output signal on a hash-skip, so invalidating one stage re-feeds downstream without re-running upstream LLM stages.
+- **Hash-gated incremental builds.** Each source's raw text is cached (`raw.txt` + `raw.meta.json`) with the SHA-256 of the original bytes. Summarizer/Meta/Embedder compare that hash against the `sourceHash` stamped on their last artifact and skip the LLM call when unchanged. They still emit their row on a hash-skip (the same value, so nothing below re-runs): a row a task stops emitting is retracted, which would remove the document from the later stages.
 - **Section embeddings in Arrow sidecars.** Per-document embeddings split metadata (`embeddings.<model>.<dim>.json`) from the dense vectors (`embeddings.<model>.<dim>.arrow`, a `FixedSizeList<Float32>[dim]` column via `@uwdata/flechette`) — JSON float arrays are too large. Model + dimensionality are in the filename so switching models never collides. The Arrow file is written first and the JSON marker last, so a crash never leaves metadata pointing at missing vectors.
 - **The topic index is a bounded-fan-out DAG.** `WikiTopicIndex` stores `{ roots, nodes }` where each node is either a *category* (internal, `childKeys`, no refs) or an *index topic* (leaf, `references`, no children). A leaf may have several parent categories and a document reference may sit under several leaves (many-to-many, acyclic). The flat `leaves()` view is what retrieval and the CLI iterate; `roots()`/`children()` expose the hierarchy and back `WikiToc.suggest()`. Backward compatibility: a flat `{ topics: [] }` artifact is detected on read and lifted to a DAG (every topic becomes an index topic under `roots`), so no migration step is needed.
 
@@ -267,7 +281,7 @@ Two things that trip people up:
 
 ### What it depends on, and why
 
-- `@statewalker/workspace.core` — the `Workspace`/`Project`/`Resource` model, `ResourceAdapter`/`ProjectAdapter`, and the `ProjectBuilder` build adapter (a `BuildEngine<Project>` from `@statewalker/webrun-builder`) the whole pipeline rides on.
+- `@statewalker/workspace.core` — the `Workspace`/`Project`/`Resource` model, `ResourceAdapter`/`ProjectAdapter`, and the `ProjectBuilder` build adapter (over the `@statewalker/webrun-builder` engine) the whole pipeline rides on.
 - `@statewalker/content-extractors` — mime-aware text extraction registry (`createDefaultRegistry`) behind `ContentAdapter`.
 - `@statewalker/indexer-api` / `-fulltext` / `-vector` / `-mem-flexsearch` — the FTS + vector index abstractions and the in-memory FlexSearch backend behind `SearchAdapter`.
 - `@statewalker/fsm` (+ `-validator` in tests) — the query retrieval state machine.

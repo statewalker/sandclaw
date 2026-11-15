@@ -8,6 +8,8 @@ import {
   type LlmApi,
   ResourceTextContentCache,
   registerWiki,
+  restartWikiBuilders,
+  SearchAdapter,
   WikiPageEmbeddings,
   WikiPageMeta,
   WikiPageSummary,
@@ -29,9 +31,14 @@ function tracker() {
   const calls: { name: string; uri?: string }[] = [];
   // Per-uri topic key, mutable so a test can drop a topic on re-ingest.
   const topicByUri = new Map<string, string>();
+  // Uris whose summarization throws (a failing LLM call), to test failure isolation.
+  const failSummarize = new Set<string>();
   const generateObject: LlmApi["generateObject"] = async (spec) => {
     const input = spec.input as { uri?: string; rawLines?: [number, string][] };
     calls.push({ name: spec.name, uri: input.uri });
+    if (spec.name === "summarize-document" && failSummarize.has(input.uri ?? "")) {
+      throw new Error("summarize failed");
+    }
     const out = (o: unknown) => ({
       output: o as never,
       usage: { inputTokens: 0, outputTokens: 0 },
@@ -97,7 +104,7 @@ function tracker() {
     }
   };
   const llm = makeStubLlm({ generateObject, embed });
-  return { llm, calls, topicByUri };
+  return { llm, calls, topicByUri, failSummarize };
 }
 
 async function writeFile(filesApi: FilesApi, path: string, text: string): Promise<void> {
@@ -139,9 +146,7 @@ describe("wiki builders — incremental behaviour", () => {
 
   async function scan(project: Awaited<ReturnType<typeof openProject>>) {
     const builder = wireWikiProject(project);
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
     return builder;
   }
 
@@ -237,14 +242,12 @@ describe("wiki builders — incremental behaviour", () => {
     const builder = wireWikiProject(project);
     await builder.restartFrom("Summarizer");
     t.calls.length = 0;
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
     // Re-triggered, but the source hash is unchanged → the summarizer does no work.
     expect(t.calls.filter((c) => c.name === "summarize-document")).toEqual([]);
   });
 
-  it("invalidating Summarizer rebuilds a deleted downstream artifact without LLM (emit-on-skip)", async () => {
+  it("restartFrom('Embedder') rebuilds a deleted embeddings artifact without LLM generation", async () => {
     const project = await openProject();
     await scan(project);
     const resource = await project.getProjectResource("a.md");
@@ -255,17 +258,14 @@ describe("wiki builders — incremental behaviour", () => {
     expect(vectors?.get("s")).toBeInstanceOf(Float32Array);
     expect(vectors?.get("s")?.length).toBe(DIM);
 
-    // Delete the embeddings artifact, then invalidate Summarizer (+ downstream).
+    // Delete the embeddings artifact, then restart the Embedder: the stages above it are not
+    // re-run, and the embeddings are recreated from the (fresh) summary.
     await filesApi.remove("proj/.project/pages/a.md/embeddings.fx.2.json");
     const builder = wireWikiProject(project);
-    await builder.restartFrom("Summarizer");
+    await builder.restartFrom("Embedder");
     t.calls.length = 0;
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
 
-    // No LLM: summaries/meta are fresh and hash-skip. But the Summarizer re-emits
-    // `summarized`, so the Embedder re-runs and recreates the deleted embeddings.
     expect(t.calls.filter((c) => c.name === "summarize-document")).toEqual([]);
     expect(t.calls.filter((c) => c.name === "extract-document-meta")).toEqual([]);
     expect(await resource?.requireAdapter(WikiPageEmbeddings).getMeta("fx", DIM)).toBeDefined();
@@ -278,9 +278,7 @@ describe("wiki builders — incremental behaviour", () => {
     const builder = wireWikiProject(project, { force: true });
     await builder.restartFrom("Summarizer");
     t.calls.length = 0;
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
     expect(
       t.calls
         .filter((c) => c.name === "summarize-document")
@@ -308,5 +306,106 @@ describe("wiki builders — incremental behaviour", () => {
     expect(rawMeta?.hash).toMatch(/^[0-9a-f]{64}$/);
     expect((await resource.requireAdapter(WikiPageSummary).get())?.sourceHash).toBe(rawMeta?.hash);
     expect((await resource.requireAdapter(WikiPageMeta).get())?.sourceHash).toBe(rawMeta?.hash);
+  });
+  it("removing a source removes its page from the search index", async () => {
+    const project = await openProject();
+    await scan(project);
+    const search = project.requireAdapter(SearchAdapter);
+    expect((await search.search({ query: "Bravo" })).map((m) => m.uri)).toContain("b.md");
+
+    await filesApi.remove("proj/b.md");
+    await scan(project);
+    expect((await search.search({ query: "Bravo" })).map((m) => m.uri)).not.toContain("b.md");
+  });
+
+  it("a failing re-summarization keeps the page in the topic and search indexes", async () => {
+    const project = await openProject();
+    await scan(project);
+    t.failSummarize.add("b.md");
+    await writeFile(filesApi, "proj/b.md", "Bravo v2.");
+    // The failure is isolated: the run completes.
+    await scan(project);
+
+    expect(t.calls.some((c) => c.name === "summarize-document" && c.uri === "b.md")).toBe(true);
+    // The previous artifacts are kept downstream, not retracted.
+    expect(await project.requireAdapter(WikiTopicIndex).get("bravo")).toBeDefined();
+    const search = project.requireAdapter(SearchAdapter);
+    expect((await search.search({ query: "Bravo" })).map((m) => m.uri)).toContain("b.md");
+  });
+
+  it("after an upgrade (new build state) valid artifacts are reused and removed sources stripped", async () => {
+    const project = await openProject();
+    await scan(project);
+    // A 0.5-era state file is ignored; the new engine's state is dropped, as on upgrade.
+    await writeFile(filesApi, "proj/.project/state/transactions.json", "{}");
+    await filesApi.remove("proj/.project/state/build");
+    await filesApi.remove("proj/b.md");
+
+    // A fresh workspace over the same files: nothing of the previous build state survives.
+    repository = new Workspace().setFileSystem(filesApi);
+    registerWiki(repository, { llm: t.llm });
+    const reopened = await openProject();
+    t.calls.length = 0;
+    await scan(reopened);
+
+    // a.md's summary and meta match its source hash: reused, no LLM call.
+    expect(t.calls.filter((c) => c.name === "summarize-document")).toEqual([]);
+    expect(t.calls.filter((c) => c.name === "extract-document-meta")).toEqual([]);
+    // The topic index keeps a.md and drops the removed b.md.
+    expect(await reopened.requireAdapter(WikiTopicIndex).get("alpha")).toBeDefined();
+    expect(await reopened.requireAdapter(WikiTopicIndex).get("bravo")).toBeUndefined();
+    const search = reopened.requireAdapter(SearchAdapter);
+    expect((await search.search({ query: "Acme" })).map((m) => m.uri)).toContain("a.md");
+    // The removed b.md never had a `sources` row in the new engine: the orphan sweep removes
+    // it from the search index and deletes its artifact folder.
+    expect((await search.search({ query: "Bravo" })).map((m) => m.uri)).not.toContain("b.md");
+    expect(await filesApi.stats("proj/.project/pages/b.md/raw.meta.json")).toBeFalsy();
+    expect(await filesApi.stats("proj/.project/pages/a.md/raw.meta.json")).toBeTruthy();
+  });
+
+  it("after an upgrade, an interrupted first scan keeps the topics of documents not scanned yet", async () => {
+    // More documents than one scan batch (16): the first post-upgrade run sees only part of
+    // them, and must not strip the others from the topic index.
+    for (let i = 0; i < 40; i++) {
+      const name = `d${String(i).padStart(2, "0")}.md`;
+      await writeFile(filesApi, `proj/${name}`, `Doc ${i}.`);
+      t.topicByUri.set(name, `topic-${i}`);
+    }
+    const project = await openProject();
+    await scan(project);
+    const topics = async (p: typeof project) => {
+      const index = await p.requireAdapter(WikiTopicIndex).read();
+      return Object.values(index.nodes).filter((n) => n.kind === "topic").length;
+    };
+    expect(await topics(project)).toBe(42);
+
+    await filesApi.remove("proj/.project/state/build");
+    repository = new Workspace().setFileSystem(filesApi);
+    registerWiki(repository, { llm: t.llm });
+    const reopened = await openProject();
+    const builder = wireWikiProject(reopened);
+    // Stop at the second scan step: the first batch went through the whole pipeline.
+    let scans = 0;
+    for await (const step of builder.steps()) {
+      if (step.kind === "scan" && ++scans === 2) break;
+    }
+    expect(await topics(reopened)).toBe(42);
+  });
+
+  it("restartWikiBuilders with force re-derives every stage", async () => {
+    const project = await openProject();
+    await scan(project);
+
+    const builder = wireWikiProject(project, { force: true });
+    await restartWikiBuilders(builder);
+    t.calls.length = 0;
+    await builder.run();
+    const names = (name: string) =>
+      t.calls
+        .filter((c) => c.name === name)
+        .map((c) => c.uri)
+        .sort();
+    expect(names("summarize-document")).toEqual(["a.md", "b.md"]);
+    expect(names("extract-document-meta")).toEqual(["a.md", "b.md"]);
   });
 });

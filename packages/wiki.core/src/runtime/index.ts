@@ -7,6 +7,7 @@ export {
 export {
   createWikiBuilders,
   registerWiki,
+  restartWikiBuilders,
   type WikiBuildOptions,
   type WikiDeps,
   wikiNature,

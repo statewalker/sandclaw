@@ -15,7 +15,6 @@ export {
 } from "./indexes.js";
 export {
   META_BUILDER_ID,
-  META_REMOVED_TOPICS_SIGNAL,
   META_SIGNAL,
   metaBuilder,
   normalizeMeta,
@@ -47,6 +46,8 @@ export {
 export { reclusterTopics } from "./recluster.js";
 export {
   ATTRIBUTE_BATCH_SIZE,
+  ORPHAN_SWEEP_BUILDER_ID,
+  orphanSweepBuilder,
   PRUNE_BUILDER_ID,
   pruneBuilder,
   REORGANIZE_BUILDER_ID,

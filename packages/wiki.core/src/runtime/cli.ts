@@ -15,7 +15,12 @@ import { type QueryProgress, WikiQuery } from "../query/index.js";
 import { SearchAdapter } from "../search/index.js";
 import { PinoLoggerAdapter } from "./logger.js";
 import { resolveProvidersFromEnv } from "./providers.js";
-import { registerWiki, type WikiDeps, wireWikiProject } from "./register-wiki.js";
+import {
+  registerWiki,
+  restartWikiBuilders,
+  type WikiDeps,
+  wireWikiProject,
+} from "./register-wiki.js";
 import {
   buildSearchDocuments,
   renderSearchDocuments,
@@ -356,21 +361,28 @@ export async function runWikiCli(args: string[], deps: CliDeps): Promise<void> {
       if (started.resumedFrom) {
         warn(`  resuming build (carried over from session ${started.resumedFrom})`);
       }
-      const builders: { id: string; result: boolean }[] = [];
+      // Per-stage totals over the run's committed batches.
+      const totals = new Map<string, { executed: number; failed: number }>();
       try {
-        for await (const stage of builder.run()) {
-          if (stage.type === "call") {
-            warn(`  ${stage.builderId}: ${stage.result ? "ok" : "interrupted"}`);
-            builders.push({
-              id: stage.builderId,
-              result: Boolean(stage.result),
-            });
+        if (force) await restartWikiBuilders(builder);
+        for await (const step of builder.steps()) {
+          if (step.kind === "scan") {
+            if (step.changed || step.removed) {
+              warn(`  sources: ${step.changed} changed, ${step.removed} removed`);
+            }
+            continue;
           }
+          const t = totals.get(step.builder) ?? { executed: 0, failed: 0 };
+          t.executed += step.executed;
+          t.failed += step.failed;
+          totals.set(step.builder, t);
         }
       } finally {
         // Always finalize the session — even on an error/interrupt the stats so far persist.
         await session.finish();
       }
+      const builders = [...totals].map(([id, t]) => ({ id, ...t }));
+      for (const b of builders) warn(`  ${b.id}: ${b.executed} task(s), ${b.failed} failed`);
       const stats = session.current;
       if (stats) {
         warn(
@@ -394,17 +406,17 @@ export async function runWikiCli(args: string[], deps: CliDeps): Promise<void> {
     case "status": {
       const builder = wireWikiProject(project, { force });
       const status = await builder.status();
-      for (const b of status.builders) {
-        warn(`  ${b.id}: pending=${b.pending} tx=${b.lastTransaction}`);
-      }
+      const builders = builder.registeredBuilders().map((id) => ({
+        id,
+        queued: status.queued[id] ?? 0,
+      }));
+      for (const b of builders) warn(`  ${b.id}: queued=${b.queued}`);
+      if (status.deadLetters > 0) warn(`  failed tasks: ${status.deadLetters}`);
       emit({
         command: "status",
         project: projectKey,
-        builders: status.builders.map((b) => ({
-          id: b.id,
-          pending: b.pending,
-          lastTransaction: b.lastTransaction,
-        })),
+        builders,
+        deadLetters: status.deadLetters,
       });
       break;
     }
@@ -518,11 +530,10 @@ export async function runWikiCli(args: string[], deps: CliDeps): Promise<void> {
       break;
     }
     case "invalidate": {
-      // Reset one or more build stages (and everything downstream): clears their
-      // transaction watermarks and handled-input rows so the next `scan` re-runs
-      // them. Upstream stages re-emit their outputs on a hash-skip, so this
-      // rebuilds derived artifacts (embeddings, indexes) without re-running the
-      // LLM stages when the sources are unchanged.
+      // Queue every task of one or more build stages so the next `scan` re-runs them.
+      // A stage whose artifacts are still valid (same source hash) keeps them and does
+      // not call the LLM; the stages below it re-run only where its outputs change, so
+      // name each stage to rebuild (e.g. `Embedder` to recreate deleted embeddings).
       const builder = wireWikiProject(project, { force });
       const stages = rest.filter((r) => r !== "force");
       if (stages.length === 0) {
@@ -537,7 +548,7 @@ export async function runWikiCli(args: string[], deps: CliDeps): Promise<void> {
       }
       for (const stage of stages) {
         await builder.restartFrom(stage);
-        warn(`invalidated ${stage} (and its downstream stages)`);
+        warn(`invalidated ${stage}`);
       }
       warn("run `scan` to rebuild the invalidated stages");
       emit({ command: "invalidate", project: projectKey, invalidated: stages });

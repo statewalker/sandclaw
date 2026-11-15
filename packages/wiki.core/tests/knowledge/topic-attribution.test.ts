@@ -136,9 +136,7 @@ async function setup(opts: { embed?: boolean } = {}) {
     );
   };
   const run = async () => {
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
   };
   const index = () => project.requireAdapter(WikiTopicIndex).read();
   const leafKeys = async () =>

@@ -144,9 +144,7 @@ async function buildWorkspace(): Promise<Workspace> {
     dimensionality: DIM,
   });
   const builder = wireWikiProject(project);
-  for await (const _ of builder.run()) {
-    // drain
-  }
+  await builder.run();
   return workspace;
 }
 

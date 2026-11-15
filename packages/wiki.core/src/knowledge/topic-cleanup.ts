@@ -1,10 +1,4 @@
-import {
-  type BuilderUpdate,
-  loggerOf,
-  type Project,
-  ProjectBuilder,
-  type RegisteredBuilder,
-} from "@statewalker/workspace.core";
+import { loggerOf, type Project, type RegisteredBuilder } from "@statewalker/workspace.core";
 import {
   BuildTracer,
   buildSessionOf,
@@ -128,40 +122,32 @@ async function cleanupTopics(
 }
 
 /**
- * The cleanup builder: on `topic-tree` changes, merges scattered near-duplicate
- * index topics (vector-NN clusters → bounded LLM merge adjudication) and refines
- * any leaf left overgrown. Emits no signal (no self-retrigger); idempotent — a
+ * The cleanup builder, a reduce over `topic-tree`: after each topic-DAG change, merges
+ * scattered near-duplicate index topics (vector-NN clusters → bounded LLM merge adjudication)
+ * and refines any leaf left overgrown. Emits nothing (no self-retrigger); idempotent — a
  * second run over a clean index finds no near-duplicates and does nothing.
  */
 export function topicCleanupBuilder(): RegisteredBuilder {
   return {
     id: TOPIC_CLEANUP_BUILDER_ID,
+    kind: "reduce",
     inputs: [TOPIC_TREE_SIGNAL],
     outputs: [],
-    // biome-ignore lint/correctness/useYield: rebuilds a global artifact; emits no signal
-    async *handler(project) {
-      const builder = project.requireAdapter(ProjectBuilder);
+    async run(ctx, project) {
+      // A reduce runs at least once: nothing to clean before the first index exists.
+      if ((await ctx.list(TOPIC_TREE_SIGNAL)).length === 0) return;
       const log = loggerOf(project, TOPIC_CLEANUP_BUILDER_ID);
-      const llm = llmOf(project);
-      const cfg = wikiConfigOf(project);
       const tracer = new BuildTracer(log, TOPIC_CLEANUP_BUILDER_ID, buildSessionOf(project));
-      const tracedLlm = tracer.wrap(llm);
-      const pending: BuilderUpdate[] = [];
-      for await (const u of builder.readUpdates({
-        signal: TOPIC_TREE_SIGNAL,
-        cell: TOPIC_CLEANUP_BUILDER_ID,
-      })) {
-        pending.push(u);
-      }
-      if (pending.length > 0) {
-        // Clean up first; only then mark handled, so an interrupt re-triggers.
-        const changed = await cleanupTopics(project, tracedLlm, cfg);
+      try {
+        const changed = await cleanupTopics(
+          project,
+          tracer.wrap(llmOf(project)),
+          wikiConfigOf(project),
+        );
         if (changed) log.info("cleaned up topic index");
-        for (const u of pending) await u.handled();
+      } finally {
+        tracer.totals();
       }
-      tracer.totals();
-      await builder.yieldControl();
-      return true;
     },
   };
 }

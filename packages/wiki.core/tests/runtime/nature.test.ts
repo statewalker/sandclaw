@@ -201,9 +201,7 @@ describe("wiki nature — composed (mounted folder → index → wiki_ask)", () 
 
     // Run the nature's index builders over the mounted folder.
     const builder = wireWikiProject(project);
-    for await (const _ of builder.run()) {
-      // drain
-    }
+    await builder.run();
 
     // Ask through the M3a path: the wiki_ask agent tool → WikiQuery.ask → grounded answer.
     const tools = createWikiTools(workspace);
