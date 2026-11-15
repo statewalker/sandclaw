@@ -187,17 +187,17 @@ catalogs:
       specifier: ^0.3.0
       version: 0.3.1
     '@statewalker/indexer-api':
-      specifier: ^0.1.0
-      version: 0.1.4
+      specifier: ^0.1.5
+      version: 0.1.5
     '@statewalker/indexer-fulltext':
-      specifier: ^0.1.0
-      version: 0.1.5
+      specifier: ^0.1.6
+      version: 0.1.6
     '@statewalker/indexer-mem-flexsearch':
-      specifier: ^0.1.0
-      version: 0.1.5
+      specifier: ^0.2.0
+      version: 0.2.0
     '@statewalker/indexer-vector':
-      specifier: ^0.1.0
-      version: 0.1.5
+      specifier: ^0.1.6
+      version: 0.1.6
     '@statewalker/inline.core':
       specifier: ^0.4.0
       version: 0.4.2
@@ -1645,16 +1645,16 @@ importers:
         version: 0.38.2
       '@statewalker/indexer-api':
         specifier: 'catalog:'
-        version: 0.1.4
+        version: 0.1.5
       '@statewalker/indexer-fulltext':
         specifier: 'catalog:'
-        version: 0.1.5
+        version: 0.1.6
       '@statewalker/indexer-mem-flexsearch':
         specifier: 'catalog:'
-        version: 0.1.5
+        version: 0.2.0
       '@statewalker/indexer-vector':
         specifier: 'catalog:'
-        version: 0.1.5
+        version: 0.1.6
       '@statewalker/shared-adapters':
         specifier: 'catalog:'
         version: 0.1.4
@@ -5720,23 +5720,23 @@ packages:
   '@statewalker/httpeers-share@0.3.1':
     resolution: {integrity: sha512-ak39uIS3KsY2YlDy4+llqm/jxbRW8qNtPmF+XDa2/BY5kj12elY9MfJx36dq5Fn6GLl4EWs+6okjld/2aEr5SA==}
 
-  '@statewalker/indexer-api@0.1.4':
-    resolution: {integrity: sha512-uE4GSoXDPb7twu341AQQIQFY/u6i5WyQVY/rzdt1vSkIoqpkeESvVvv7c8TeZ7hgyXnYDDttDv2fLSB3uTiOuQ==}
+  '@statewalker/indexer-api@0.1.5':
+    resolution: {integrity: sha512-tHI2TUYhr9DssFC3C7EWLP4ZDk1NSoK5nEwM8XJJx+yIKZN5Rrp3KmwRvqO9dN9OimhfjE/hkj/Y3deEZvL7Uw==}
 
-  '@statewalker/indexer-core@0.1.4':
-    resolution: {integrity: sha512-IgsukcAiIGPLMwinp8S0/OY0IrXoJxjOqy0iJeTEdMlglx529/fl9W4+P3fO8wiO1+CjLgsjcfMHDosTG+2ZWw==}
+  '@statewalker/indexer-core@0.2.0':
+    resolution: {integrity: sha512-ScI/p462eik4K4DBuTbAYRz4UqfKviaeAr4HSFE1YNitGKhavUsG/IBRYXDMXI1K57N8ceaMruzPYpCPTovbWg==}
 
-  '@statewalker/indexer-fulltext@0.1.5':
-    resolution: {integrity: sha512-3q5/JJEWTsZNs55MKQNDSCzewihXzE7Olz7oBstYd5yHXm4ZsrKQHHNYdPEE6855m+wU64MRKzQ7C3EjwQ3L6Q==}
+  '@statewalker/indexer-fulltext@0.1.6':
+    resolution: {integrity: sha512-zDLvig3WLax7QcMzHAVXpfqPFo+QrTo5SZLLwUk5BG4j/pRcGMURmRcF6seYPnzonyOq0ddof3MOnmFiIhCIbg==}
 
-  '@statewalker/indexer-mem-flexsearch@0.1.5':
-    resolution: {integrity: sha512-Ke/X8q0M/0xD6G0DOD3Nnf3NrfDmssSQH6UHhN0QQ30xEmLVdq3xZH6HkajTaMn5ub5mx+g6kR69OSxOpzmbsg==}
+  '@statewalker/indexer-mem-flexsearch@0.2.0':
+    resolution: {integrity: sha512-n2j9aUdyR/j+GRNZd7aAcxW+X6Anw2RnUNzndNInc/caRpdJixEXdnMZi2wZ7C8qQy1JqYVP6p5zXDl2EbqHow==}
 
-  '@statewalker/indexer-mem@0.1.5':
-    resolution: {integrity: sha512-BQE0ss8AlpInp8G/QGTUW6Qw8KGNNemoQW5iNIQcjjUPzijA6p4xTdGQ/0CsTC0gSI9+gcDn6iczKSsUMtUrtw==}
+  '@statewalker/indexer-mem@0.2.0':
+    resolution: {integrity: sha512-qi3EQEf5U/yw/LOTrbQVJuZBBkkoFZ7sV1bv1q4ksEikja28iC9odvF2KqS3h9a2BVFzalz+BcC7keONkBkbJA==}
 
-  '@statewalker/indexer-vector@0.1.5':
-    resolution: {integrity: sha512-py3T7Oy2V+s1+EQa6p9r2ToWrXpDGprRV0/tk1ldOnJckIOKYzbVtamSmCdYxoYUW3499+bLTXV5OpfU+t0tQw==}
+  '@statewalker/indexer-vector@0.1.6':
+    resolution: {integrity: sha512-/ZLcaeF4XnaJXy/+gMS/pRDk7AENMYZpjUJctLXJqS7mUP9tHIKuoUHqspxiXBLCGBAnHNeoviAW5TfvwBCF4A==}
 
   '@statewalker/inline.core@0.4.2':
     resolution: {integrity: sha512-OmxlVb40zfmzkNQhWqckqZyGtMMebqVEoca12GI70KcHwcAnYtJxD3Jtp1kK0mZbDJEpR4JCeWQe7x57t+lcDQ==}
@@ -15357,36 +15357,36 @@ snapshots:
       - react-native-webrtc
       - utf-8-validate
 
-  '@statewalker/indexer-api@0.1.4': {}
+  '@statewalker/indexer-api@0.1.5': {}
 
-  '@statewalker/indexer-core@0.1.4':
+  '@statewalker/indexer-core@0.2.0':
     dependencies:
-      '@statewalker/indexer-api': 0.1.4
-      '@statewalker/indexer-fulltext': 0.1.5
-      '@statewalker/indexer-vector': 0.1.5
+      '@statewalker/indexer-api': 0.1.5
+      '@statewalker/indexer-fulltext': 0.1.6
+      '@statewalker/indexer-vector': 0.1.6
 
-  '@statewalker/indexer-fulltext@0.1.5':
+  '@statewalker/indexer-fulltext@0.1.6':
     dependencies:
-      '@statewalker/indexer-api': 0.1.4
+      '@statewalker/indexer-api': 0.1.5
 
-  '@statewalker/indexer-mem-flexsearch@0.1.5':
+  '@statewalker/indexer-mem-flexsearch@0.2.0':
     dependencies:
-      '@statewalker/indexer-api': 0.1.4
-      '@statewalker/indexer-core': 0.1.4
-      '@statewalker/indexer-fulltext': 0.1.5
-      '@statewalker/indexer-mem': 0.1.5
+      '@statewalker/indexer-api': 0.1.5
+      '@statewalker/indexer-core': 0.2.0
+      '@statewalker/indexer-fulltext': 0.1.6
+      '@statewalker/indexer-mem': 0.2.0
       flexsearch: 0.8.212
 
-  '@statewalker/indexer-mem@0.1.5':
+  '@statewalker/indexer-mem@0.2.0':
     dependencies:
-      '@statewalker/indexer-api': 0.1.4
-      '@statewalker/indexer-core': 0.1.4
-      '@statewalker/indexer-vector': 0.1.5
+      '@statewalker/indexer-api': 0.1.5
+      '@statewalker/indexer-core': 0.2.0
+      '@statewalker/indexer-vector': 0.1.6
       '@uwdata/flechette': 2.5.0
 
-  '@statewalker/indexer-vector@0.1.5':
+  '@statewalker/indexer-vector@0.1.6':
     dependencies:
-      '@statewalker/indexer-api': 0.1.4
+      '@statewalker/indexer-api': 0.1.5
 
   '@statewalker/inline.core@0.4.2':
     dependencies:
