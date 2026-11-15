@@ -47,10 +47,10 @@ catalog:
   "@statewalker/explorer.view.react": "^0.3.0"
   "@statewalker/fsm": ^0.38.1
   "@statewalker/fsm-validator": ^0.2.0
-  "@statewalker/indexer-api": ^0.1.0
-  "@statewalker/indexer-fulltext": ^0.1.0
-  "@statewalker/indexer-mem-flexsearch": ^0.1.0
-  "@statewalker/indexer-vector": ^0.1.0
+  "@statewalker/indexer-api": ^0.1.5
+  "@statewalker/indexer-fulltext": ^0.1.6
+  "@statewalker/indexer-mem-flexsearch": ^0.2.0
+  "@statewalker/indexer-vector": ^0.1.6
   "@statewalker/inline.core": "^0.4.0"
   "@statewalker/inline.view.react": "^0.3.0"
   "@statewalker/mime.core": "^0.7.0"
