@@ -9,8 +9,8 @@ name: PeerShare site
 # and the help site (apps/peershare.help, Astro: usage, architecture, why it is safe) under /help/.
 #
 # Needs the HTTPEERS_S3_ACCESS_KEY_ID and HTTPEERS_S3_SECRET_ACCESS_KEY repository secrets: a
-# RustFS user that may write only the peershare.httpeers.net and s.httpeers.net prefixes of the
-# bucket, made and stored by statewalker/cellb.dev's site/scripts/setup-publish-secrets.sh
+# RustFS user that may write only the peershare.httpeers.net, s.httpeers.net and
+# peershare-demo.httpeers.net prefixes of the bucket, made and stored by statewalker/cellb.dev's site/scripts/setup-publish-secrets.sh
 # (REPO=statewalker/sandclaw SITE_USER=peershare-site SITE_DOMAIN=peershare.httpeers.net
 # SITE_DOMAINS="peershare.httpeers.net s.httpeers.net peershare-demo.httpeers.net"; the last
 # is the example site's, peershare-demo-site.yml: re-running without it takes it away). They are the names cellb.dev uses;
