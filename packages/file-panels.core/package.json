@@ -1,6 +1,6 @@
 {
   "name": "@statewalker/file-panels.core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": false,
   "type": "module",
   "description": "What a file panel does: breadcrumb, safe copy and move across storages with byte progress, file operations with change events, and a panel model.",
