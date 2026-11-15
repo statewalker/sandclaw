@@ -75,13 +75,9 @@ Run one package's scripts with `pnpm --filter <name> <script>`, for example `pnp
 | `pnpm run lint` / `pnpm run lint:check` | Biome check, with or without writing fixes. |
 | `pnpm run format` / `pnpm run format:check` | Biome format, with or without writing. |
 
-### Releases are published by hand, not by CI
+### Releases are published by CI, from the version pull request
 
-CI only runs the checks; it never publishes. The public packages are released by the maintainer from a local checkout of `main`, with npm 2FA:
-
-1. `pnpm changeset` for each change to release, then `pnpm changeset version` to bump the versions and write the changelogs; commit that.
-2. `pnpm run build`, then `pnpm pack` in each package whose new version is not on npm. `pnpm pack` turns `workspace:` and `catalog:` dependencies into version ranges; a plain `npm publish` from the package folder would ship them unresolved.
-3. `npm publish <tarball> --access public`, dependencies first (`file-mounts.core` before `file-panels.core`, `wiki.core` before `wiki.view.react`).
+After CI passes on `main`, a job writes a changeset for every public package whose packed contents differ from npm and opens a "chore: version packages" pull request. Merging it packs the new versions (`pnpm pack` turns `workspace:` and `catalog:` dependencies into version ranges) and publishes them with npm trusted publishing and provenance, dependencies first (`file-mounts.core` before `file-panels.core`, `wiki.core` before `wiki.view.react`). Nobody publishes from a local checkout; see `.changeset/README.md` for the one exception, a new package's first version.
 
 A newly published package can answer 404 for a few minutes: npm replies "Your package is being processed and may take a few minutes to become available".
 

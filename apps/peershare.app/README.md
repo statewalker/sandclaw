@@ -129,7 +129,7 @@ so in a Guest's isolated origin every page, image and JSON file comes over the m
 
 `.github/workflows/peershare-demo-site.yml` publishes `example-site/` as it is (no build step)
 whenever a push to `main` changes it, which includes merging a pull request. It can also be run by
-hand. It uses statewalker/.github's `publish-site.yml`, which copies the files to httpeers' `sites`
+hand. It uses statewalker/statewalker-ci's `publish-site.yml`, which copies the files to httpeers' `sites`
 bucket under the prefix `peershare-demo.httpeers.net`. The sites host serves them from there at
 once, and the wildcard DNS and certificate for `*.httpeers.net` cover the name, so there is no DNS
 or certificate step.
