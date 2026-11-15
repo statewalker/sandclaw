@@ -9,11 +9,13 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck:tests": "tsc -p tsconfig.tests.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "astro": "catalog:",
+    "typescript": "catalog:",
     "vitest": "catalog:"
   },
   "repository": {

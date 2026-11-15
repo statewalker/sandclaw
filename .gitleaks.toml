@@ -1,0 +1,10 @@
+# gitleaks configuration for the secret scan (statewalker/statewalker-ci's check-secrets.mjs).
+[extend]
+useDefault = true
+
+# False positives of generic-api-key: TypeScript type annotations such as
+# `privateKey: Ed25519PrivateKey;` (apps/peershare.share), which name a type, not a value.
+[[allowlists]]
+description = "TypeScript annotations of the Ed25519PrivateKey type"
+regexTarget = "match"
+regexes = ['''(?i)key\s*:\s*Ed25519PrivateKey\b''']
