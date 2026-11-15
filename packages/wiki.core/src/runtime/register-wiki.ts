@@ -14,6 +14,7 @@ import {
   EMBEDDED_SIGNAL,
   embedderBuilder,
   metaBuilder,
+  orphanSweepBuilder,
   pruneBuilder,
   registerKnowledgeAdapters,
   reorganizeBuilder,
@@ -192,6 +193,7 @@ export function createWikiBuilders(opts: WikiBuildOptions = {}): RegisteredBuild
     reorganizeBuilder(),
     topicCleanupBuilder(),
     pruneBuilder(),
+    orphanSweepBuilder(),
     searchBuilder({ inputSignal: EMBEDDED_SIGNAL }),
   ];
 }

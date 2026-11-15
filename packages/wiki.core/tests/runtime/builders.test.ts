@@ -356,6 +356,40 @@ describe("wiki builders — incremental behaviour", () => {
     expect(await reopened.requireAdapter(WikiTopicIndex).get("bravo")).toBeUndefined();
     const search = reopened.requireAdapter(SearchAdapter);
     expect((await search.search({ query: "Acme" })).map((m) => m.uri)).toContain("a.md");
+    // The removed b.md never had a `sources` row in the new engine: the orphan sweep removes
+    // it from the search index and deletes its artifact folder.
+    expect((await search.search({ query: "Bravo" })).map((m) => m.uri)).not.toContain("b.md");
+    expect(await filesApi.stats("proj/.project/pages/b.md/raw.meta.json")).toBeFalsy();
+    expect(await filesApi.stats("proj/.project/pages/a.md/raw.meta.json")).toBeTruthy();
+  });
+
+  it("after an upgrade, an interrupted first scan keeps the topics of documents not scanned yet", async () => {
+    // More documents than one scan batch (16): the first post-upgrade run sees only part of
+    // them, and must not strip the others from the topic index.
+    for (let i = 0; i < 40; i++) {
+      const name = `d${String(i).padStart(2, "0")}.md`;
+      await writeFile(filesApi, `proj/${name}`, `Doc ${i}.`);
+      t.topicByUri.set(name, `topic-${i}`);
+    }
+    const project = await openProject();
+    await scan(project);
+    const topics = async (p: typeof project) => {
+      const index = await p.requireAdapter(WikiTopicIndex).read();
+      return Object.values(index.nodes).filter((n) => n.kind === "topic").length;
+    };
+    expect(await topics(project)).toBe(42);
+
+    await filesApi.remove("proj/.project/state/build");
+    repository = new Workspace().setFileSystem(filesApi);
+    registerWiki(repository, { llm: t.llm });
+    const reopened = await openProject();
+    const builder = wireWikiProject(reopened);
+    // Stop at the second scan step: the first batch went through the whole pipeline.
+    let scans = 0;
+    for await (const step of builder.steps()) {
+      if (step.kind === "scan" && ++scans === 2) break;
+    }
+    expect(await topics(reopened)).toBe(42);
   });
 
   it("restartWikiBuilders with force re-derives every stage", async () => {

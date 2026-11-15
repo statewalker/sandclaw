@@ -46,6 +46,8 @@ export {
 export { reclusterTopics } from "./recluster.js";
 export {
   ATTRIBUTE_BATCH_SIZE,
+  ORPHAN_SWEEP_BUILDER_ID,
+  orphanSweepBuilder,
   PRUNE_BUILDER_ID,
   pruneBuilder,
   REORGANIZE_BUILDER_ID,

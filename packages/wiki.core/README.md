@@ -112,7 +112,8 @@ sources ─▶ Extractor ─▶ Summarizer ─▶ MetaExtractor ─▶ DocTopicE
    │                          ├─▶ TableExtractor (sections flagged as holding tables)
    │                          └─▶ Embedder ─▶ SearchIndexer ─▶ wiki-search index (FTS + vector)
    │                              (embedded)
-   └─▶ IndexPruner (on removal: deletes the page's artifact folder)
+   ├─▶ IndexPruner (on removal: deletes the page's artifact folder)
+   └─▶ OrphanSweeper (without state: sweeps pages whose source is gone)
 
 query ─▶ WikiQuery.ask ─▶ QUERY_FSM ─▶ Answer { text, citations, topics, outliers, caveats }
 ```
@@ -128,6 +129,7 @@ Stages skip their costly LLM call when the source SHA-256 is unchanged, and re-e
 - Pages whose artifacts match their source hash and schema version (`summary.json`, `meta.json`, embeddings) are kept as they are: no summarization, meta or embedding call for them.
 - The topic index is re-attributed for every document (topic attribution may call the LLM for topics that match no existing index topic by key), and the search index is re-indexed from the artifacts.
 - Pages without valid artifacts are processed in full, as before.
+- A source deleted (or ignored) before that first scan never reaches the new engine: the `OrphanSweeper` stage deletes its artifact folder and removes it from the search index, and the reorganizer strips its topic references. Documents the scan has not reached yet keep their place in the indexes, so an interrupted first scan does not shrink them.
 
 To roll back, stay on (or return to) `@statewalker/wiki.core` 0.1.x with `@statewalker/workspace.core` 0.5.x. The 0.1 engine ignores `.project/state/build`: it continues from its own state files if they are still there (its scan re-detects the files changed since, by modification time), or rebuilds them, reusing the page artifacts by source hash in the same way. Page and index artifacts keep the same format in both versions, so either reads what the other wrote.
 

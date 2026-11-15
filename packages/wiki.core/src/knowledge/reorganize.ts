@@ -12,6 +12,7 @@ import {
   type WikiLlmConfiguration,
   wikiConfigOf,
 } from "../llm/index.js";
+import { SearchAdapter } from "../search/search-adapter.js";
 import { toBatch } from "../util/batch.js";
 import { DOC_TOPICS_EMBEDDED_SIGNAL } from "./doc-topic-embedder.js";
 import { WikiOutlierIndex, WikiTopicIndex } from "./indexes.js";
@@ -24,6 +25,7 @@ import {
   SPLIT_CATEGORY_SYSTEM_PROMPT,
 } from "./prompts.js";
 import { type AttributeAction, attributeActionsSchema, attributeInputSchema } from "./schemas.js";
+import { pagesWithArtifacts, staleSourcePredicate } from "./stale-sources.js";
 import { cosine, WikiPageTopicEmbeddings, WikiTopicNodeEmbeddings } from "./topic-embeddings.js";
 import { addRefs, coinLeaf, finalizeIndex, resolveLeaf, rootsOf } from "./topic-graph.js";
 import { applyLocalSplits, embedNodes, toRef } from "./topic-maintenance.js";
@@ -39,6 +41,7 @@ import { isCategory } from "./types.js";
 
 export const REORGANIZE_BUILDER_ID = "IndexReorganizer";
 export const PRUNE_BUILDER_ID = "IndexPruner";
+export const ORPHAN_SWEEP_BUILDER_ID = "OrphanSweeper";
 /** Emitted (project-wide) after the topic DAG changes; drives automatic cleanup. */
 export const TOPIC_TREE_SIGNAL = "topic-tree";
 
@@ -351,8 +354,8 @@ interface ReorganizeState {
  * stripped first — so a removed document, or a topic a document no longer declares, leaves
  * the index; candidates that don't key/alias match go through embedding-candidate retrieval +
  * an LLM adjudication round, then local in-place splits keep nodes bounded. Without state
- * (the first run, or after `restartFrom`) it re-attributes every document, and strips the
- * ones the indexes reference but that are gone. Emits one `topic-tree` row, valued by when
+ * (the first run, or after `restartFrom`) it re-attributes every document in its input, and
+ * strips the documents the indexes reference whose source file is gone (or ignored). Emits one `topic-tree` row, valued by when
  * the indexes were last rebuilt, so cleanup runs after each change.
  */
 export function reorganizeBuilder(): RegisteredBuilder {
@@ -380,7 +383,12 @@ export function reorganizeBuilder(): RegisteredBuilder {
           touched.add(row.key);
           present.add(row.key);
         }
-        for (const uri of await indexedDocUris(project)) touched.add(uri);
+        // Documents the indexes reference that are not in the input yet: strip only those whose
+        // source is gone — the others are still to be scanned (the scan runs in batches).
+        const stale = await staleSourcePredicate(project);
+        for (const uri of await indexedDocUris(project)) {
+          if (!present.has(uri) && (await stale(uri))) touched.add(uri);
+        }
       }
       let generated = state?.generated;
       if (touched.size > 0) {
@@ -430,6 +438,43 @@ export function pruneBuilder(): RegisteredBuilder {
       } catch {
         // already gone — fine
       }
+    },
+  };
+}
+
+/**
+ * The orphan sweeper, an incremental reduce over `sources` that works only when it has no
+ * state (the first run after an upgrade, or after `restartFrom`). A source removed while the
+ * engine had no record of it never gets a `sources` row, so no pruner task dies for it and
+ * the search index never sees it removed: this sweep deletes the artifact folder of every
+ * page whose source is gone (or ignored), and removes the page from the search index.
+ */
+export function orphanSweepBuilder(): RegisteredBuilder {
+  return {
+    id: ORPHAN_SWEEP_BUILDER_ID,
+    kind: "reduce",
+    incremental: true,
+    inputs: [SOURCES_COLLECTION],
+    outputs: [],
+    async run(ctx, project) {
+      if (ctx.state === undefined) {
+        const log = loggerOf(project, ORPHAN_SWEEP_BUILDER_ID);
+        const stale = await staleSourcePredicate(project);
+        const search = project.getAdapter(SearchAdapter);
+        for (const uri of await pagesWithArtifacts(project)) {
+          if (!(await stale(uri))) continue;
+          log.debug("sweeping orphaned page", { uri });
+          await search?.removePage(uri);
+          try {
+            await project.workspace.files.remove(pageDirPath(project.root, uri));
+          } catch {
+            // already gone — fine
+          }
+        }
+        await search?.persist();
+      }
+      // Later source removals are handled by the pruner and the search indexer.
+      ctx.setState(true);
     },
   };
 }
