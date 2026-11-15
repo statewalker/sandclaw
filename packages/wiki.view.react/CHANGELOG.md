@@ -1,5 +1,24 @@
 # @statewalker/wiki.view.react
 
+## 0.2.0
+
+### Minor Changes
+
+- Release of the changes since the last published version:
+  
+  - @statewalker/mime.view.markdown ^0.2.0 -> ^0.3.0
+  - @statewalker/mime.core ^0.5.0 -> ^0.7.0
+  - @statewalker/render.core ^0.5.0 -> ^0.7.0
+  - @statewalker/shell.core ^0.5.0 -> ^0.7.0
+  - @statewalker/shell.view.react ^0.2.0 -> ^0.3.0
+  - @statewalker/ui.view.react ^0.2.0 -> ^0.3.0
+  - @statewalker/workspace.core ^0.5.0 -> ^0.7.0
+
+### Patch Changes
+
+- Updated dependencies [ebf50ca]
+  - @statewalker/wiki.core@0.2.0
+
 ## 0.1.3
 
 ### Patch Changes
