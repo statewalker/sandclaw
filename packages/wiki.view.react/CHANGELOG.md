@@ -1,5 +1,18 @@
 # @statewalker/wiki.view.react
 
+## 0.5.0
+
+### Minor Changes
+
+- Release of the changes since the last published version:
+  
+  - @statewalker/wiki.core crosses a breaking line
+
+### Patch Changes
+
+- Updated dependencies [06a4191]
+  - @statewalker/wiki.core@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
