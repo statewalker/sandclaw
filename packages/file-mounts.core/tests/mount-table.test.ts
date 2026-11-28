@@ -72,6 +72,24 @@ describe("FilesMountTable", () => {
     await expect(writeText(table.files, "/ro/a.md", "x")).rejects.toThrow();
   });
 
+  // webrun-files 0.12 resolves `..` before any mount or guard sees the path (sandclaw#61).
+  it("resolves `..` across mounts before the read-only guard sees the path", async () => {
+    const table = new FilesMountTable({ types: [memoryMountType()], secrets: unlocked });
+    await table.apply([mem("docs"), mem("ro", { readOnly: true })]);
+    await writeText(table.files, "/docs/../docs/a.md", "A");
+    expect(await readText(table.files, "/docs/a.md")).toBe("A");
+    await expect(writeText(table.files, "/docs/../ro/a.md", "x")).rejects.toThrow();
+    expect(await names(table, "/ro")).toEqual([]);
+  });
+
+  it("refuses a path that climbs above the root", async () => {
+    const table = new FilesMountTable({ types: [memoryMountType()], secrets: unlocked });
+    await table.apply([mem("docs")]);
+    await expect(writeText(table.files, "/docs/../../a.md", "x")).rejects.toThrow(
+      /climbs above the root/,
+    );
+  });
+
   it("an unmounted config is remembered but not listed", async () => {
     const table = new FilesMountTable({ types: [memoryMountType()], secrets: unlocked });
     await table.apply([mem("docs"), mem("off", { mounted: false })]);
